@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:JKalixto_System.Presentation.ViewModels"
+             x:Class="JKalixto_System.Presentation.Pages.CheckInPage"
+             x:DataType="vm:CheckInViewModel"
+             Title="{Binding Title}"
+             Shell.NavBarIsVisible="True"
+             BackgroundColor="{StaticResource ColorFondo}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="16">
+
+            <Label Text="Datos del huésped principal" FontSize="15" FontAttributes="Bold" />
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="DNI *" FontSize="12" TextColor="{StaticResource ColorTextoSecundario}" />
+                <Entry Text="{Binding DNI}" Placeholder="12345678" Keyboard="Numeric" BackgroundColor="{StaticResource ColorTarjeta}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Nombre completo *" FontSize="12" TextColor="{StaticResource ColorTextoSecundario}" />
+                <Entry Text="{Binding NombreCompleto}" Placeholder="Nombres y apellidos" BackgroundColor="{StaticResource ColorTarjeta}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Celular *" FontSize="12" TextColor="{StaticResource ColorTextoSecundario}" />
+                <Entry Text="{Binding Celular}" Placeholder="9XXXXXXXX" Keyboard="Telephone" BackgroundColor="{StaticResource ColorTarjeta}" />
+            </VerticalStackLayout>
+
+            <BoxView HeightRequest="1" Color="{StaticResource ColorBorde}" Margin="0,4" />
+
+            <!-- Facturación -->
+            <HorizontalStackLayout Spacing="10">
+                <Switch IsToggled="{Binding EsFactura}" OnColor="{StaticResource ColorAcento}" />
+                <Label Text="Requiere Factura (por defecto: Boleta)" VerticalOptions="Center" FontSize="13" />
+            </HorizontalStackLayout>
+
+            <VerticalStackLayout Spacing="12" IsVisible="{Binding EsFactura}">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="RUC (11 dígitos) *" FontSize="12" TextColor="{StaticResource ColorTextoSecundario}" />
+                    <Entry Text="{Binding RUC}" Placeholder="20123456789" Keyboard="Numeric" MaxLength="11" BackgroundColor="{StaticResource ColorTarjeta}" />
+                </VerticalStackLayout>
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="Razón Social *" FontSize="12" TextColor="{StaticResource ColorTextoSecundario}" />
+                    <Entry Text="{Binding RazonSocial}" Placeholder="Empresa S.A.C." BackgroundColor="{StaticResource ColorTarjeta}" />
+                </VerticalStackLayout>
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="Correo de facturación *" FontSize="12" TextColor="{StaticResource ColorTextoSecundario}" />
+                    <Entry Text="{Binding CorreoFacturacion}" Placeholder="correo@empresa.com" Keyboard="Email" BackgroundColor="{StaticResource ColorTarjeta}" />
+                </VerticalStackLayout>
+            </VerticalStackLayout>
+
+            <BoxView HeightRequest="1" Color="{StaticResource ColorBorde}" Margin="0,4" />
+
+            <!-- Acompañantes -->
+            <Label Text="Acompañantes (opcional)" FontSize="15" FontAttributes="Bold" />
+
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <Entry Grid.Column="0" Text="{Binding NuevoAcompanante}" Placeholder="Nombre del acompañante" BackgroundColor="{StaticResource ColorTarjeta}" />
+                <Button Grid.Column="1" Text="Agregar" Command="{Binding AgregarAcompananteCommand}"
+                        BackgroundColor="{StaticResource ColorTarjeta}" TextColor="{StaticResource ColorAcento}"
+                        BorderColor="{StaticResource ColorBorde}" BorderWidth="1" />
+            </Grid>
+
+            <CollectionView ItemsSource="{Binding Acompanantes}">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                        <Grid ColumnDefinitions="*,Auto" Padding="0,4">
+                            <Label Grid.Column="0" Text="{Binding .}" VerticalOptions="Center" FontSize="13" />
+                            <Border Grid.Column="1"
+                                    BackgroundColor="{StaticResource ColorMantenimiento}"
+                                    WidthRequest="26" HeightRequest="26" Padding="0">
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="13" />
+                                </Border.StrokeShape>
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnQuitarAcompananteTapped" />
+                                </Border.GestureRecognizers>
+                                <Label Text="✕" TextColor="White" FontSize="13" HorizontalOptions="Center" VerticalOptions="Center" />
+                            </Border>
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <Label Text="{Binding MensajeError}"
+                   TextColor="{StaticResource ColorMantenimiento}"
+                   FontSize="13"
+                   IsVisible="{Binding HayError}" />
+
+            <Button Text="Confirmar Check-in"
+                    Command="{Binding ConfirmarCheckInCommand}"
+                    BackgroundColor="{StaticResource ColorAcento}"
+                    TextColor="{StaticResource ColorFondo}"
+                    HeightRequest="50"
+                    Margin="0,10,0,0" />
+
+            <Button Text="Cancelar"
+                    Command="{Binding CancelarCommand}"
+                    BackgroundColor="Transparent"
+                    TextColor="{StaticResource ColorTextoSecundario}"
+                    HeightRequest="40" />
+
+            <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" Color="{StaticResource ColorAcento}" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

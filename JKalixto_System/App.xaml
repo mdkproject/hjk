@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Application xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="JKalixto_System.App">
+
+    <Application.Resources>
+        <ResourceDictionary>
+
+            <!-- ============================================
+                 PALETA DE COLORES OFICIAL — Hotel-Sauna JKalixto
+                 (tema ejecutivo oscuro, ver documento maestro)
+                 ============================================ -->
+            <Color x:Key="ColorFondo">#080C14</Color>
+            <Color x:Key="ColorSuperficie">#0F1724</Color>
+            <Color x:Key="ColorTarjeta">#141E30</Color>
+            <Color x:Key="ColorBorde">#1C2D45</Color>
+            <Color x:Key="ColorAcento">#C9A84C</Color>
+            <Color x:Key="ColorTextoPrimario">#E4E9F4</Color>
+            <Color x:Key="ColorTextoSecundario">#5A6A82</Color>
+            <Color x:Key="ColorDisponible">#22C55E</Color>
+            <Color x:Key="ColorOcupada">#3B82F6</Color>
+            <Color x:Key="ColorLimpieza">#F59E0B</Color>
+            <Color x:Key="ColorMantenimiento">#EF4444</Color>
+            <Color x:Key="ColorSaunaDamas">#EC4899</Color>
+
+            <!-- Estilos base para que todo el sistema respete el tema oscuro por defecto -->
+            <Style TargetType="ContentPage">
+                <Setter Property="BackgroundColor" Value="{StaticResource ColorFondo}" />
+            </Style>
+
+            <Style TargetType="Label">
+                <Setter Property="TextColor" Value="{StaticResource ColorTextoPrimario}" />
+            </Style>
+
+            <Style TargetType="Entry">
+                <Setter Property="TextColor" Value="{StaticResource ColorTextoPrimario}" />
+                <Setter Property="PlaceholderColor" Value="{StaticResource ColorTextoSecundario}" />
+                <Setter Property="FontSize" Value="15" />
+            </Style>
+
+            <Style TargetType="Button">
+                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="FontAttributes" Value="Bold" />
+            </Style>
+
+        </ResourceDictionary>
+    </Application.Resources>
+
+</Application>

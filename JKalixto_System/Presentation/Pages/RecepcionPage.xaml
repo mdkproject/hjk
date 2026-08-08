@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:JKalixto_System.Presentation.ViewModels"
+             xmlns:services="clr-namespace:JKalixto_System.Application.Services"
+             x:Class="JKalixto_System.Presentation.Pages.RecepcionPage"
+             x:DataType="vm:RecepcionViewModel"
+             Title="{Binding Title}"
+             Shell.NavBarIsVisible="True"
+             BackgroundColor="{StaticResource ColorFondo}">
+
+    <Grid RowDefinitions="Auto,*" Padding="16" RowSpacing="14">
+
+        <!-- Selector de piso -->
+        <HorizontalStackLayout Grid.Row="0" Spacing="8">
+            <Button Text="Piso 1" Command="{Binding SeleccionarPisoCommand}" CommandParameter="1"
+                    BackgroundColor="{StaticResource ColorTarjeta}" TextColor="{StaticResource ColorTextoPrimario}" HeightRequest="42" WidthRequest="80" FontAttributes="None" />
+            <Button Text="Piso 2" Command="{Binding SeleccionarPisoCommand}" CommandParameter="2"
+                    BackgroundColor="{StaticResource ColorTarjeta}" TextColor="{StaticResource ColorTextoPrimario}" HeightRequest="42" WidthRequest="80" FontAttributes="None" />
+            <Button Text="Piso 3" Command="{Binding SeleccionarPisoCommand}" CommandParameter="3"
+                    BackgroundColor="{StaticResource ColorTarjeta}" TextColor="{StaticResource ColorTextoPrimario}" HeightRequest="42" WidthRequest="80" FontAttributes="None" />
+            <Button Text="Piso 4" Command="{Binding SeleccionarPisoCommand}" CommandParameter="4"
+                    BackgroundColor="{StaticResource ColorTarjeta}" TextColor="{StaticResource ColorTextoPrimario}" HeightRequest="42" WidthRequest="80" FontAttributes="None" />
+
+            <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" Color="{StaticResource ColorAcento}" Margin="10,0,0,0" />
+        </HorizontalStackLayout>
+
+        <!-- Grilla de 9 habitaciones -->
+        <CollectionView Grid.Row="1" ItemsSource="{Binding Habitaciones}" EmptyView="No hay habitaciones para mostrar.">
+            <CollectionView.ItemsLayout>
+                <GridItemsLayout Orientation="Vertical" Span="3" HorizontalItemSpacing="8" VerticalItemSpacing="8" />
+            </CollectionView.ItemsLayout>
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="services:HabitacionCardDto">
+                    <Border BackgroundColor="{StaticResource ColorTarjeta}"
+                            Stroke="{Binding BrushEstado}"
+                            StrokeThickness="2"
+                            Padding="10"
+                            HeightRequest="130">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="10" />
+                        </Border.StrokeShape>
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnHabitacionTapped" />
+                        </Border.GestureRecognizers>
+
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="{Binding Numero, StringFormat='{0}'}" FontSize="22" FontAttributes="Bold" TextColor="{StaticResource ColorTextoPrimario}" />
+                            <Label Text="{Binding EtiquetaTipo}" FontSize="11" TextColor="{StaticResource ColorTextoSecundario}" />
+
+                            <Border BackgroundColor="{Binding ColorEstado}" Padding="6,2" HorizontalOptions="Start">
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="6" />
+                                </Border.StrokeShape>
+                                <Label Text="{Binding EtiquetaEstado}" FontSize="10" TextColor="White" />
+                            </Border>
+
+                            <Label Text="{Binding NombreHuesped}"
+                                   FontSize="11"
+                                   TextColor="{StaticResource ColorTextoPrimario}"
+                                   LineBreakMode="TailTruncation"
+                                   IsVisible="{Binding TieneHuesped}" />
+                            <Label Text="{Binding TotalAcumulado, StringFormat='S/ {0:0.00}'}"
+                                   FontSize="12"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource ColorAcento}"
+                                   IsVisible="{Binding TieneHuesped}" />
+                        </VerticalStackLayout>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+    </Grid>
+</ContentPage>

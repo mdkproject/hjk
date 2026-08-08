@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:JKalixto_System.Presentation.ViewModels"
+             xmlns:services="clr-namespace:JKalixto_System.Application.Services"
+             xmlns:models="clr-namespace:JKalixto_System.Domain.Models"
+             x:Class="JKalixto_System.Presentation.Pages.DashboardPage"
+             x:DataType="vm:DashboardViewModel"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="{StaticResource ColorFondo}">
+
+    <RefreshView Command="{Binding RefrescarCommand}" IsRefreshing="{Binding IsBusy}">
+        <ScrollView>
+            <VerticalStackLayout Padding="24" Spacing="20">
+
+                <!-- Encabezado -->
+                <HorizontalStackLayout Spacing="12" VerticalOptions="Center">
+                    <Label Text="🏨" FontSize="30" VerticalOptions="Center" />
+                    <VerticalStackLayout Spacing="0">
+                        <Label Text="Panel Principal" FontSize="24" FontAttributes="Bold" TextColor="{StaticResource ColorAcento}" />
+                        <Label FontSize="13" TextColor="{StaticResource ColorTextoSecundario}">
+                            <Label.FormattedText>
+                                <FormattedString>
+                                    <Span Text="{Binding NombreUsuario}" TextColor="{StaticResource ColorTextoPrimario}" FontAttributes="Bold" />
+                                    <Span Text="  •  " />
+                                    <Span Text="{Binding RolUsuarioTexto}" />
+                                </FormattedString>
+                            </Label.FormattedText>
+                        </Label>
+                    </VerticalStackLayout>
+                </HorizontalStackLayout>
+
+                <!-- KPIs -->
+                <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="12">
+
+                    <Border Grid.Row="0" Grid.Column="0" BackgroundColor="{StaticResource ColorTarjeta}" Stroke="{StaticResource ColorBorde}" StrokeThickness="1" Padding="14">
+                        <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Ingresos Hotel" FontSize="11" TextColor="{StaticResource ColorTextoSecundario}" />
+                            <Label Text="{Binding IngresosHotelTexto}" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource ColorAcento}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border Grid.Row="0" Grid.Column="1" BackgroundColor="{StaticResource ColorTarjeta}" Stroke="{StaticResource ColorBorde}" StrokeThickness="1" Padding="14">
+                        <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Ingresos Sauna" FontSize="11" TextColor="{StaticResource ColorTextoSecundario}" />
+                            <Label Text="{Binding IngresosSaunaTexto}" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource ColorSaunaDamas}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border Grid.Row="0" Grid.Column="2" BackgroundColor="{StaticResource ColorTarjeta}" Stroke="{StaticResource ColorBorde}" StrokeThickness="1" Padding="14">
+                        <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Total Hoy" FontSize="11" TextColor="{StaticResource ColorTextoSecundario}" />
+                            <Label Text="{Binding IngresosTotalTexto}" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource ColorTextoPrimario}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border Grid.Row="1" Grid.Column="0" BackgroundColor="{StaticResource ColorTarjeta}" Stroke="{StaticResource ColorBorde}" StrokeThickness="1" Padding="14">
+                        <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Ocupación" FontSize="11" TextColor="{StaticResource ColorTextoSecundario}" />
+                            <Label Text="{Binding TasaOcupacionTexto}" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource ColorOcupada}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border Grid.Row="1" Grid.Column="1" BackgroundColor="{StaticResource ColorTarjeta}" Stroke="{StaticResource ColorBorde}" StrokeThickness="1" Padding="14">
+                        <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Clientes Sauna Hoy" FontSize="11" TextColor="{StaticResource ColorTextoSecundario}" />
+                            <Label Text="{Binding ClientesSaunaHoy, StringFormat='{0}'}" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource ColorSaunaDamas}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border Grid.Row="1" Grid.Column="2" BackgroundColor="{StaticResource ColorTarjeta}" Stroke="{StaticResource ColorBorde}" StrokeThickness="1" Padding="14">
+                        <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Alertas Activas" FontSize="11" TextColor="{StaticResource ColorTextoSecundario}" />
+                            <Label Text="{Binding AlertasActivas, StringFormat='{0}'}" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource ColorMantenimiento}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                </Grid>
+
+                <Label Text="⚠️ Hay habitaciones en mantenimiento hace más de 4 horas. Revisa Recepción."
+                       TextColor="{StaticResource ColorMantenimiento}"
+                       FontSize="12"
+                       IsVisible="{Binding HayAlertas}" />
+
+                <!-- Estado de habitaciones -->
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Estado de Habitaciones" FontSize="15" FontAttributes="Bold" />
+
+                    <CollectionView ItemsSource="{Binding ResumenEstados}" HeightRequest="20" VerticalOptions="Start">
+                        <CollectionView.ItemsLayout>
+                            <LinearItemsLayout Orientation="Horizontal" ItemSpacing="0" />
+                        </CollectionView.ItemsLayout>
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="services:EstadoHabitacionResumenDto">
+                                <BoxView WidthRequest="{Binding AnchoBarra}" HeightRequest="20" Color="{Binding ColorBarra}" />
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+
+                    <CollectionView ItemsSource="{Binding ResumenEstados}">
+                        <CollectionView.ItemsLayout>
+                            <LinearItemsLayout Orientation="Horizontal" ItemSpacing="18" />
+                        </CollectionView.ItemsLayout>
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="services:EstadoHabitacionResumenDto">
+                                <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
+                                    <BoxView WidthRequest="10" HeightRequest="10" CornerRadius="5" Color="{Binding ColorBarra}" VerticalOptions="Center" />
+                                    <Label FontSize="12" VerticalOptions="Center">
+                                        <Label.FormattedText>
+                                            <FormattedString>
+                                                <Span Text="{Binding Etiqueta}" TextColor="{StaticResource ColorTextoSecundario}" />
+                                                <Span Text=": " TextColor="{StaticResource ColorTextoSecundario}" />
+                                                <Span Text="{Binding Cantidad, StringFormat='{0}'}" TextColor="{StaticResource ColorTextoPrimario}" FontAttributes="Bold" />
+                                            </FormattedString>
+                                        </Label.FormattedText>
+                                    </Label>
+                                </HorizontalStackLayout>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+
+                <!-- Navegación a módulos -->
+                <Border BackgroundColor="{StaticResource ColorAcento}" Padding="0">
+                    <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
+                    <Button Text="🛏️  Ir a Recepción — Hotel"
+                            Command="{Binding IrARecepcionCommand}"
+                            BackgroundColor="Transparent"
+                            TextColor="{StaticResource ColorFondo}"
+                            HeightRequest="52" />
+                </Border>
+
+                <!-- Últimos eventos -->
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Últimos Eventos" FontSize="15" FontAttributes="Bold" />
+
+                    <Border BackgroundColor="{StaticResource ColorTarjeta}" Stroke="{StaticResource ColorBorde}" StrokeThickness="1" Padding="12">
+                        <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
+                        <CollectionView ItemsSource="{Binding UltimosEventos}" EmptyView="Todavía no hay eventos registrados.">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate x:DataType="models:LogAuditoria">
+                                    <Grid Padding="0,6" ColumnDefinitions="55,*" ColumnSpacing="10">
+                                        <Label Grid.Column="0" Text="{Binding Timestamp, StringFormat='{0:HH:mm}'}" FontSize="12" TextColor="{StaticResource ColorTextoSecundario}" />
+                                        <Label Grid.Column="1" Text="{Binding Descripcion}" FontSize="13" LineBreakMode="TailTruncation" />
+                                    </Grid>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </Border>
+                </VerticalStackLayout>
+
+                <Button Text="Cerrar Sesión"
+                        Command="{Binding CerrarSesionCommand}"
+                        BackgroundColor="{StaticResource ColorTarjeta}"
+                        TextColor="{StaticResource ColorAcento}"
+                        BorderColor="{StaticResource ColorBorde}"
+                        BorderWidth="1"
+                        HeightRequest="44"
+                        Margin="0,10,0,0" />
+
+            </VerticalStackLayout>
+        </ScrollView>
+    </RefreshView>
+</ContentPage>
