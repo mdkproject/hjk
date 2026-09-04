@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:JKalixto_System.Presentation.ViewModels"
+             xmlns:controls="clr-namespace:JKalixto_System.Presentation.Controls"
+             x:Class="JKalixto_System.Presentation.Pages.CierreCajaPage"
+             x:DataType="vm:CierreCajaViewModel"
+             Title="{Binding Title}"
+             Shell.NavBarIsVisible="True"
+             BackgroundColor="{DynamicResource ColorFondo}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="18">
+
+            <!-- Reloj/fecha/tema: misma posición fija en TODAS las pantallas — ver
+                 Presentation/Controls/BarraRelojTemaView. -->
+            <controls:BarraRelojTemaView HorizontalOptions="End" />
+
+            <Label Text="Resumen del día" FontSize="24" FontAttributes="Bold" />
+
+            <Border BackgroundColor="{DynamicResource ColorTarjeta}" Stroke="{DynamicResource ColorBorde}" StrokeThickness="1" Padding="16">
+                <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
+                <VerticalStackLayout Spacing="10">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Grid.Column="0" Text="Total Hotel" FontSize="21" TextColor="{DynamicResource ColorTextoSecundario}" />
+                        <Label Grid.Column="1" Text="{Binding TotalHotelTexto}" FontSize="24" FontAttributes="Bold" />
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Grid.Column="0" Text="Total Sauna" FontSize="21" TextColor="{DynamicResource ColorTextoSecundario}" />
+                        <Label Grid.Column="1" Text="{Binding TotalSaunaTexto}" FontSize="24" FontAttributes="Bold" />
+                    </Grid>
+                    <BoxView HeightRequest="1" Color="{DynamicResource ColorBorde}" />
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Grid.Column="0" Text="Total General" FontSize="24" FontAttributes="Bold" />
+                        <Label Grid.Column="1" Text="{Binding TotalGeneralTexto}" FontSize="32" FontAttributes="Bold" TextColor="{DynamicResource ColorAcento}" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+
+            <Label Text="Caja Chica (base + movimientos de Gastos del día)" FontSize="24" FontAttributes="Bold" />
+
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                <Border Grid.Column="0" BackgroundColor="{DynamicResource ColorTarjeta}" Stroke="{DynamicResource ColorBorde}" StrokeThickness="1" Padding="14">
+                    <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Hotel" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                        <Label Text="{Binding CajaChicaHotelTexto}" FontSize="24" FontAttributes="Bold" TextColor="{DynamicResource ColorAcento}" />
+                    </VerticalStackLayout>
+                </Border>
+                <Border Grid.Column="1" BackgroundColor="{DynamicResource ColorTarjeta}" Stroke="{DynamicResource ColorBorde}" StrokeThickness="1" Padding="14">
+                    <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Sauna" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                        <Label Text="{Binding CajaChicaSaunaTexto}" FontSize="24" FontAttributes="Bold" TextColor="{DynamicResource ColorAcento}" />
+                    </VerticalStackLayout>
+                </Border>
+            </Grid>
+
+            <Border BackgroundColor="{DynamicResource ColorMantenimiento}" Padding="14" IsVisible="{Binding HayBloqueo}">
+                <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
+                <Label Text="{Binding MensajeBloqueo}" TextColor="White" FontSize="21" />
+            </Border>
+
+            <VerticalStackLayout Spacing="8" IsVisible="{Binding PuedeCerrar}">
+                <Label Text="Turno" FontSize="21" FontAttributes="Bold" />
+                <HorizontalStackLayout Spacing="8">
+                    <Button Text="Mañana" Command="{Binding SeleccionarTurnoCommand}" CommandParameter="Mañana"
+                            BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="42" />
+                    <Button Text="Tarde" Command="{Binding SeleccionarTurnoCommand}" CommandParameter="Tarde"
+                            BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="42" />
+                    <Button Text="Noche" Command="{Binding SeleccionarTurnoCommand}" CommandParameter="Noche"
+                            BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="42" />
+                </HorizontalStackLayout>
+                <Label Text="{Binding TurnoTexto, StringFormat='Turno seleccionado: {0}'}" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+            </VerticalStackLayout>
+
+            <Label Text="{Binding MensajeError}"
+                   TextColor="{DynamicResource ColorMantenimiento}"
+                   FontSize="21"
+                   IsVisible="{Binding HayError}" />
+
+            <Label Text="{Binding HoraCierreTexto, StringFormat='✅ Caja cerrada correctamente — {0}'}"
+                   TextColor="{DynamicResource ColorDisponible}"
+                   FontSize="22"
+                   FontAttributes="Bold"
+                   IsVisible="{Binding CierreCompletado}" />
+
+            <Button Text="Cerrar Caja"
+                    Command="{Binding CerrarCajaCommand}"
+                    BackgroundColor="{DynamicResource ColorAcento}"
+                    TextColor="{DynamicResource ColorFondo}"
+                    HeightRequest="50"
+                    IsEnabled="{Binding PuedeCerrar}"
+                    IsVisible="{Binding PuedeCerrar}" />
+
+            <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" Color="{DynamicResource ColorAcento}" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

@@ -99,7 +99,6 @@ public class DashboardViewModel : BaseViewModel
         set => SetProperty(ref _hayEventos, value);
     }
 
-    public ICommand IrARecepcionCommand { get; }
     public ICommand RefrescarCommand { get; }
     public ICommand CerrarSesionCommand { get; }
 
@@ -108,7 +107,7 @@ public class DashboardViewModel : BaseViewModel
         _dashboardService = dashboardService;
         _sessionService = sessionService;
         _auditoriaService = auditoriaService;
-        Title = "Panel Principal";
+        Title = "Reportes";
 
         var usuario = _sessionService.UsuarioActual;
         if (usuario is not null)
@@ -118,7 +117,6 @@ public class DashboardViewModel : BaseViewModel
             PuedeVerFinanzas = usuario.Rol is RolUsuario.Gerencia or RolUsuario.Desarrollador;
         }
 
-        IrARecepcionCommand = new Command(async () => await Shell.Current.GoToAsync(nameof(RecepcionPage)));
         RefrescarCommand = new Command(async () => await CargarAsync());
         CerrarSesionCommand = new Command(async () => await CerrarSesionAsync());
     }
@@ -193,3 +191,4 @@ public class DashboardViewModel : BaseViewModel
         _ => rol.ToString()
     };
 }
+

@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:JKalixto_System.Presentation.ViewModels"
+             xmlns:services="clr-namespace:JKalixto_System.Application.Services"
+             xmlns:controls="clr-namespace:JKalixto_System.Presentation.Controls"
+             x:Class="JKalixto_System.Presentation.Pages.CafeteriaPage"
+             x:DataType="vm:CafeteriaViewModel"
+             Title="{Binding Title}"
+             Shell.NavBarIsVisible="True"
+             BackgroundColor="{DynamicResource ColorFondo}">
+
+    <Grid RowDefinitions="Auto,Auto,Auto,*" Padding="16" RowSpacing="10">
+
+        <!-- Reloj/fecha/tema: fila propia de ancho completo, alineada a la derecha —
+             misma posición fija en TODAS las pantallas. Ver
+             Presentation/Controls/BarraRelojTemaView. -->
+        <controls:BarraRelojTemaView Grid.Row="0" HorizontalOptions="End" />
+
+        <!-- Toggle Hotel/Sauna -->
+        <Grid Grid.Row="1">
+            <HorizontalStackLayout Spacing="8">
+                <Button Text="Huéspedes del Hotel"
+                        Command="{Binding SeleccionarOrigenCommand}"
+                        CommandParameter="Hotel"
+                        BackgroundColor="{DynamicResource ColorTarjeta}"
+                        TextColor="{DynamicResource ColorTextoPrimario}"
+                        BorderColor="{DynamicResource ColorBorde}"
+                        BorderWidth="1"
+                        HeightRequest="44"
+                        FontAttributes="None">
+                    <Button.Triggers>
+                        <DataTrigger TargetType="Button" Binding="{Binding OrigenSeleccionado}" Value="Hotel">
+                            <Setter Property="BackgroundColor" Value="{DynamicResource ColorAcento}" />
+                            <Setter Property="TextColor" Value="{DynamicResource ColorFondo}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource ColorAcento}" />
+                            <Setter Property="FontAttributes" Value="Bold" />
+                        </DataTrigger>
+                    </Button.Triggers>
+                </Button>
+                <Button Text="Clientes de Sauna"
+                        Command="{Binding SeleccionarOrigenCommand}"
+                        CommandParameter="Sauna"
+                        BackgroundColor="{DynamicResource ColorTarjeta}"
+                        TextColor="{DynamicResource ColorTextoPrimario}"
+                        BorderColor="{DynamicResource ColorBorde}"
+                        BorderWidth="1"
+                        HeightRequest="44"
+                        FontAttributes="None">
+                    <Button.Triggers>
+                        <DataTrigger TargetType="Button" Binding="{Binding OrigenSeleccionado}" Value="Sauna">
+                            <Setter Property="BackgroundColor" Value="{DynamicResource ColorAcento}" />
+                            <Setter Property="TextColor" Value="{DynamicResource ColorFondo}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource ColorAcento}" />
+                            <Setter Property="FontAttributes" Value="Bold" />
+                        </DataTrigger>
+                    </Button.Triggers>
+                </Button>
+                <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" Color="{DynamicResource ColorAcento}" Margin="8,0,0,0" />
+            </HorizontalStackLayout>
+
+        </Grid>
+
+        <Label Grid.Row="2"
+               Text="Elegí a quién le vas a cobrar Cafetería o un servicio adicional. Se abre el mismo carrito de siempre."
+               FontSize="19"
+               TextColor="{DynamicResource ColorTextoSecundario}" />
+
+        <!-- Lista de huéspedes de Hotel -->
+        <CollectionView Grid.Row="3" ItemsSource="{Binding HuespedesActivos}" EmptyView="No hay huéspedes activos en este momento." IsVisible="False">
+            <CollectionView.Triggers>
+                <DataTrigger TargetType="CollectionView" Binding="{Binding OrigenSeleccionado}" Value="Hotel">
+                    <Setter Property="IsVisible" Value="True" />
+                </DataTrigger>
+            </CollectionView.Triggers>
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="services:HabitacionCardDto">
+                    <Border BackgroundColor="{DynamicResource ColorTarjeta}"
+                            Stroke="{DynamicResource ColorBorde}"
+                            StrokeThickness="1"
+                            Padding="14"
+                            Margin="0,0,0,8">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="10" />
+                        </Border.StrokeShape>
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnHuespedTapped" />
+                        </Border.GestureRecognizers>
+
+                        <Grid ColumnDefinitions="Auto,*">
+                            <VerticalStackLayout Grid.Column="0" HorizontalOptions="Center" VerticalOptions="Center" WidthRequest="56">
+                                <Label Text="{Binding Numero}" FontSize="32" FontAttributes="Bold" HorizontalOptions="Center" TextColor="{DynamicResource ColorAcento}" />
+                                <Label Text="Habitación" FontSize="14" HorizontalOptions="Center" TextColor="{DynamicResource ColorTextoSecundario}" />
+                            </VerticalStackLayout>
+
+                            <Label Grid.Column="1" Text="{Binding NombreHuesped}" FontSize="24" FontAttributes="Bold" VerticalOptions="Center" Margin="10,0,0,0" />
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <!-- Lista de clientes de Sauna -->
+        <CollectionView Grid.Row="3" ItemsSource="{Binding ClientesSaunaActivos}" EmptyView="No hay clientes activos en el Sauna en este momento." IsVisible="False">
+            <CollectionView.Triggers>
+                <DataTrigger TargetType="CollectionView" Binding="{Binding OrigenSeleccionado}" Value="Sauna">
+                    <Setter Property="IsVisible" Value="True" />
+                </DataTrigger>
+            </CollectionView.Triggers>
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="services:ClienteSaunaCardDto">
+                    <Border BackgroundColor="{DynamicResource ColorTarjeta}"
+                            Stroke="{DynamicResource ColorBorde}"
+                            StrokeThickness="1"
+                            Padding="14"
+                            Margin="0,0,0,8">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="10" />
+                        </Border.StrokeShape>
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnClienteSaunaTapped" />
+                        </Border.GestureRecognizers>
+
+                        <Grid ColumnDefinitions="*,Auto">
+                            <VerticalStackLayout Grid.Column="0" Spacing="2">
+                                <Label Text="{Binding NombreCompleto}" FontSize="24" FontAttributes="Bold" />
+                                <Label FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}">
+                                    <Label.FormattedText>
+                                        <FormattedString>
+                                            <Span Text="Candado " />
+                                            <Span Text="{Binding NumeroCandado}" />
+                                            <Span Text="  •  Sección " />
+                                            <Span Text="{Binding EtiquetaSeccion}" />
+                                        </FormattedString>
+                                    </Label.FormattedText>
+                                </Label>
+                                <Label Text="🏨 Huésped del Hotel" FontSize="18" TextColor="{DynamicResource ColorAcento}" IsVisible="{Binding EsHuespedHotel}" />
+                            </VerticalStackLayout>
+
+                            <Label Grid.Column="1"
+                                   Text="{Binding TotalConsumo, StringFormat='S/ {0:0.00}'}"
+                                   FontSize="24"
+                                   FontAttributes="Bold"
+                                   TextColor="{DynamicResource ColorAcento}"
+                                   VerticalOptions="Center" />
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+    </Grid>
+</ContentPage>

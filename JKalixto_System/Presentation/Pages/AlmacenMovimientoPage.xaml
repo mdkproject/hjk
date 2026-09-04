@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:JKalixto_System.Presentation.ViewModels"
+             xmlns:services="clr-namespace:JKalixto_System.Application.Services"
+             x:Class="JKalixto_System.Presentation.Pages.AlmacenMovimientoPage"
+             x:DataType="vm:AlmacenMovimientoViewModel"
+             Title="{Binding Title}"
+             Shell.NavBarIsVisible="True"
+             BackgroundColor="{DynamicResource ColorFondo}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="16">
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Tipo de movimiento" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <HorizontalStackLayout Spacing="8">
+                    <Button Text="Entrada (repone stock)" Command="{Binding SeleccionarTipoCommand}" CommandParameter="Entrada"
+                            BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="42" FontAttributes="None">
+                        <Button.Triggers>
+                            <DataTrigger TargetType="Button" Binding="{Binding TipoTexto}" Value="Entrada">
+                                <Setter Property="BackgroundColor" Value="{DynamicResource ColorDisponible}" />
+                                <Setter Property="TextColor" Value="White" />
+                                <Setter Property="FontAttributes" Value="Bold" />
+                            </DataTrigger>
+                        </Button.Triggers>
+                    </Button>
+                    <Button Text="Salida (consume stock)" Command="{Binding SeleccionarTipoCommand}" CommandParameter="Salida"
+                            BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="42" FontAttributes="None">
+                        <Button.Triggers>
+                            <DataTrigger TargetType="Button" Binding="{Binding TipoTexto}" Value="Salida">
+                                <Setter Property="BackgroundColor" Value="{DynamicResource ColorMantenimiento}" />
+                                <Setter Property="TextColor" Value="White" />
+                                <Setter Property="FontAttributes" Value="Bold" />
+                            </DataTrigger>
+                        </Button.Triggers>
+                    </Button>
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
+
+            <Label Text="{Binding MensajeError}"
+                   TextColor="{DynamicResource ColorMantenimiento}"
+                   FontSize="21"
+                   IsVisible="{Binding HayError}" />
+
+            <Label Text="Insumo" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+
+            <CollectionView ItemsSource="{Binding Insumos}"
+                             SelectionMode="Single"
+                             SelectedItem="{Binding InsumoSeleccionado}"
+                             EmptyView="Cargando insumos..."
+                             HeightRequest="260">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="services:InsumoCardDto">
+                        <Grid ColumnDefinitions="*,Auto" Padding="10,8">
+                            <VerticalStackLayout Grid.Column="0" Spacing="1">
+                                <Label Text="{Binding Nombre}" FontSize="21" FontAttributes="Bold" />
+                                <Label Text="{Binding EtiquetaCategoria}" FontSize="16" TextColor="{DynamicResource ColorTextoSecundario}" />
+                            </VerticalStackLayout>
+                            <Label Grid.Column="1" VerticalOptions="Center">
+                                <Label.FormattedText>
+                                    <FormattedString>
+                                        <Span Text="{Binding StockActual}" FontAttributes="Bold" />
+                                        <Span Text=" " />
+                                        <Span Text="{Binding UnidadMedida}" />
+                                    </FormattedString>
+                                </Label.FormattedText>
+                            </Label>
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Cantidad *" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <Entry Text="{Binding CantidadTexto}" Placeholder="0" Keyboard="Numeric" BackgroundColor="{DynamicResource ColorTarjeta}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Motivo *" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <Entry Text="{Binding Motivo}" Placeholder="Ej: Compra semanal / Rotura en habitación 305" BackgroundColor="{DynamicResource ColorTarjeta}" />
+            </VerticalStackLayout>
+
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="10" Margin="0,10,0,0">
+                <Button Grid.Column="0" Text="Cancelar" Command="{Binding CancelarCommand}"
+                        BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="50" />
+                <Button Grid.Column="1" Text="Registrar" Command="{Binding ConfirmarCommand}"
+                        BackgroundColor="{DynamicResource ColorAcento}" TextColor="{DynamicResource ColorFondo}" HeightRequest="50" />
+            </Grid>
+
+            <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" Color="{DynamicResource ColorAcento}" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

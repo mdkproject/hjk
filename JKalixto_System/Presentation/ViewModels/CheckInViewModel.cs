@@ -23,11 +23,18 @@ public class CheckInViewModel : BaseViewModel, IQueryAttributable
         set => SetProperty(ref _numeroHabitacion, value);
     }
 
-    private string _dni = string.Empty;
-    public string DNI
+    private string _tipoDocumentoTexto = "DNI";
+    public string TipoDocumentoTexto
     {
-        get => _dni;
-        set => SetProperty(ref _dni, value);
+        get => _tipoDocumentoTexto;
+        set => SetProperty(ref _tipoDocumentoTexto, value);
+    }
+
+    private string _numeroDocumento = string.Empty;
+    public string NumeroDocumento
+    {
+        get => _numeroDocumento;
+        set => SetProperty(ref _numeroDocumento, value);
     }
 
     private string _nombreCompleto = string.Empty;
@@ -81,6 +88,13 @@ public class CheckInViewModel : BaseViewModel, IQueryAttributable
         set => SetProperty(ref _nuevoAcompanante, value);
     }
 
+    private string _observaciones = string.Empty;
+    public string Observaciones
+    {
+        get => _observaciones;
+        set => SetProperty(ref _observaciones, value);
+    }
+
     private string _mensajeError = string.Empty;
     public string MensajeError
     {
@@ -95,6 +109,7 @@ public class CheckInViewModel : BaseViewModel, IQueryAttributable
         set => SetProperty(ref _hayError, value);
     }
 
+    public ICommand SeleccionarTipoDocumentoCommand { get; }
     public ICommand AgregarAcompananteCommand { get; }
     public ICommand QuitarAcompananteCommand { get; }
     public ICommand ConfirmarCheckInCommand { get; }
@@ -105,6 +120,14 @@ public class CheckInViewModel : BaseViewModel, IQueryAttributable
         _habitacionService = habitacionService;
         _sessionService = sessionService;
         Title = "Check-in";
+
+        SeleccionarTipoDocumentoCommand = new Command<string>((tipo) =>
+        {
+            if (tipo is not null)
+            {
+                TipoDocumentoTexto = tipo;
+            }
+        });
 
         AgregarAcompananteCommand = new Command(() =>
         {
@@ -152,9 +175,9 @@ public class CheckInViewModel : BaseViewModel, IQueryAttributable
         HayError = false;
         MensajeError = string.Empty;
 
-        if (string.IsNullOrWhiteSpace(DNI) || string.IsNullOrWhiteSpace(NombreCompleto) || string.IsNullOrWhiteSpace(Celular))
+        if (string.IsNullOrWhiteSpace(NumeroDocumento) || string.IsNullOrWhiteSpace(NombreCompleto) || string.IsNullOrWhiteSpace(Celular))
         {
-            MensajeError = "DNI, nombre completo y celular son obligatorios.";
+            MensajeError = "El número de documento, nombre completo y celular son obligatorios.";
             HayError = true;
             return;
         }
@@ -180,11 +203,18 @@ public class CheckInViewModel : BaseViewModel, IQueryAttributable
         {
             IsBusy = true;
             var usuarioId = _sessionService.UsuarioActual?.Id ?? 0;
+            var tipoDocumento = TipoDocumentoTexto switch
+            {
+                "Pasaporte" => TipoDocumento.Pasaporte,
+                "Carné Ext." => TipoDocumento.CarneExtranjeria,
+                _ => TipoDocumento.DNI
+            };
 
             await _habitacionService.CheckInAsync(new NuevoCheckInDto
             {
                 HabitacionId = HabitacionId,
-                DNI = DNI.Trim(),
+                TipoDocumento = tipoDocumento,
+                NumeroDocumento = NumeroDocumento.Trim(),
                 NombreCompleto = NombreCompleto.Trim(),
                 Celular = Celular.Trim(),
                 TipoComprobante = EsFactura ? TipoComprobante.Factura : TipoComprobante.Boleta,
@@ -192,8 +222,19 @@ public class CheckInViewModel : BaseViewModel, IQueryAttributable
                 RazonSocial = EsFactura ? RazonSocial.Trim() : null,
                 CorreoFacturacion = EsFactura ? CorreoFacturacion.Trim() : null,
                 Acompanantes = Acompanantes.ToList(),
+                Observaciones = string.IsNullOrWhiteSpace(Observaciones) ? null : Observaciones.Trim(),
                 UsuarioId = usuarioId
             });
+
+            var horaRegistro = DateTime.Now;
+            var page = Shell.Current?.CurrentPage;
+            if (page is not null)
+            {
+                await page.DisplayAlertAsync(
+                    "Check-in registrado",
+                    $"{NombreCompleto.Trim()} — Habitación {NumeroHabitacion}\nFecha y hora de registro: {horaRegistro:dd/MM/yyyy HH:mm:ss}",
+                    "OK");
+            }
 
             await Shell.Current.GoToAsync("..");
         }

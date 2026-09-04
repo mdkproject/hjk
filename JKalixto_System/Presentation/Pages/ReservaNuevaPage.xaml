@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:JKalixto_System.Presentation.ViewModels"
+             xmlns:services="clr-namespace:JKalixto_System.Application.Services"
+             x:Class="JKalixto_System.Presentation.Pages.ReservaNuevaPage"
+             x:DataType="vm:ReservaNuevaViewModel"
+             Title="{Binding Title}"
+             Shell.NavBarIsVisible="True"
+             BackgroundColor="{DynamicResource ColorFondo}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="16">
+
+            <Label Text="Fechas de la reserva" FontSize="24" FontAttributes="Bold" />
+
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <VerticalStackLayout Grid.Column="0" Spacing="6">
+                    <Label Text="Entrada" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                    <DatePicker Date="{Binding FechaInicio}" BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" />
+                </VerticalStackLayout>
+                <VerticalStackLayout Grid.Column="1" Spacing="6">
+                    <Label Text="Salida" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                    <DatePicker Date="{Binding FechaFin}" BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" />
+                </VerticalStackLayout>
+            </Grid>
+
+            <Label Text="{Binding MensajeError}"
+                   TextColor="{DynamicResource ColorMantenimiento}"
+                   FontSize="21"
+                   IsVisible="{Binding HayError}" />
+
+            <Label Text="Tipo de habitación" FontSize="24" FontAttributes="Bold" Margin="0,10,0,0" />
+
+            <FlexLayout Wrap="Wrap" JustifyContent="Start" AlignItems="Start">
+                <Button Text="Simple" Command="{Binding SeleccionarTipoFiltroCommand}" CommandParameter="Simple" Margin="0,0,6,6"
+                        BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="38" FontSize="21" FontAttributes="None" Padding="14,0">
+                    <Button.Triggers>
+                        <DataTrigger TargetType="Button" Binding="{Binding TipoFiltro}" Value="Simple">
+                            <Setter Property="BackgroundColor" Value="{DynamicResource ColorAcento}" />
+                            <Setter Property="TextColor" Value="{DynamicResource ColorFondo}" />
+                            <Setter Property="FontAttributes" Value="Bold" />
+                        </DataTrigger>
+                    </Button.Triggers>
+                </Button>
+                <Button Text="Matrimonial" Command="{Binding SeleccionarTipoFiltroCommand}" CommandParameter="Matrimonial" Margin="0,0,6,6"
+                        BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="38" FontSize="21" FontAttributes="None" Padding="14,0">
+                    <Button.Triggers>
+                        <DataTrigger TargetType="Button" Binding="{Binding TipoFiltro}" Value="Matrimonial">
+                            <Setter Property="BackgroundColor" Value="{DynamicResource ColorAcento}" />
+                            <Setter Property="TextColor" Value="{DynamicResource ColorFondo}" />
+                            <Setter Property="FontAttributes" Value="Bold" />
+                        </DataTrigger>
+                    </Button.Triggers>
+                </Button>
+                <Button Text="Doble" Command="{Binding SeleccionarTipoFiltroCommand}" CommandParameter="Doble" Margin="0,0,6,6"
+                        BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="38" FontSize="21" FontAttributes="None" Padding="14,0">
+                    <Button.Triggers>
+                        <DataTrigger TargetType="Button" Binding="{Binding TipoFiltro}" Value="Doble">
+                            <Setter Property="BackgroundColor" Value="{DynamicResource ColorAcento}" />
+                            <Setter Property="TextColor" Value="{DynamicResource ColorFondo}" />
+                            <Setter Property="FontAttributes" Value="Bold" />
+                        </DataTrigger>
+                    </Button.Triggers>
+                </Button>
+                <Button Text="Familiar" Command="{Binding SeleccionarTipoFiltroCommand}" CommandParameter="Familiar" Margin="0,0,6,6"
+                        BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="38" FontSize="21" FontAttributes="None" Padding="14,0">
+                    <Button.Triggers>
+                        <DataTrigger TargetType="Button" Binding="{Binding TipoFiltro}" Value="Familiar">
+                            <Setter Property="BackgroundColor" Value="{DynamicResource ColorAcento}" />
+                            <Setter Property="TextColor" Value="{DynamicResource ColorFondo}" />
+                            <Setter Property="FontAttributes" Value="Bold" />
+                        </DataTrigger>
+                    </Button.Triggers>
+                </Button>
+                <Button Text="Suite" Command="{Binding SeleccionarTipoFiltroCommand}" CommandParameter="Suite" Margin="0,0,6,6"
+                        BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="38" FontSize="21" FontAttributes="None" Padding="14,0">
+                    <Button.Triggers>
+                        <DataTrigger TargetType="Button" Binding="{Binding TipoFiltro}" Value="Suite">
+                            <Setter Property="BackgroundColor" Value="{DynamicResource ColorAcento}" />
+                            <Setter Property="TextColor" Value="{DynamicResource ColorFondo}" />
+                            <Setter Property="FontAttributes" Value="Bold" />
+                        </DataTrigger>
+                    </Button.Triggers>
+                </Button>
+            </FlexLayout>
+
+            <Label Text="{Binding TipoFiltro, StringFormat='Habitaciones {0} disponibles en ese rango'}" FontSize="24" FontAttributes="Bold" Margin="0,10,0,0" />
+
+            <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" Color="{DynamicResource ColorAcento}" />
+
+            <CollectionView ItemsSource="{Binding HabitacionesDisponibles}"
+                             SelectionMode="Single"
+                             SelectedItem="{Binding HabitacionSeleccionada}"
+                             EmptyView="No hay habitaciones libres para ese rango de fechas."
+                             HeightRequest="220">
+                <CollectionView.ItemsLayout>
+                    <GridItemsLayout Orientation="Vertical" Span="3" HorizontalItemSpacing="8" VerticalItemSpacing="8" />
+                </CollectionView.ItemsLayout>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="services:HabitacionDisponibleDto">
+                        <Border BackgroundColor="{DynamicResource ColorTarjeta}"
+                                Stroke="{DynamicResource ColorBorde}"
+                                StrokeThickness="1"
+                                Padding="8"
+                                HeightRequest="70">
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="8" />
+                            </Border.StrokeShape>
+                            <VerticalStackLayout Spacing="2" HorizontalOptions="Center" VerticalOptions="Center">
+                                <Label Text="{Binding Numero}" FontSize="29" FontAttributes="Bold" HorizontalOptions="Center" TextColor="{DynamicResource ColorTextoPrimario}" />
+                                <Label Text="{Binding EtiquetaTipo}" FontSize="16" HorizontalOptions="Center" TextColor="{DynamicResource ColorTextoSecundario}" />
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <Label Text="{Binding NumeroSeleccionadoTexto}"
+                   FontSize="21"
+                   FontAttributes="Bold"
+                   TextColor="{DynamicResource ColorAcento}"
+                   IsVisible="{Binding HaySeleccion}" />
+
+            <Label Text="Datos del cliente" FontSize="24" FontAttributes="Bold" Margin="0,10,0,0" />
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Tipo de documento" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <HorizontalStackLayout Spacing="8">
+                    <Button Text="DNI" Command="{Binding SeleccionarTipoDocumentoCommand}" CommandParameter="DNI"
+                            BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="40" FontAttributes="None" />
+                    <Button Text="Pasaporte" Command="{Binding SeleccionarTipoDocumentoCommand}" CommandParameter="Pasaporte"
+                            BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="40" FontAttributes="None" />
+                    <Button Text="Carné Ext." Command="{Binding SeleccionarTipoDocumentoCommand}" CommandParameter="Carné Ext."
+                            BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="40" FontAttributes="None" />
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="{Binding TipoDocumentoTexto, StringFormat='Número de {0} *'}" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <Entry Text="{Binding NumeroDocumento}" Placeholder="12345678" BackgroundColor="{DynamicResource ColorTarjeta}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Nombre completo *" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <Entry Text="{Binding NombreCompleto}" Placeholder="Nombres y apellidos" BackgroundColor="{DynamicResource ColorTarjeta}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Celular *" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <Entry Text="{Binding Celular}" Placeholder="987654321" Keyboard="Telephone" BackgroundColor="{DynamicResource ColorTarjeta}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Observaciones (opcional)" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <Entry Text="{Binding Observaciones}" Placeholder="Ej: llega después de las 10pm" BackgroundColor="{DynamicResource ColorTarjeta}" />
+            </VerticalStackLayout>
+
+            <BoxView HeightRequest="1" Color="{DynamicResource ColorBorde}" Margin="0,4" />
+
+            <!-- Facturación (mismos campos que en el Check-in) -->
+            <HorizontalStackLayout Spacing="10">
+                <Switch IsToggled="{Binding EsFactura}" OnColor="{DynamicResource ColorAcento}" />
+                <Label Text="Requiere Factura (por defecto: Boleta)" VerticalOptions="Center" FontSize="21" />
+            </HorizontalStackLayout>
+
+            <VerticalStackLayout Spacing="12" IsVisible="{Binding EsFactura}">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="RUC (11 dígitos) *" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                    <Entry Text="{Binding RUC}" Placeholder="20123456789" Keyboard="Numeric" MaxLength="11" BackgroundColor="{DynamicResource ColorTarjeta}" />
+                </VerticalStackLayout>
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="Razón Social *" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                    <Entry Text="{Binding RazonSocial}" Placeholder="Empresa S.A.C." BackgroundColor="{DynamicResource ColorTarjeta}" />
+                </VerticalStackLayout>
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="Correo de facturación *" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                    <Entry Text="{Binding CorreoFacturacion}" Placeholder="correo@empresa.com" Keyboard="Email" BackgroundColor="{DynamicResource ColorTarjeta}" />
+                </VerticalStackLayout>
+            </VerticalStackLayout>
+
+            <BoxView HeightRequest="1" Color="{DynamicResource ColorBorde}" Margin="0,4" />
+
+            <!-- Acompañantes (mismo patrón que en el Check-in) -->
+            <Label Text="Acompañantes (opcional)" FontSize="24" FontAttributes="Bold" />
+
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <Entry Grid.Column="0" Text="{Binding NuevoAcompanante}" Placeholder="Nombre del acompañante" BackgroundColor="{DynamicResource ColorTarjeta}" />
+                <Button Grid.Column="1" Text="Agregar" Command="{Binding AgregarAcompananteCommand}"
+                        BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorAcento}"
+                        BorderColor="{DynamicResource ColorBorde}" BorderWidth="1" />
+            </Grid>
+
+            <CollectionView ItemsSource="{Binding Acompanantes}">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                        <Grid ColumnDefinitions="*,Auto" Padding="0,4">
+                            <Label Grid.Column="0" Text="{Binding .}" VerticalOptions="Center" FontSize="21" />
+                            <Border Grid.Column="1"
+                                    BackgroundColor="{DynamicResource ColorMantenimiento}"
+                                    WidthRequest="26" HeightRequest="26" Padding="0">
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="13" />
+                                </Border.StrokeShape>
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnQuitarAcompananteTapped" />
+                                </Border.GestureRecognizers>
+                                <Label Text="✕" TextColor="White" FontSize="21" HorizontalOptions="Center" VerticalOptions="Center" />
+                            </Border>
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="10" Margin="0,10,0,0">
+                <Button Grid.Column="0" Text="Cancelar" Command="{Binding CancelarCommand}"
+                        BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="50" />
+                <Button Grid.Column="1" Text="Confirmar Reserva" Command="{Binding ConfirmarCommand}"
+                        BackgroundColor="{DynamicResource ColorAcento}" TextColor="{DynamicResource ColorFondo}" HeightRequest="50" />
+            </Grid>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

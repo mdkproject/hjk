@@ -15,13 +15,18 @@ public class AppDbContext : DbContext
     public DbSet<Usuario> Usuarios => Set<Usuario>();
     public DbSet<Habitacion> Habitaciones => Set<Habitacion>();
     public DbSet<Estadia> Estadias => Set<Estadia>();
+    public DbSet<Reserva> Reservas => Set<Reserva>();
     public DbSet<Acompanante> Acompanantes => Set<Acompanante>();
+    public DbSet<AcompananteReserva> AcompanantesReserva => Set<AcompananteReserva>();
     public DbSet<ClienteSauna> ClientesSauna => Set<ClienteSauna>();
     public DbSet<ProductoPOS> ProductosPOS => Set<ProductoPOS>();
     public DbSet<VentaSauna> VentasSauna => Set<VentaSauna>();
     public DbSet<DetalleVenta> DetallesVenta => Set<DetalleVenta>();
     public DbSet<Penalidad> Penalidades => Set<Penalidad>();
     public DbSet<CierreCaja> CierresCaja => Set<CierreCaja>();
+    public DbSet<MovimientoCaja> MovimientosCaja => Set<MovimientoCaja>();
+    public DbSet<Insumo> Insumos => Set<Insumo>();
+    public DbSet<MovimientoInventario> MovimientosInventario => Set<MovimientoInventario>();
     public DbSet<LogAuditoria> LogsAuditoria => Set<LogAuditoria>();
 
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
@@ -57,13 +62,40 @@ public class AppDbContext : DbContext
         });
 
         // ----------------------------------------------------------------
+        // RESERVAS (reservas a futuro, separadas de las Estadias reales)
+        // ----------------------------------------------------------------
+        modelBuilder.Entity<Reserva>(entity =>
+        {
+            entity.ToTable("Reservas");
+            entity.HasKey(r => r.Id);
+            entity.Property(r => r.NumeroDocumento).IsRequired().HasMaxLength(20);
+            entity.Property(r => r.NombreCompleto).IsRequired().HasMaxLength(150);
+
+            entity.HasOne(r => r.Habitacion)
+                  .WithMany()
+                  .HasForeignKey(r => r.HabitacionId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasMany(r => r.Acompanantes)
+                  .WithOne()
+                  .HasForeignKey(a => a.ReservaId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AcompananteReserva>(entity =>
+        {
+            entity.ToTable("AcompanantesReserva");
+            entity.HasKey(a => a.Id);
+        });
+
+        // ----------------------------------------------------------------
         // ESTADIAS + ACOMPAÑANTES
         // ----------------------------------------------------------------
         modelBuilder.Entity<Estadia>(entity =>
         {
             entity.ToTable("Estadias");
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.DNI).IsRequired().HasMaxLength(15);
+            entity.Property(e => e.NumeroDocumento).IsRequired().HasMaxLength(20);
             entity.Property(e => e.NombreCompleto).IsRequired().HasMaxLength(150);
             entity.Property(e => e.TotalAcumulado).HasPrecision(10, 2);
 
@@ -98,6 +130,8 @@ public class AppDbContext : DbContext
             entity.ToTable("ProductosPOS");
             entity.HasKey(p => p.Id);
             entity.Property(p => p.Precio).HasPrecision(10, 2);
+            entity.Property(p => p.PrecioAlquiler).HasPrecision(10, 2);
+            entity.Property(p => p.PrecioVenta).HasPrecision(10, 2);
         });
 
         modelBuilder.Entity<VentaSauna>(entity =>
@@ -135,6 +169,33 @@ public class AppDbContext : DbContext
             entity.Property(c => c.TotalSauna).HasPrecision(10, 2);
         });
 
+        modelBuilder.Entity<MovimientoCaja>(entity =>
+        {
+            entity.ToTable("MovimientosCaja");
+            entity.HasKey(m => m.Id);
+            entity.Property(m => m.Descripcion).IsRequired().HasMaxLength(200);
+            entity.Property(m => m.PersonalRelacionado).HasMaxLength(150);
+            entity.Property(m => m.Monto).HasPrecision(10, 2);
+        });
+
+        // ----------------------------------------------------------------
+        // ALMACÉN / INVENTARIO
+        // ----------------------------------------------------------------
+        modelBuilder.Entity<Insumo>(entity =>
+        {
+            entity.ToTable("Insumos");
+            entity.HasKey(i => i.Id);
+            entity.Property(i => i.Nombre).IsRequired().HasMaxLength(100);
+            entity.Property(i => i.UnidadMedida).IsRequired().HasMaxLength(20);
+        });
+
+        modelBuilder.Entity<MovimientoInventario>(entity =>
+        {
+            entity.ToTable("MovimientosInventario");
+            entity.HasKey(m => m.Id);
+            entity.Property(m => m.Motivo).IsRequired().HasMaxLength(200);
+        });
+
         // ----------------------------------------------------------------
         // AUDITORÍA
         // ----------------------------------------------------------------
@@ -152,6 +213,7 @@ public class AppDbContext : DbContext
         SeedUsuarios(modelBuilder);
         SeedHabitaciones(modelBuilder);
         SeedProductosPOS(modelBuilder);
+        SeedInsumos(modelBuilder);
     }
 
     private static void SeedUsuarios(ModelBuilder modelBuilder)
@@ -162,10 +224,7 @@ public class AppDbContext : DbContext
         var fechaSeed = new DateTime(2026, 1, 1);
 
         modelBuilder.Entity<Usuario>().HasData(
-            new Usuario { Id = 1, Username = "lilian.chacon", NombreCompleto = "Lilian Chacón", Rol = RolUsuario.Gerencia, PasswordHash = hashPasswordDemo, Activo = true, FechaCreacion = fechaSeed },
-            new Usuario { Id = 2, Username = "gloria.chacon", NombreCompleto = "Gloria Chacón", Rol = RolUsuario.Gerencia, PasswordHash = hashPasswordDemo, Activo = true, FechaCreacion = fechaSeed },
-            new Usuario { Id = 3, Username = "miriam.chacon", NombreCompleto = "Miriam Chacón", Rol = RolUsuario.Gerencia, PasswordHash = hashPasswordDemo, Activo = true, FechaCreacion = fechaSeed },
-            new Usuario { Id = 4, Username = "marisela.chacon", NombreCompleto = "Marisela Chacón", Rol = RolUsuario.Gerencia, PasswordHash = hashPasswordDemo, Activo = true, FechaCreacion = fechaSeed },
+            new Usuario { Id = 1, Username = "gerencia.1", NombreCompleto = "Gerencia", Rol = RolUsuario.Gerencia, PasswordHash = hashPasswordDemo, Activo = true, FechaCreacion = fechaSeed },
             new Usuario { Id = 5, Username = "recepcion", NombreCompleto = "Recepción General", Rol = RolUsuario.Recepcionista, PasswordHash = hashPasswordDemo, Activo = true, FechaCreacion = fechaSeed },
             new Usuario { Id = 6, Username = "marcelo.dev", NombreCompleto = "Marcelo López", Rol = RolUsuario.Desarrollador, PasswordHash = hashPasswordDemo, Activo = true, FechaCreacion = fechaSeed }
         );
@@ -221,11 +280,12 @@ public class AppDbContext : DbContext
     private static void SeedProductosPOS(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<ProductoPOS>().HasData(
-            // --- Recepción Sauna ---
-            new ProductoPOS { Id = 1, Nombre = "Alquiler de toalla", Precio = 5m, Categoria = CategoriaProducto.AlquilerSauna, Icono = "🏖️", RequiereDevolucion = true, Activo = true },
-            new ProductoPOS { Id = 2, Nombre = "Alquiler de sandalias", Precio = 5m, Categoria = CategoriaProducto.AlquilerSauna, Icono = "🩴", RequiereDevolucion = true, Activo = true },
+            // --- Recepción Sauna: alquiler o venta, a elección del usuario en el POS ---
+            new ProductoPOS { Id = 1, Nombre = "Toalla", Precio = 0m, Categoria = CategoriaProducto.AlquilerSauna, Icono = "🏖️", RequiereDevolucion = true, Activo = true, EsAlquilerVenta = true, PrecioAlquiler = 5m, PrecioVenta = 20m },
+            new ProductoPOS { Id = 2, Nombre = "Sandalias", Precio = 0m, Categoria = CategoriaProducto.AlquilerSauna, Icono = "🩴", RequiereDevolucion = true, Activo = true, EsAlquilerVenta = true, PrecioAlquiler = 5m, PrecioVenta = 25m },
             new ProductoPOS { Id = 3, Nombre = "Trapo exfoliante", Precio = 8m, Categoria = CategoriaProducto.VentaSauna, Icono = "🧽", RequiereDevolucion = false, Activo = true },
             new ProductoPOS { Id = 4, Nombre = "Lentes de natación", Precio = 15m, Categoria = CategoriaProducto.VentaSauna, Icono = "🥽", RequiereDevolucion = false, Activo = true },
+            new ProductoPOS { Id = 15, Nombre = "Shorts", Precio = 0m, Categoria = CategoriaProducto.AlquilerSauna, Icono = "🩳", RequiereDevolucion = true, Activo = true, EsAlquilerVenta = true, PrecioAlquiler = 8m, PrecioVenta = 35m },
 
             // --- Cafetería: Bebidas ---
             new ProductoPOS { Id = 5, Nombre = "Gaseosa", Precio = 5m, Categoria = CategoriaProducto.BebidaCafeteria, Icono = "🥤", Activo = true },
@@ -239,7 +299,46 @@ public class AppDbContext : DbContext
             new ProductoPOS { Id = 11, Nombre = "Keke", Precio = 6m, Categoria = CategoriaProducto.AlimentoCafeteria, Icono = "🍰", Activo = true },
             new ProductoPOS { Id = 12, Nombre = "Empanada", Precio = 6m, Categoria = CategoriaProducto.AlimentoCafeteria, Icono = "🥟", Activo = true },
             new ProductoPOS { Id = 13, Nombre = "Sánguche", Precio = 9m, Categoria = CategoriaProducto.AlimentoCafeteria, Icono = "🥪", Activo = true },
-            new ProductoPOS { Id = 14, Nombre = "Ensalada", Precio = 12m, Categoria = CategoriaProducto.AlimentoCafeteria, Icono = "🥗", Activo = true }
+            new ProductoPOS { Id = 14, Nombre = "Ensalada", Precio = 12m, Categoria = CategoriaProducto.AlimentoCafeteria, Icono = "🥗", Activo = true },
+
+            // --- Servicios adicionales de Hotel (Cafetería) ---
+            new ProductoPOS { Id = 16, Nombre = "Planchado (prenda)", Precio = 5m, Categoria = CategoriaProducto.ServicioHotel, Icono = "👔", Activo = true },
+            new ProductoPOS { Id = 17, Nombre = "Lavandería (kg)", Precio = 10m, Categoria = CategoriaProducto.ServicioHotel, Icono = "🧺", Activo = true },
+            new ProductoPOS { Id = 18, Nombre = "Frazada adicional", Precio = 15m, Categoria = CategoriaProducto.ServicioHotel, Icono = "🛏️", Activo = true },
+            new ProductoPOS { Id = 19, Nombre = "Toalla adicional", Precio = 10m, Categoria = CategoriaProducto.ServicioHotel, Icono = "🧻", Activo = true }
+        );
+    }
+
+    /// <summary>Catálogo inicial de Almacén, según la lista específica del cliente:
+    /// blancos de habitación, insumos de cocina, e insumos de sauna (como stock a
+    /// reponer — distinto de ProductoPOS, que es lo que se le vende al cliente).</summary>
+    private static void SeedInsumos(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Insumo>().HasData(
+            // --- Hotel / Habitaciones ---
+            new Insumo { Id = 1, Nombre = "Frazada de alpaca (antialérgica)", Categoria = CategoriaInsumo.HotelHabitaciones, UnidadMedida = "unidad", StockActual = 40, StockMinimo = 10, Activo = true },
+            new Insumo { Id = 2, Nombre = "Frazada común", Categoria = CategoriaInsumo.HotelHabitaciones, UnidadMedida = "unidad", StockActual = 60, StockMinimo = 15, Activo = true },
+            new Insumo { Id = 3, Nombre = "Cobertor de cama", Categoria = CategoriaInsumo.HotelHabitaciones, UnidadMedida = "unidad", StockActual = 50, StockMinimo = 12, Activo = true },
+            new Insumo { Id = 4, Nombre = "Cobertor de almohada", Categoria = CategoriaInsumo.HotelHabitaciones, UnidadMedida = "unidad", StockActual = 80, StockMinimo = 20, Activo = true },
+
+            // --- Hotel / Cocina ---
+            new Insumo { Id = 5, Nombre = "Cubiertos (juego)", Categoria = CategoriaInsumo.HotelCocina, UnidadMedida = "juego", StockActual = 100, StockMinimo = 20, Activo = true },
+            new Insumo { Id = 6, Nombre = "Tazas", Categoria = CategoriaInsumo.HotelCocina, UnidadMedida = "unidad", StockActual = 60, StockMinimo = 15, Activo = true },
+            new Insumo { Id = 7, Nombre = "Platos", Categoria = CategoriaInsumo.HotelCocina, UnidadMedida = "unidad", StockActual = 60, StockMinimo = 15, Activo = true },
+            new Insumo { Id = 8, Nombre = "Huevos", Categoria = CategoriaInsumo.HotelCocina, UnidadMedida = "docena", StockActual = 20, StockMinimo = 5, Activo = true },
+            new Insumo { Id = 9, Nombre = "Mantequilla Horeca", Categoria = CategoriaInsumo.HotelCocina, UnidadMedida = "unidad", StockActual = 15, StockMinimo = 5, Activo = true },
+            new Insumo { Id = 10, Nombre = "Mermelada Horeca", Categoria = CategoriaInsumo.HotelCocina, UnidadMedida = "unidad", StockActual = 15, StockMinimo = 5, Activo = true },
+            new Insumo { Id = 11, Nombre = "Té filtrante", Categoria = CategoriaInsumo.HotelCocina, UnidadMedida = "caja", StockActual = 30, StockMinimo = 8, Activo = true },
+            new Insumo { Id = 12, Nombre = "Café en sobres", Categoria = CategoriaInsumo.HotelCocina, UnidadMedida = "caja", StockActual = 30, StockMinimo = 8, Activo = true },
+            new Insumo { Id = 13, Nombre = "Aceite", Categoria = CategoriaInsumo.HotelCocina, UnidadMedida = "litro", StockActual = 20, StockMinimo = 5, Activo = true },
+            new Insumo { Id = 14, Nombre = "Agua embotellada", Categoria = CategoriaInsumo.HotelCocina, UnidadMedida = "unidad", StockActual = 100, StockMinimo = 20, Activo = true },
+            new Insumo { Id = 15, Nombre = "Gaseosa (cocina)", Categoria = CategoriaInsumo.HotelCocina, UnidadMedida = "unidad", StockActual = 60, StockMinimo = 15, Activo = true },
+
+            // --- Sauna (insumo de stock, no solo ítem de venta) ---
+            new Insumo { Id = 16, Nombre = "Sandalias", Categoria = CategoriaInsumo.Sauna, UnidadMedida = "par", StockActual = 40, StockMinimo = 10, Activo = true },
+            new Insumo { Id = 17, Nombre = "Candados", Categoria = CategoriaInsumo.Sauna, UnidadMedida = "unidad", StockActual = 50, StockMinimo = 10, Activo = true },
+            new Insumo { Id = 18, Nombre = "Toallas", Categoria = CategoriaInsumo.Sauna, UnidadMedida = "unidad", StockActual = 80, StockMinimo = 20, Activo = true },
+            new Insumo { Id = 19, Nombre = "Shorts", Categoria = CategoriaInsumo.Sauna, UnidadMedida = "unidad", StockActual = 40, StockMinimo = 10, Activo = true }
         );
     }
 }

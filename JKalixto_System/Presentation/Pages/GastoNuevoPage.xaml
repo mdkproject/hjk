@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:JKalixto_System.Presentation.ViewModels"
+             x:Class="JKalixto_System.Presentation.Pages.GastoNuevoPage"
+             x:DataType="vm:GastoNuevoViewModel"
+             Title="{Binding Title}"
+             Shell.NavBarIsVisible="True"
+             BackgroundColor="{DynamicResource ColorFondo}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="16">
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Tipo de movimiento" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <HorizontalStackLayout Spacing="8">
+                    <Button Text="Salida de dinero" Command="{Binding SeleccionarDireccionCommand}" CommandParameter="Salida"
+                            BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="42" FontAttributes="None" />
+                    <Button Text="Ingreso de dinero" Command="{Binding SeleccionarDireccionCommand}" CommandParameter="Ingreso"
+                            BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="42" FontAttributes="None" />
+                </HorizontalStackLayout>
+                <Label Text="{Binding DireccionTexto, StringFormat='Seleccionado: {0} de dinero'}" FontSize="18" TextColor="{DynamicResource ColorTextoSecundario}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Categoría" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                    <HorizontalStackLayout Spacing="6">
+                        <Button Text="Gastos diarios" Command="{Binding SeleccionarCategoriaCommand}" CommandParameter="Gastos diarios"
+                                BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="38" FontSize="19" FontAttributes="None" Padding="12,0" />
+                        <Button Text="Pago del Personal" Command="{Binding SeleccionarCategoriaCommand}" CommandParameter="Pago del Personal"
+                                BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="38" FontSize="19" FontAttributes="None" Padding="12,0" />
+                        <Button Text="Consumo de Personal" Command="{Binding SeleccionarCategoriaCommand}" CommandParameter="Consumo de Personal"
+                                BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="38" FontSize="19" FontAttributes="None" Padding="12,0" />
+                        <Button Text="Ajuste de Caja" Command="{Binding SeleccionarCategoriaCommand}" CommandParameter="Ajuste de Caja"
+                                BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="38" FontSize="19" FontAttributes="None" Padding="12,0" />
+                    </HorizontalStackLayout>
+                </ScrollView>
+                <Label Text="{Binding CategoriaTexto, StringFormat='Seleccionada: {0}'}" FontSize="18" TextColor="{DynamicResource ColorTextoSecundario}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Afecta la Caja Chica de" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <HorizontalStackLayout Spacing="8">
+                    <Button Text="Hotel" Command="{Binding SeleccionarOrigenCommand}" CommandParameter="Hotel"
+                            BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="42" WidthRequest="100" FontAttributes="None" />
+                    <Button Text="Sauna" Command="{Binding SeleccionarOrigenCommand}" CommandParameter="Sauna"
+                            BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="42" WidthRequest="100" FontAttributes="None" />
+                </HorizontalStackLayout>
+                <Label Text="{Binding OrigenTexto, StringFormat='Seleccionado: {0}'}" FontSize="18" TextColor="{DynamicResource ColorTextoSecundario}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Descripción *" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <Entry Text="{Binding Descripcion}" Placeholder="Ej: Pedido de gaseosas" BackgroundColor="{DynamicResource ColorTarjeta}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Personal relacionado (opcional)" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <Entry Text="{Binding PersonalRelacionado}" Placeholder="Ej: Jose Chacon" BackgroundColor="{DynamicResource ColorTarjeta}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Monto (S/) *" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <Entry Text="{Binding MontoTexto}" Placeholder="0.00" Keyboard="Numeric" BackgroundColor="{DynamicResource ColorTarjeta}" />
+            </VerticalStackLayout>
+
+            <Label Text="{Binding MensajeError}"
+                   TextColor="{DynamicResource ColorMantenimiento}"
+                   FontSize="21"
+                   IsVisible="{Binding HayError}" />
+
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="10" Margin="0,10,0,0">
+                <Button Grid.Column="0" Text="Cancelar" Command="{Binding CancelarCommand}"
+                        BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="50" />
+                <Button Grid.Column="1" Text="Registrar" Command="{Binding ConfirmarCommand}"
+                        BackgroundColor="{DynamicResource ColorAcento}" TextColor="{DynamicResource ColorFondo}" HeightRequest="50" />
+            </Grid>
+
+            <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" Color="{DynamicResource ColorAcento}" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:JKalixto_System.Presentation.ViewModels"
+             xmlns:services="clr-namespace:JKalixto_System.Application.Services"
+             x:Class="JKalixto_System.Presentation.Pages.SaunaVentaPage"
+             x:DataType="vm:SaunaVentaViewModel"
+             Title="{Binding Title}"
+             Shell.NavBarIsVisible="True"
+             BackgroundColor="{DynamicResource ColorFondo}">
+
+    <Grid ColumnDefinitions="1.4*,1*" Padding="16" ColumnSpacing="14">
+
+        <!-- ===================== Columna izquierda: catálogo completo, sin scroll interno ===================== -->
+        <Grid Grid.Column="0" RowDefinitions="Auto,*" RowSpacing="10">
+            <Label Grid.Row="0" Text="Catálogo — toca para agregar" FontSize="22" FontAttributes="Bold" />
+
+            <ScrollView Grid.Row="1">
+                <CollectionView ItemsSource="{Binding Catalogo}">
+                    <CollectionView.ItemsLayout>
+                        <GridItemsLayout Orientation="Vertical" Span="4" HorizontalItemSpacing="8" VerticalItemSpacing="8" />
+                    </CollectionView.ItemsLayout>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="services:ProductoCatalogoDto">
+                            <Border BackgroundColor="{DynamicResource ColorTarjeta}"
+                                    Stroke="{DynamicResource ColorBorde}"
+                                    StrokeThickness="1"
+                                    Padding="6"
+                                    HeightRequest="82">
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="8" />
+                                </Border.StrokeShape>
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnProductoTapped" />
+                                </Border.GestureRecognizers>
+                                <VerticalStackLayout Spacing="1" VerticalOptions="Center" HorizontalOptions="Center">
+                                    <Label Text="{Binding Icono}" FontSize="26" HorizontalOptions="Center" />
+                                    <Label Text="{Binding Nombre}" FontSize="12" HorizontalOptions="Center" HorizontalTextAlignment="Center" LineBreakMode="TailTruncation" />
+                                    <Label Text="{Binding PrecioTexto}" FontSize="13" FontAttributes="Bold" TextColor="{DynamicResource ColorAcento}" HorizontalOptions="Center" />
+                                </VerticalStackLayout>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </ScrollView>
+        </Grid>
+
+        <!-- ===================== Columna derecha: carrito, compacto ===================== -->
+        <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto" RowSpacing="8">
+
+            <Label Grid.Row="0" Text="Carrito" FontSize="18" FontAttributes="Bold" />
+
+            <Border Grid.Row="1"
+                    BackgroundColor="{DynamicResource ColorSuperficie}"
+                    Stroke="{DynamicResource ColorBorde}"
+                    StrokeThickness="1"
+                    Padding="10">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="10" />
+                </Border.StrokeShape>
+
+                <Grid RowDefinitions="*,Auto">
+                    <CollectionView Grid.Row="0" ItemsSource="{Binding Carrito}" EmptyView="El carrito está vacío.">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="services:ItemCarritoDto">
+                                <Grid ColumnDefinitions="Auto,*,Auto" Padding="0,4" ColumnSpacing="6">
+                                    <Label Grid.Column="0" Text="{Binding Cantidad, StringFormat='{0}x'}" FontSize="12" TextColor="{DynamicResource ColorTextoSecundario}" VerticalOptions="Center" />
+                                    <VerticalStackLayout Grid.Column="1" Spacing="0" VerticalOptions="Center">
+                                        <Label Text="{Binding Descripcion}" FontSize="12" LineBreakMode="TailTruncation" />
+                                        <Label Text="{Binding Subtotal, StringFormat='S/ {0:0.00}'}" FontSize="12" FontAttributes="Bold" TextColor="{DynamicResource ColorAcento}" />
+                                    </VerticalStackLayout>
+                                    <Border Grid.Column="2"
+                                            BackgroundColor="{DynamicResource ColorMantenimiento}"
+                                            WidthRequest="20" HeightRequest="20" Padding="0"
+                                            VerticalOptions="Center">
+                                        <Border.StrokeShape>
+                                            <RoundRectangle CornerRadius="10" />
+                                        </Border.StrokeShape>
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Tapped="OnQuitarItemTapped" />
+                                        </Border.GestureRecognizers>
+                                        <Label Text="✕" TextColor="White" FontSize="11" HorizontalOptions="Center" VerticalOptions="Center" />
+                                    </Border>
+                                </Grid>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+
+                    <Label Grid.Row="1"
+                           Text="{Binding MensajeError}"
+                           TextColor="{DynamicResource ColorMantenimiento}"
+                           FontSize="12"
+                           IsVisible="{Binding HayError}" />
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="2" BackgroundColor="{DynamicResource ColorTarjeta}" Stroke="{DynamicResource ColorBorde}" StrokeThickness="1" Padding="12">
+                <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
+                <VerticalStackLayout Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Grid.Column="0" Text="Total" FontSize="16" VerticalOptions="Center" />
+                        <Label Grid.Column="1" Text="{Binding TotalTexto}" FontSize="24" FontAttributes="Bold" TextColor="{DynamicResource ColorAcento}" />
+                    </Grid>
+                    <Button Text="Confirmar Venta"
+                            Command="{Binding ConfirmarVentaCommand}"
+                            BackgroundColor="{DynamicResource ColorAcento}"
+                            TextColor="{DynamicResource ColorFondo}"
+                            HeightRequest="46"
+                            IsEnabled="{Binding HayItems}" />
+                    <Button Text="Cancelar"
+                            Command="{Binding CancelarCommand}"
+                            BackgroundColor="Transparent"
+                            TextColor="{DynamicResource ColorTextoSecundario}"
+                            HeightRequest="34" />
+                </VerticalStackLayout>
+            </Border>
+
+        </Grid>
+    </Grid>
+</ContentPage>

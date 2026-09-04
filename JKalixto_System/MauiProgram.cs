@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
@@ -43,7 +44,14 @@ public static class MauiProgram
         builder.Services.AddTransient<IAuthService, AuthService>();
         builder.Services.AddTransient<IAuditoriaService, AuditoriaService>();
         builder.Services.AddTransient<IHabitacionService, HabitacionService>();
+        builder.Services.AddTransient<IReservaService, ReservaService>();
+        builder.Services.AddTransient<IClientesService, ClientesService>();
+        builder.Services.AddTransient<IGastosService, GastosService>();
+        builder.Services.AddTransient<ICalendarioService, CalendarioService>();
         builder.Services.AddTransient<IDashboardService, DashboardService>();
+        builder.Services.AddTransient<ISaunaService, SaunaService>();
+        builder.Services.AddTransient<ICierreCajaService, CierreCajaService>();
+        builder.Services.AddTransient<IInventarioService, InventarioService>();
 
         // ISessionService es Singleton a propósito: debe recordar quién inició
         // sesión mientras la app sigue abierta, sin importar a qué página se navegue.
@@ -59,6 +67,34 @@ public static class MauiProgram
         builder.Services.AddTransient<RecepcionViewModel>();
         builder.Services.AddTransient<CheckInPage>();
         builder.Services.AddTransient<CheckInViewModel>();
+        builder.Services.AddTransient<SaunaPage>();
+        builder.Services.AddTransient<SaunaViewModel>();
+        builder.Services.AddTransient<SaunaRegistroPage>();
+        builder.Services.AddTransient<SaunaRegistroViewModel>();
+        builder.Services.AddTransient<SaunaVentaPage>();
+        builder.Services.AddTransient<SaunaVentaViewModel>();
+        builder.Services.AddTransient<CierreCajaPage>();
+        builder.Services.AddTransient<CierreCajaViewModel>();
+        builder.Services.AddTransient<ReservasPage>();
+        builder.Services.AddTransient<ReservasViewModel>();
+        builder.Services.AddTransient<ReservaNuevaPage>();
+        builder.Services.AddTransient<ReservaNuevaViewModel>();
+        builder.Services.AddTransient<ClientesPage>();
+        builder.Services.AddTransient<ClientesViewModel>();
+        builder.Services.AddTransient<GastosPage>();
+        builder.Services.AddTransient<GastosViewModel>();
+        builder.Services.AddTransient<GastoNuevoPage>();
+        builder.Services.AddTransient<GastoNuevoViewModel>();
+        builder.Services.AddTransient<CalendarioPage>();
+        builder.Services.AddTransient<CalendarioViewModel>();
+        builder.Services.AddTransient<AuditoriaPage>();
+        builder.Services.AddTransient<AuditoriaViewModel>();
+        builder.Services.AddTransient<AlmacenPage>();
+        builder.Services.AddTransient<AlmacenViewModel>();
+        builder.Services.AddTransient<AlmacenMovimientoPage>();
+        builder.Services.AddTransient<AlmacenMovimientoViewModel>();
+        builder.Services.AddTransient<CafeteriaPage>();
+        builder.Services.AddTransient<CafeteriaViewModel>();
 
 #if DEBUG
         builder.Logging.AddDebug();
@@ -70,6 +106,32 @@ public static class MauiProgram
 
         return app;
     }
+
+    /// <summary>
+    /// MODO DE PRUEBAS: mientras esto sea "true", la app arranca directo en el
+    /// Dashboard con una sesión ya iniciada (usuario "marcelo.dev", rol
+    /// Desarrollador, que ve todo el sistema sin restricciones) — así te ahorrás
+    /// escribir usuario/clave cada vez que abrís la app para probar.
+    ///
+    /// Cuando quieras volver a pedir usuario/clave de verdad (por ejemplo, para
+    /// repartir credenciales distintas a cada persona del hotel), cambiá esto a
+    /// "false" y listo: no hay que tocar nada más.
+    /// </summary>
+    private const bool ModoPruebaSinLogin = true;
+
+    /// <summary>Username del usuario que se auto-loguea en Modo de Pruebas. Tiene que
+    /// existir en el seed de Usuarios de AppDbContext.</summary>
+    private const string UsuarioDePrueba = "marcelo.dev";
+
+    /// <summary>
+    /// Si es "true", cada vez que arranca la app se generan datos de prueba
+    /// ALEATORIOS Y FICTICIOS: 5 huéspedes con Check-in en el hotel, 5 clientes de
+    /// sauna, algunos consumos de POS, y un par de reservas a futuro. Los nombres,
+    /// DNI y celulares son inventados (ver DatosPruebaSeeder.cs) — no reemplaza
+    /// datos reales, solo evita tener que probar todo con el sistema vacío.
+    /// Cuando el sistema pase a usarse con datos reales, cambiá esto a "false".
+    /// </summary>
+    private const bool GenerarDatosDePrueba = true;
 
     /// <summary>
     /// Prepara la base de datos SQLite al arrancar la app.
@@ -94,5 +156,31 @@ public static class MauiProgram
 
         using var db = services.GetRequiredService<AppDbContext>();
         db.Database.EnsureCreated();
+
+        if (ModoPruebaSinLogin)
+        {
+            // Se hace acá (síncrono, ANTES de que se cree la primera pantalla)
+            // por la misma razón que EnsureCreated() se hace acá: para que
+            // cuando el Dashboard aparezca, el usuario ya esté listo — sin esto,
+            // habría una carrera contra el tiempo entre "la pantalla ya se
+            // dibujó" y "el usuario todavía no se cargó de la BD".
+            var sessionService = services.GetRequiredService<ISessionService>();
+            sessionService.UsuarioActual = db.Usuarios.FirstOrDefault(u => u.Username == UsuarioDePrueba && u.Activo);
+        }
+
+        if (GenerarDatosDePrueba)
+        {
+            // Los datos de prueba necesitan un usuario "autor" para quedar bien
+            // registrados en la auditoría (quién hizo el Check-in, quién registró
+            // la reserva, etc.) — se busca uno aunque ModoPruebaSinLogin esté en
+            // "false", para que este flag funcione de forma independiente del otro.
+            var usuarioParaSeed = db.Usuarios.FirstOrDefault(u => u.Username == UsuarioDePrueba && u.Activo)
+                                   ?? db.Usuarios.FirstOrDefault(u => u.Activo);
+
+            if (usuarioParaSeed is not null)
+            {
+                DatosPruebaSeeder.Sembrar(db, usuarioParaSeed.Id);
+            }
+        }
     }
 }

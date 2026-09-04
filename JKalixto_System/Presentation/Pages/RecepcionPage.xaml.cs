@@ -17,7 +17,14 @@ public partial class RecepcionPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
+        _viewModel.IniciarReloj();
         await _viewModel.CargarAsync();
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        _viewModel.DetenerReloj();
     }
 
     /// <summary>

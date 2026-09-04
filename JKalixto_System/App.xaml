@@ -8,34 +8,39 @@
 
             <!-- ============================================
                  PALETA DE COLORES OFICIAL — Hotel-Sauna JKalixto
-                 (tema ejecutivo oscuro, ver documento maestro)
+                 (tema oscuro por defecto, inspirado en Google Calendar — ver
+                 TemaService.cs, que es la fuente de verdad real en tiempo de
+                 ejecución; estos valores solo evitan un parpadeo antes de que
+                 TemaService.Inicializar() los sobrescriba al arrancar)
                  ============================================ -->
-            <Color x:Key="ColorFondo">#080C14</Color>
-            <Color x:Key="ColorSuperficie">#0F1724</Color>
-            <Color x:Key="ColorTarjeta">#141E30</Color>
-            <Color x:Key="ColorBorde">#1C2D45</Color>
+            <Color x:Key="ColorFondo">#202124</Color>
+            <Color x:Key="ColorSuperficie">#292A2D</Color>
+            <Color x:Key="ColorTarjeta">#303134</Color>
+            <Color x:Key="ColorBorde">#3C4043</Color>
             <Color x:Key="ColorAcento">#C9A84C</Color>
-            <Color x:Key="ColorTextoPrimario">#E4E9F4</Color>
-            <Color x:Key="ColorTextoSecundario">#5A6A82</Color>
-            <Color x:Key="ColorDisponible">#22C55E</Color>
-            <Color x:Key="ColorOcupada">#3B82F6</Color>
-            <Color x:Key="ColorLimpieza">#F59E0B</Color>
-            <Color x:Key="ColorMantenimiento">#EF4444</Color>
-            <Color x:Key="ColorSaunaDamas">#EC4899</Color>
+            <Color x:Key="ColorTextoPrimario">#E8EAED</Color>
+            <Color x:Key="ColorTextoSecundario">#9AA0A6</Color>
+            <Color x:Key="ColorDisponible">#81C995</Color>
+            <Color x:Key="ColorOcupada">#669DF6</Color>
+            <Color x:Key="ColorLimpieza">#FDD663</Color>
+            <Color x:Key="ColorMantenimiento">#F28B82</Color>
+            <Color x:Key="ColorReservada">#D7AEFB</Color>
+            <Color x:Key="ColorSaunaDamas">#F6AEA9</Color>
 
-            <!-- Estilos base para que todo el sistema respete el tema oscuro por defecto -->
+            <!-- Estilos base. DynamicResource (no StaticResource) para que, al cambiar
+                 de tema, TODAS las pantallas se repinten solas sin reiniciar la app. -->
             <Style TargetType="ContentPage">
-                <Setter Property="BackgroundColor" Value="{StaticResource ColorFondo}" />
+                <Setter Property="BackgroundColor" Value="{DynamicResource ColorFondo}" />
             </Style>
 
             <Style TargetType="Label">
-                <Setter Property="TextColor" Value="{StaticResource ColorTextoPrimario}" />
+                <Setter Property="TextColor" Value="{DynamicResource ColorTextoPrimario}" />
             </Style>
 
             <Style TargetType="Entry">
-                <Setter Property="TextColor" Value="{StaticResource ColorTextoPrimario}" />
-                <Setter Property="PlaceholderColor" Value="{StaticResource ColorTextoSecundario}" />
-                <Setter Property="FontSize" Value="15" />
+                <Setter Property="TextColor" Value="{DynamicResource ColorTextoPrimario}" />
+                <Setter Property="PlaceholderColor" Value="{DynamicResource ColorTextoSecundario}" />
+                <Setter Property="FontSize" Value="24" />
             </Style>
 
             <Style TargetType="Button">

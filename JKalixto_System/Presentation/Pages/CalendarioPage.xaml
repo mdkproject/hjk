@@ -1,0 +1,347 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:JKalixto_System.Presentation.ViewModels"
+             xmlns:controls="clr-namespace:JKalixto_System.Presentation.Controls"
+             x:Class="JKalixto_System.Presentation.Pages.CalendarioPage"
+             x:DataType="vm:CalendarioViewModel"
+             Title="{Binding Title}"
+             Shell.NavBarIsVisible="True"
+             BackgroundColor="{DynamicResource ColorFondo}">
+
+    <Grid ColumnDefinitions="220,*" Padding="16" ColumnSpacing="14">
+
+        <!-- ===================== Panel lateral: mini-calendario + filtros + leyenda ===================== -->
+        <Border Grid.Column="0"
+                BackgroundColor="{DynamicResource ColorSuperficie}"
+                Stroke="{DynamicResource ColorBorde}"
+                StrokeThickness="1"
+                Padding="14">
+            <Border.StrokeShape>
+                <RoundRectangle CornerRadius="10" />
+            </Border.StrokeShape>
+
+            <ScrollView>
+                <VerticalStackLayout Spacing="16">
+
+                    <!-- Mini-calendario: navega el mismo mes que la grilla grande; tocar
+                         un día scrollea la grilla principal hasta esa columna. -->
+                    <VerticalStackLayout Spacing="6">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <Button Grid.Column="0" Text="◀" Command="{Binding MesAnteriorCommand}"
+                                    BackgroundColor="Transparent" TextColor="{DynamicResource ColorTextoSecundario}"
+                                    WidthRequest="26" HeightRequest="26" FontSize="18" Padding="0" FontAttributes="None" />
+                            <Label Grid.Column="1" Text="{Binding MesTexto}" FontSize="19" FontAttributes="Bold"
+                                   HorizontalOptions="Center" VerticalOptions="Center" TextColor="{DynamicResource ColorTextoPrimario}" />
+                            <Button Grid.Column="2" Text="▶" Command="{Binding MesSiguienteCommand}"
+                                    BackgroundColor="Transparent" TextColor="{DynamicResource ColorTextoSecundario}"
+                                    WidthRequest="26" HeightRequest="26" FontSize="18" Padding="0" FontAttributes="None" />
+                        </Grid>
+                        <Grid x:Name="GrillaMiniCalendario" RowSpacing="2" ColumnSpacing="2" />
+                    </VerticalStackLayout>
+
+                    <BoxView HeightRequest="1" Color="{DynamicResource ColorBorde}" />
+
+                    <!-- Filtro por piso -->
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="PISO" FontSize="16" FontAttributes="Bold" CharacterSpacing="0.5" TextColor="{DynamicResource ColorTextoSecundario}" />
+                        <FlexLayout Wrap="Wrap" JustifyContent="Start" AlignItems="Start">
+                            <Button Text="Todos" Command="{Binding SeleccionarPisoFiltroCommand}" CommandParameter="Todos" Margin="0,0,6,6"
+                                    BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="30" FontSize="18" FontAttributes="None" Padding="10,0">
+                                <Button.Triggers>
+                                    <DataTrigger TargetType="Button" Binding="{Binding PisoFiltro}" Value="Todos">
+                                        <Setter Property="BackgroundColor" Value="{DynamicResource ColorAcento}" />
+                                        <Setter Property="TextColor" Value="{DynamicResource ColorFondo}" />
+                                        <Setter Property="FontAttributes" Value="Bold" />
+                                    </DataTrigger>
+                                </Button.Triggers>
+                            </Button>
+                            <Button Text="1" Command="{Binding SeleccionarPisoFiltroCommand}" CommandParameter="1" Margin="0,0,6,6"
+                                    BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="30" WidthRequest="34" FontSize="18" FontAttributes="None" Padding="0">
+                                <Button.Triggers>
+                                    <DataTrigger TargetType="Button" Binding="{Binding PisoFiltro}" Value="1">
+                                        <Setter Property="BackgroundColor" Value="{DynamicResource ColorAcento}" />
+                                        <Setter Property="TextColor" Value="{DynamicResource ColorFondo}" />
+                                        <Setter Property="FontAttributes" Value="Bold" />
+                                    </DataTrigger>
+                                </Button.Triggers>
+                            </Button>
+                            <Button Text="2" Command="{Binding SeleccionarPisoFiltroCommand}" CommandParameter="2" Margin="0,0,6,6"
+                                    BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="30" WidthRequest="34" FontSize="18" FontAttributes="None" Padding="0">
+                                <Button.Triggers>
+                                    <DataTrigger TargetType="Button" Binding="{Binding PisoFiltro}" Value="2">
+                                        <Setter Property="BackgroundColor" Value="{DynamicResource ColorAcento}" />
+                                        <Setter Property="TextColor" Value="{DynamicResource ColorFondo}" />
+                                        <Setter Property="FontAttributes" Value="Bold" />
+                                    </DataTrigger>
+                                </Button.Triggers>
+                            </Button>
+                            <Button Text="3" Command="{Binding SeleccionarPisoFiltroCommand}" CommandParameter="3" Margin="0,0,6,6"
+                                    BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="30" WidthRequest="34" FontSize="18" FontAttributes="None" Padding="0">
+                                <Button.Triggers>
+                                    <DataTrigger TargetType="Button" Binding="{Binding PisoFiltro}" Value="3">
+                                        <Setter Property="BackgroundColor" Value="{DynamicResource ColorAcento}" />
+                                        <Setter Property="TextColor" Value="{DynamicResource ColorFondo}" />
+                                        <Setter Property="FontAttributes" Value="Bold" />
+                                    </DataTrigger>
+                                </Button.Triggers>
+                            </Button>
+                            <Button Text="4" Command="{Binding SeleccionarPisoFiltroCommand}" CommandParameter="4" Margin="0,0,6,6"
+                                    BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="30" WidthRequest="34" FontSize="18" FontAttributes="None" Padding="0">
+                                <Button.Triggers>
+                                    <DataTrigger TargetType="Button" Binding="{Binding PisoFiltro}" Value="4">
+                                        <Setter Property="BackgroundColor" Value="{DynamicResource ColorAcento}" />
+                                        <Setter Property="TextColor" Value="{DynamicResource ColorFondo}" />
+                                        <Setter Property="FontAttributes" Value="Bold" />
+                                    </DataTrigger>
+                                </Button.Triggers>
+                            </Button>
+                        </FlexLayout>
+                    </VerticalStackLayout>
+
+                    <!-- Filtro por tipo de habitación -->
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="TIPO" FontSize="16" FontAttributes="Bold" CharacterSpacing="0.5" TextColor="{DynamicResource ColorTextoSecundario}" />
+                        <FlexLayout Wrap="Wrap" JustifyContent="Start" AlignItems="Start">
+                            <Button Text="Todos" Command="{Binding SeleccionarTipoFiltroCommand}" CommandParameter="Todos" Margin="0,0,6,6"
+                                    BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="30" FontSize="18" FontAttributes="None" Padding="10,0">
+                                <Button.Triggers>
+                                    <DataTrigger TargetType="Button" Binding="{Binding TipoFiltro}" Value="Todos">
+                                        <Setter Property="BackgroundColor" Value="{DynamicResource ColorAcento}" />
+                                        <Setter Property="TextColor" Value="{DynamicResource ColorFondo}" />
+                                        <Setter Property="FontAttributes" Value="Bold" />
+                                    </DataTrigger>
+                                </Button.Triggers>
+                            </Button>
+                            <Button Text="Simple" Command="{Binding SeleccionarTipoFiltroCommand}" CommandParameter="Simple" Margin="0,0,6,6"
+                                    BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="30" FontSize="18" FontAttributes="None" Padding="10,0">
+                                <Button.Triggers>
+                                    <DataTrigger TargetType="Button" Binding="{Binding TipoFiltro}" Value="Simple">
+                                        <Setter Property="BackgroundColor" Value="{DynamicResource ColorAcento}" />
+                                        <Setter Property="TextColor" Value="{DynamicResource ColorFondo}" />
+                                        <Setter Property="FontAttributes" Value="Bold" />
+                                    </DataTrigger>
+                                </Button.Triggers>
+                            </Button>
+                            <Button Text="Matrimonial" Command="{Binding SeleccionarTipoFiltroCommand}" CommandParameter="Matrimonial" Margin="0,0,6,6"
+                                    BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="30" FontSize="18" FontAttributes="None" Padding="10,0">
+                                <Button.Triggers>
+                                    <DataTrigger TargetType="Button" Binding="{Binding TipoFiltro}" Value="Matrimonial">
+                                        <Setter Property="BackgroundColor" Value="{DynamicResource ColorAcento}" />
+                                        <Setter Property="TextColor" Value="{DynamicResource ColorFondo}" />
+                                        <Setter Property="FontAttributes" Value="Bold" />
+                                    </DataTrigger>
+                                </Button.Triggers>
+                            </Button>
+                            <Button Text="Doble" Command="{Binding SeleccionarTipoFiltroCommand}" CommandParameter="Doble" Margin="0,0,6,6"
+                                    BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="30" FontSize="18" FontAttributes="None" Padding="10,0">
+                                <Button.Triggers>
+                                    <DataTrigger TargetType="Button" Binding="{Binding TipoFiltro}" Value="Doble">
+                                        <Setter Property="BackgroundColor" Value="{DynamicResource ColorAcento}" />
+                                        <Setter Property="TextColor" Value="{DynamicResource ColorFondo}" />
+                                        <Setter Property="FontAttributes" Value="Bold" />
+                                    </DataTrigger>
+                                </Button.Triggers>
+                            </Button>
+                            <Button Text="Familiar" Command="{Binding SeleccionarTipoFiltroCommand}" CommandParameter="Familiar" Margin="0,0,6,6"
+                                    BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="30" FontSize="18" FontAttributes="None" Padding="10,0">
+                                <Button.Triggers>
+                                    <DataTrigger TargetType="Button" Binding="{Binding TipoFiltro}" Value="Familiar">
+                                        <Setter Property="BackgroundColor" Value="{DynamicResource ColorAcento}" />
+                                        <Setter Property="TextColor" Value="{DynamicResource ColorFondo}" />
+                                        <Setter Property="FontAttributes" Value="Bold" />
+                                    </DataTrigger>
+                                </Button.Triggers>
+                            </Button>
+                            <Button Text="Suite" Command="{Binding SeleccionarTipoFiltroCommand}" CommandParameter="Suite" Margin="0,0,6,6"
+                                    BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="30" FontSize="18" FontAttributes="None" Padding="10,0">
+                                <Button.Triggers>
+                                    <DataTrigger TargetType="Button" Binding="{Binding TipoFiltro}" Value="Suite">
+                                        <Setter Property="BackgroundColor" Value="{DynamicResource ColorAcento}" />
+                                        <Setter Property="TextColor" Value="{DynamicResource ColorFondo}" />
+                                        <Setter Property="FontAttributes" Value="Bold" />
+                                    </DataTrigger>
+                                </Button.Triggers>
+                            </Button>
+                        </FlexLayout>
+                    </VerticalStackLayout>
+
+                    <BoxView HeightRequest="1" Color="{DynamicResource ColorBorde}" />
+
+                    <!-- Filtro por estado ACTUAL de la habitación (el mismo dato de
+                         Registro Hotel) — reemplaza la leyenda fija: además de mostrar
+                         qué significa cada color, cada botón filtra las filas y muestra
+                         cuántas habitaciones hay en ese estado ahora mismo. Menos filas
+                         a la vez también ayuda a ver el hotel completo de un vistazo. -->
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="ESTADO DE LA HABITACIÓN" FontSize="16" FontAttributes="Bold" CharacterSpacing="0.5" TextColor="{DynamicResource ColorTextoSecundario}" />
+
+                        <Button Text="Todos" Command="{Binding SeleccionarEstadoFiltroCommand}" CommandParameter="Todos"
+                                BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="34" FontSize="18" FontAttributes="None" HorizontalOptions="Fill" Padding="10,0">
+                            <Button.Triggers>
+                                <DataTrigger TargetType="Button" Binding="{Binding EstadoFiltro}" Value="Todos">
+                                    <Setter Property="BackgroundColor" Value="{DynamicResource ColorAcento}" />
+                                    <Setter Property="TextColor" Value="{DynamicResource ColorFondo}" />
+                                    <Setter Property="FontAttributes" Value="Bold" />
+                                </DataTrigger>
+                            </Button.Triggers>
+                        </Button>
+
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                            <BoxView Grid.Column="0" Color="{DynamicResource ColorDisponible}" WidthRequest="12" HeightRequest="12" CornerRadius="3" HorizontalOptions="Start" />
+                            <Button Grid.Column="1" Text="{Binding ContadorDisponible, StringFormat='Disponible ({0})'}" Command="{Binding SeleccionarEstadoFiltroCommand}" CommandParameter="Disponible"
+                                    BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="34" FontSize="18" FontAttributes="None" HorizontalOptions="Fill" Padding="10,0">
+                                <Button.Triggers>
+                                    <DataTrigger TargetType="Button" Binding="{Binding EstadoFiltro}" Value="Disponible">
+                                        <Setter Property="BackgroundColor" Value="{DynamicResource ColorAcento}" />
+                                        <Setter Property="TextColor" Value="{DynamicResource ColorFondo}" />
+                                        <Setter Property="FontAttributes" Value="Bold" />
+                                    </DataTrigger>
+                                </Button.Triggers>
+                            </Button>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                            <BoxView Grid.Column="0" Color="{DynamicResource ColorOcupada}" WidthRequest="12" HeightRequest="12" CornerRadius="3" HorizontalOptions="Start" />
+                            <Button Grid.Column="1" Text="{Binding ContadorOcupada, StringFormat='Ocupada ({0})'}" Command="{Binding SeleccionarEstadoFiltroCommand}" CommandParameter="Ocupada"
+                                    BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="34" FontSize="18" FontAttributes="None" HorizontalOptions="Fill" Padding="10,0">
+                                <Button.Triggers>
+                                    <DataTrigger TargetType="Button" Binding="{Binding EstadoFiltro}" Value="Ocupada">
+                                        <Setter Property="BackgroundColor" Value="{DynamicResource ColorAcento}" />
+                                        <Setter Property="TextColor" Value="{DynamicResource ColorFondo}" />
+                                        <Setter Property="FontAttributes" Value="Bold" />
+                                    </DataTrigger>
+                                </Button.Triggers>
+                            </Button>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                            <BoxView Grid.Column="0" Color="{DynamicResource ColorLimpieza}" WidthRequest="12" HeightRequest="12" CornerRadius="3" HorizontalOptions="Start" />
+                            <Button Grid.Column="1" Text="{Binding ContadorLimpieza, StringFormat='Limpieza ({0})'}" Command="{Binding SeleccionarEstadoFiltroCommand}" CommandParameter="Limpieza"
+                                    BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="34" FontSize="18" FontAttributes="None" HorizontalOptions="Fill" Padding="10,0">
+                                <Button.Triggers>
+                                    <DataTrigger TargetType="Button" Binding="{Binding EstadoFiltro}" Value="Limpieza">
+                                        <Setter Property="BackgroundColor" Value="{DynamicResource ColorAcento}" />
+                                        <Setter Property="TextColor" Value="{DynamicResource ColorFondo}" />
+                                        <Setter Property="FontAttributes" Value="Bold" />
+                                    </DataTrigger>
+                                </Button.Triggers>
+                            </Button>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                            <BoxView Grid.Column="0" Color="{DynamicResource ColorMantenimiento}" WidthRequest="12" HeightRequest="12" CornerRadius="3" HorizontalOptions="Start" />
+                            <Button Grid.Column="1" Text="{Binding ContadorMantenimiento, StringFormat='Mantenimiento ({0})'}" Command="{Binding SeleccionarEstadoFiltroCommand}" CommandParameter="Mantenimiento"
+                                    BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="34" FontSize="18" FontAttributes="None" HorizontalOptions="Fill" Padding="10,0">
+                                <Button.Triggers>
+                                    <DataTrigger TargetType="Button" Binding="{Binding EstadoFiltro}" Value="Mantenimiento">
+                                        <Setter Property="BackgroundColor" Value="{DynamicResource ColorAcento}" />
+                                        <Setter Property="TextColor" Value="{DynamicResource ColorFondo}" />
+                                        <Setter Property="FontAttributes" Value="Bold" />
+                                    </DataTrigger>
+                                </Button.Triggers>
+                            </Button>
+                        </Grid>
+
+                        <HorizontalStackLayout Spacing="6" Margin="0,4,0,0">
+                            <BoxView Color="{DynamicResource ColorReservada}" WidthRequest="12" HeightRequest="12" CornerRadius="3" />
+                            <Label Text="Reservada (color de celda, no filtra filas)" FontSize="14" TextColor="{DynamicResource ColorTextoSecundario}" VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
+
+                </VerticalStackLayout>
+            </ScrollView>
+        </Border>
+
+        <!-- ===================== Contenido principal ===================== -->
+        <Grid Grid.Column="1" RowDefinitions="Auto,*" RowSpacing="10">
+
+            <!-- Navegación de mes + reloj/tema -->
+            <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto" ColumnSpacing="10">
+                <Button Grid.Column="0" Text="◀" Command="{Binding MesAnteriorCommand}"
+                        BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}"
+                        WidthRequest="44" HeightRequest="44" FontAttributes="None" />
+
+                <Label Grid.Column="1" Text="{Binding MesTexto}" FontSize="32" FontAttributes="Bold"
+                       VerticalOptions="Center" HorizontalOptions="Center" TextColor="{DynamicResource ColorAcento}" />
+
+                <Button Grid.Column="2" Text="Hoy" Command="{Binding IrAHoyCommand}"
+                        IsVisible="{Binding NoEsMesActual}"
+                        BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}"
+                        HeightRequest="44" FontAttributes="None" />
+
+                <Button Grid.Column="3" Text="▶" Command="{Binding MesSiguienteCommand}"
+                        BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}"
+                        WidthRequest="44" HeightRequest="44" FontAttributes="None" />
+
+                <ActivityIndicator Grid.Column="4" IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" Color="{DynamicResource ColorAcento}" VerticalOptions="Center" />
+
+                <controls:BarraRelojTemaView Grid.Column="5" />
+            </Grid>
+
+            <!--
+                Los 3 Grids de acá adentro (encabezado de días, etiquetas de habitación y
+                la grilla principal) se arman por código en CalendarioPage.xaml.cs, porque
+                la cantidad de columnas (28 a 31 días según el mes) y filas (habitaciones
+                filtradas) cambia — XAML no tiene forma de "repetir N veces" para eso.
+
+                Encabezados CONGELADOS: el encabezado de días (arriba) y las etiquetas de
+                habitación (izquierda) viven en su propio Border, envueltos en un Grid más
+                chico que la grilla principal, y se "arrastran" con TranslationX/TranslationY
+                en código cada vez que la grilla principal scrollea (ver OnGrillaScrolled) —
+                así siempre queda a la vista qué día/habitación se está mirando, sin importar
+                cuánto se haya scrolleado. El Border de cada uno recorta (clip) el contenido
+                que se sale de su tamaño visible, dejando solo el efecto de "quedarse fijo".
+            -->
+            <Border Grid.Row="1"
+                    BackgroundColor="{DynamicResource ColorSuperficie}"
+                    Stroke="{DynamicResource ColorBorde}"
+                    StrokeThickness="1"
+                    Padding="0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="10" />
+                </Border.StrokeShape>
+
+                <Grid RowDefinitions="Auto,*" ColumnDefinitions="Auto,*" RowSpacing="0" ColumnSpacing="0">
+
+                    <!-- Esquina fija (arriba-izquierda) -->
+                    <Border Grid.Row="0" Grid.Column="0"
+                            BackgroundColor="{DynamicResource ColorTarjeta}"
+                            Stroke="Transparent"
+                            Padding="4">
+                        <Label Text="Habitación" FontSize="14" TextColor="{DynamicResource ColorTextoSecundario}"
+                               HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                    </Border>
+
+                    <!-- Encabezado de días — fijo verticalmente, se desliza horizontal con la grilla -->
+                    <Border Grid.Row="0" Grid.Column="1"
+                            BackgroundColor="{DynamicResource ColorTarjeta}"
+                            Stroke="Transparent"
+                            Padding="0">
+                        <Grid x:Name="GrillaEncabezadoDias" />
+                    </Border>
+
+                    <!-- Etiquetas de habitación — fijas horizontalmente, se deslizan vertical con la grilla -->
+                    <Border Grid.Row="1" Grid.Column="0"
+                            BackgroundColor="{DynamicResource ColorTarjeta}"
+                            Stroke="Transparent"
+                            Padding="0">
+                        <Grid x:Name="GrillaEtiquetasHabitaciones" />
+                    </Border>
+
+                    <!-- Grilla principal (las celdas de color) — la única que scrollea de verdad -->
+                    <ScrollView x:Name="ScrollGrillaPrincipal"
+                                Grid.Row="1" Grid.Column="1"
+                                Orientation="Both"
+                                HorizontalScrollBarVisibility="Always"
+                                VerticalScrollBarVisibility="Always"
+                                Scrolled="OnGrillaScrolled">
+                        <Grid x:Name="GrillaCalendario" RowSpacing="1" ColumnSpacing="1" />
+                    </ScrollView>
+
+                </Grid>
+            </Border>
+
+        </Grid>
+    </Grid>
+</ContentPage>

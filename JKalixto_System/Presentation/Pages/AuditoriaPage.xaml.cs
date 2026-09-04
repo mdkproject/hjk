@@ -2,11 +2,11 @@ using JKalixto_System.Presentation.ViewModels;
 
 namespace JKalixto_System.Presentation.Pages;
 
-public partial class DashboardPage : ContentPage
+public partial class AuditoriaPage : ContentPage
 {
-    private readonly DashboardViewModel _viewModel;
+    private readonly AuditoriaViewModel _viewModel;
 
-    public DashboardPage(DashboardViewModel viewModel)
+    public AuditoriaPage(AuditoriaViewModel viewModel)
     {
         InitializeComponent();
         _viewModel = viewModel;
@@ -17,7 +17,6 @@ public partial class DashboardPage : ContentPage
     {
         base.OnAppearing();
         _viewModel.IniciarReloj();
-        // Se recarga cada vez que se vuelve a esta página (ej: después de un Check-in).
         await _viewModel.CargarAsync();
     }
 

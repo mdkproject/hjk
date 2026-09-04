@@ -10,6 +10,12 @@ public partial class App : Microsoft.Maui.Controls.Application
     {
         InitializeComponent();
         _serviceProvider = serviceProvider;
+
+        // Aplica el tema guardado (oscuro por defecto la primera vez que se abre
+        // la app) ANTES de crear la ventana, para que la primera pantalla ya
+        // aparezca con el color correcto y no haya un "parpadeo" de tema oscuro
+        // seguido de un cambio a claro.
+        JKalixto_System.Application.Services.TemaService.Inicializar();
     }
 
     protected override Window CreateWindow(IActivationState? activationState)
@@ -20,7 +26,7 @@ public partial class App : Microsoft.Maui.Controls.Application
 
         return new Window(shell)
         {
-            Title = "Hotel-Sauna JKalixto"
+            Title = "HKX Hotel & Sauna System"
         };
     }
 }
