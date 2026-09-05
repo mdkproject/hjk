@@ -12,12 +12,12 @@ namespace JKalixto_System.Tests;
 public class SaunaServiceTests
 {
     private static SaunaService NuevoServicio(JKalixto_System.Infrastructure.Data.AppDbContext contexto)
-        => new(contexto, new AuditoriaService(contexto, new SessionService()));
+        => new(contexto, new AuditoriaService(contexto, new SessionService()), new ComprobanteNumeracionService(contexto));
 
     private static async Task<int> CrearEstadiaActivaAsync(JKalixto_System.Infrastructure.Data.AppDbContext contexto)
     {
         var habitacion = await contexto.Habitaciones.FirstAsync(h => h.Estado == EstadoHabitacion.Disponible);
-        var habitacionService = new HabitacionService(contexto, new AuditoriaService(contexto, new SessionService()));
+        var habitacionService = new HabitacionService(contexto, new AuditoriaService(contexto, new SessionService()), new ComprobanteNumeracionService(contexto));
         await habitacionService.CheckInAsync(new NuevoCheckInDto
         {
             HabitacionId = habitacion.Id,
@@ -37,7 +37,7 @@ public class SaunaServiceTests
         var servicio = NuevoServicio(bd.Contexto);
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => servicio.RegistrarVentaHotelAsync(estadiaId, new List<ItemCarritoDto>(), 1, cargarAHabitacion: true));
+            () => servicio.RegistrarVentaHotelAsync(estadiaId, new List<ItemCarritoDto>(), 1, cargarAHabitacion: true, metodoPago: null));
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public class SaunaServiceTests
         var items = new List<ItemCarritoDto> { new() { Descripcion = "Gaseosa", Cantidad = 0, PrecioUnitario = 5m } };
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => servicio.RegistrarVentaHotelAsync(estadiaId, items, 1, cargarAHabitacion: true));
+            () => servicio.RegistrarVentaHotelAsync(estadiaId, items, 1, cargarAHabitacion: true, metodoPago: null));
 
         var estadia = await bd.Contexto.Estadias.FindAsync(estadiaId);
         Assert.Equal(totalAntes, estadia!.TotalAcumulado);
@@ -67,7 +67,7 @@ public class SaunaServiceTests
         var items = new List<ItemCarritoDto> { new() { Descripcion = "Ajuste raro", Cantidad = 1, PrecioUnitario = -5m } };
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => servicio.RegistrarVentaHotelAsync(estadiaId, items, 1, cargarAHabitacion: true));
+            () => servicio.RegistrarVentaHotelAsync(estadiaId, items, 1, cargarAHabitacion: true, metodoPago: null));
     }
 
     [Fact]
@@ -84,7 +84,7 @@ public class SaunaServiceTests
             new() { Descripcion = "Sánguche", Cantidad = 1, PrecioUnitario = 9m }
         };
 
-        await servicio.RegistrarVentaHotelAsync(estadiaId, items, 1, cargarAHabitacion: true);
+        await servicio.RegistrarVentaHotelAsync(estadiaId, items, 1, cargarAHabitacion: true, metodoPago: null);
 
         var estadia = await bd.Contexto.Estadias.FindAsync(estadiaId);
         Assert.Equal(totalAntes + 19m, estadia!.TotalAcumulado);
@@ -107,6 +107,6 @@ public class SaunaServiceTests
         var items = new List<ItemCarritoDto> { new() { Descripcion = "Gaseosa", Cantidad = 1, PrecioUnitario = 5m } };
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => servicio.RegistrarVentaHotelAsync(estadiaId, items, 1, cargarAHabitacion: true));
+            () => servicio.RegistrarVentaHotelAsync(estadiaId, items, 1, cargarAHabitacion: true, metodoPago: null));
     }
 }

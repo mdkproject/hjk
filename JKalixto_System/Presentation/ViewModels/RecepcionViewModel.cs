@@ -328,8 +328,12 @@ public class RecepcionViewModel : BaseViewModel
 
             if (confirmar && habitacion.EstadiaId.HasValue)
             {
-                await _habitacionService.CheckOutAsync(habitacion.EstadiaId.Value, usuarioId);
-                await CargarAsync();
+                var metodoPago = await PedirMetodoPagoAsync(page, habitacion.TotalAcumulado ?? 0);
+                if (metodoPago.HasValue)
+                {
+                    await _habitacionService.CheckOutAsync(habitacion.EstadiaId.Value, usuarioId, metodoPago.Value);
+                    await CargarAsync();
+                }
             }
         }
         else if (accion == "Solicitar limpieza intermedia")

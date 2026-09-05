@@ -2,10 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using System.Windows.Input;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Dispatching;
 using JKalixto_System.Application.Services;
+using JKalixto_System.Domain.Models;
 
 namespace JKalixto_System.Presentation.ViewModels;
 
@@ -137,5 +139,26 @@ public class BaseViewModel : INotifyPropertyChanged
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    /// <summary>Pregunta con qué medio de pago se cobró un monto — se reutiliza en
+    /// Check-out y en las ventas del POS (Sauna/Cafetería) para no repetir el mismo
+    /// ActionSheet en cada ViewModel. Devuelve null si el usuario canceló.</summary>
+    protected static async Task<MetodoPago?> PedirMetodoPagoAsync(Page page, decimal monto)
+    {
+        var opcion = await page.DisplayActionSheetAsync(
+            $"Método de pago — S/ {monto:0.00}",
+            "Cancelar", null,
+            "Efectivo", "Tarjeta", "Yape", "Plin", "Transferencia");
+
+        return opcion switch
+        {
+            "Efectivo" => MetodoPago.Efectivo,
+            "Tarjeta" => MetodoPago.Tarjeta,
+            "Yape" => MetodoPago.Yape,
+            "Plin" => MetodoPago.Plin,
+            "Transferencia" => MetodoPago.Transferencia,
+            _ => null
+        };
     }
 }

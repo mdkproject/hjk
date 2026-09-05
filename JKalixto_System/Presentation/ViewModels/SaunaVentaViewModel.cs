@@ -231,10 +231,10 @@ public class SaunaVentaViewModel : BaseViewModel, IQueryAttributable
             IsBusy = true;
             var usuarioId = _sessionService.UsuarioActual?.Id ?? 0;
             var cargarAHabitacion = false;
+            var page = Shell.Current?.CurrentPage;
 
             if (EsHuespedHotel)
             {
-                var page = Shell.Current?.CurrentPage;
                 if (page is not null)
                 {
                     var accion = await page.DisplayActionSheetAsync(
@@ -251,13 +251,31 @@ public class SaunaVentaViewModel : BaseViewModel, IQueryAttributable
                 }
             }
 
+            // Si no se carga a la habitación, se está cobrando en el momento — hace
+            // falta saber con qué medio de pago (Yape/Plin/tarjeta/efectivo/transferencia).
+            Domain.Models.MetodoPago? metodoPago = null;
+            if (!cargarAHabitacion)
+            {
+                if (page is null)
+                {
+                    return;
+                }
+
+                var total = Carrito.Sum(i => i.Subtotal);
+                metodoPago = await PedirMetodoPagoAsync(page, total);
+                if (metodoPago is null)
+                {
+                    return; // el usuario canceló la elección de medio de pago
+                }
+            }
+
             if (EstadiaIdDirecta.HasValue)
             {
-                await _saunaService.RegistrarVentaHotelAsync(EstadiaIdDirecta.Value, Carrito.ToList(), usuarioId, cargarAHabitacion);
+                await _saunaService.RegistrarVentaHotelAsync(EstadiaIdDirecta.Value, Carrito.ToList(), usuarioId, cargarAHabitacion, metodoPago);
             }
             else
             {
-                await _saunaService.RegistrarVentaAsync(ClienteSaunaId, Carrito.ToList(), usuarioId, cargarAHabitacion);
+                await _saunaService.RegistrarVentaAsync(ClienteSaunaId, Carrito.ToList(), usuarioId, cargarAHabitacion, metodoPago);
             }
 
             var horaRegistro = System.DateTime.Now;

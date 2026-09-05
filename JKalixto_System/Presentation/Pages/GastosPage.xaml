@@ -64,6 +64,7 @@
                                 <Label Text="{Binding TipoCompletoTexto}" FontSize="18" TextColor="{DynamicResource ColorAcento}" />
                                 <Label Text="{Binding Descripcion}" FontSize="22" FontAttributes="Bold" />
                                 <Label Text="{Binding UsuarioNombre, StringFormat='Cajero: {0}'}" FontSize="18" TextColor="{DynamicResource ColorTextoSecundario}" />
+                                <Label Text="{Binding EtiquetaMetodoPago, StringFormat='Pago: {0}'}" FontSize="18" TextColor="{DynamicResource ColorTextoSecundario}" />
                             </VerticalStackLayout>
 
                             <Label Grid.Column="2" Text="{Binding MontoTexto}" FontSize="26" FontAttributes="Bold" VerticalOptions="Center" TextColor="{DynamicResource ColorTextoPrimario}" />

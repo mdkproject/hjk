@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:JKalixto_System.Presentation.ViewModels"
+             x:Class="JKalixto_System.Presentation.Pages.ReclamoNuevoPage"
+             x:DataType="vm:ReclamoNuevoViewModel"
+             Title="{Binding Title}"
+             Shell.NavBarIsVisible="True"
+             BackgroundColor="{DynamicResource ColorFondo}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="16">
+
+            <Label Text="Tipo" FontSize="24" FontAttributes="Bold" />
+            <HorizontalStackLayout Spacing="8">
+                <Button Text="Reclamo" Command="{Binding SeleccionarTipoCommand}" CommandParameter="Reclamo"
+                        BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="42" WidthRequest="130" FontAttributes="None" />
+                <Button Text="Queja" Command="{Binding SeleccionarTipoCommand}" CommandParameter="Queja"
+                        BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="42" WidthRequest="130" FontAttributes="None" />
+            </HorizontalStackLayout>
+            <Label Text="Reclamo = disconformidad con el producto/servicio. Queja = malestar con la atención." FontSize="15" TextColor="{DynamicResource ColorTextoSecundario}" />
+
+            <BoxView HeightRequest="1" Color="{DynamicResource ColorBorde}" Margin="0,4" />
+
+            <Label Text="Datos del consumidor" FontSize="24" FontAttributes="Bold" />
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Nombre completo *" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <Entry Text="{Binding NombreCompleto}" Placeholder="Nombres y apellidos" BackgroundColor="{DynamicResource ColorTarjeta}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Domicilio *" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <Entry Text="{Binding Domicilio}" Placeholder="Dirección completa" BackgroundColor="{DynamicResource ColorTarjeta}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Tipo de documento" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <HorizontalStackLayout Spacing="8">
+                    <Button Text="DNI" Command="{Binding SeleccionarTipoDocumentoCommand}" CommandParameter="DNI"
+                            BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="40" FontAttributes="None" />
+                    <Button Text="Pasaporte" Command="{Binding SeleccionarTipoDocumentoCommand}" CommandParameter="Pasaporte"
+                            BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="40" FontAttributes="None" />
+                    <Button Text="Carné Ext." Command="{Binding SeleccionarTipoDocumentoCommand}" CommandParameter="Carné Ext."
+                            BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="40" FontAttributes="None" />
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="{Binding TipoDocumentoTexto, StringFormat='Número de {0} *'}" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <Entry Text="{Binding NumeroDocumento}" Placeholder="12345678" BackgroundColor="{DynamicResource ColorTarjeta}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Teléfono (opcional)" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <Entry Text="{Binding Telefono}" Keyboard="Telephone" BackgroundColor="{DynamicResource ColorTarjeta}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Correo (opcional)" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <Entry Text="{Binding Email}" Keyboard="Email" BackgroundColor="{DynamicResource ColorTarjeta}" />
+            </VerticalStackLayout>
+
+            <HorizontalStackLayout Spacing="10">
+                <Switch IsToggled="{Binding EsMenorDeEdad}" OnColor="{DynamicResource ColorAcento}" />
+                <Label Text="El consumidor es menor de edad" VerticalOptions="Center" FontSize="21" />
+            </HorizontalStackLayout>
+
+            <VerticalStackLayout Spacing="12" IsVisible="{Binding EsMenorDeEdad}">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="Nombre del padre/madre/apoderado" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                    <Entry Text="{Binding NombreApoderado}" BackgroundColor="{DynamicResource ColorTarjeta}" />
+                </VerticalStackLayout>
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="Documento del apoderado" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                    <Entry Text="{Binding DocumentoApoderado}" BackgroundColor="{DynamicResource ColorTarjeta}" />
+                </VerticalStackLayout>
+            </VerticalStackLayout>
+
+            <BoxView HeightRequest="1" Color="{DynamicResource ColorBorde}" Margin="0,4" />
+
+            <Label Text="El reclamo o la queja" FontSize="24" FontAttributes="Bold" />
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Bien contratado (qué producto o servicio) *" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <Entry Text="{Binding BienContratado}" Placeholder="Ej: Hospedaje habitación 305" BackgroundColor="{DynamicResource ColorTarjeta}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Monto reclamado, S/ (opcional)" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <Entry Text="{Binding MontoReclamadoTexto}" Placeholder="0.00" Keyboard="Numeric" BackgroundColor="{DynamicResource ColorTarjeta}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Detalle *" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <Editor Text="{Binding DetalleReclamo}" Placeholder="Describe lo sucedido" HeightRequest="100" BackgroundColor="{DynamicResource ColorTarjeta}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Pedido del consumidor (opcional)" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <Entry Text="{Binding PedidoConsumidor}" Placeholder="Ej: Devolución, cambio, disculpas" BackgroundColor="{DynamicResource ColorTarjeta}" />
+            </VerticalStackLayout>
+
+            <Label Text="{Binding MensajeError}"
+                   TextColor="{DynamicResource ColorMantenimiento}"
+                   FontSize="21"
+                   IsVisible="{Binding HayError}" />
+
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="10" Margin="0,10,0,0">
+                <Button Grid.Column="0" Text="Cancelar" Command="{Binding CancelarCommand}"
+                        BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="50" />
+                <Button Grid.Column="1" Text="Registrar" Command="{Binding ConfirmarCommand}"
+                        BackgroundColor="{DynamicResource ColorAcento}" TextColor="{DynamicResource ColorFondo}" HeightRequest="50" />
+            </Grid>
+
+            <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" Color="{DynamicResource ColorAcento}" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

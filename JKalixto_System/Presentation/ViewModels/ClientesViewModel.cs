@@ -195,10 +195,16 @@ public class ClientesViewModel : BaseViewModel
                 return;
             }
 
+            var metodoPago = await PedirMetodoPagoAsync(page, Detalle.Total);
+            if (metodoPago is null)
+            {
+                return;
+            }
+
             try
             {
                 IsBusy = true;
-                await _habitacionService.CheckOutAsync(estadiaId, usuarioId);
+                await _habitacionService.CheckOutAsync(estadiaId, usuarioId, metodoPago.Value);
             }
             finally
             {

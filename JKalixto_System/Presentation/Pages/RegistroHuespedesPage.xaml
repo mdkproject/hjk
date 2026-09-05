@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:JKalixto_System.Presentation.ViewModels"
+             xmlns:services="clr-namespace:JKalixto_System.Application.Services"
+             xmlns:controls="clr-namespace:JKalixto_System.Presentation.Controls"
+             x:Class="JKalixto_System.Presentation.Pages.RegistroHuespedesPage"
+             x:DataType="vm:RegistroHuespedesViewModel"
+             Title="{Binding Title}"
+             Shell.NavBarIsVisible="True"
+             BackgroundColor="{DynamicResource ColorFondo}">
+
+    <Grid RowDefinitions="Auto,Auto,*" Padding="16" RowSpacing="10">
+
+        <!-- Reloj/fecha/tema: fila propia de ancho completo, alineada a la derecha —
+             misma posición fija en TODAS las pantallas. Ver
+             Presentation/Controls/BarraRelojTemaView. -->
+        <controls:BarraRelojTemaView Grid.Row="0" HorizontalOptions="End" />
+
+        <Label Grid.Row="1"
+               Text="Registro de Huéspedes — campos exigidos por el Reglamento de Establecimientos de Hospedaje (MINCETUR). Se completan en el Check-in."
+               FontSize="16" TextColor="{DynamicResource ColorTextoSecundario}" />
+
+        <CollectionView Grid.Row="2" ItemsSource="{Binding Registro}" EmptyView="Todavía no hay huéspedes registrados.">
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="services:RegistroHuespedDto">
+                    <Border BackgroundColor="{DynamicResource ColorTarjeta}"
+                            Stroke="{DynamicResource ColorBorde}"
+                            StrokeThickness="1"
+                            Padding="14"
+                            Margin="0,0,0,8">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="10" />
+                        </Border.StrokeShape>
+
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                            <VerticalStackLayout Grid.Column="0" HorizontalOptions="Center" VerticalOptions="Center" WidthRequest="70">
+                                <Label Text="{Binding NumeroHabitacion}" FontSize="30" FontAttributes="Bold" HorizontalOptions="Center" TextColor="{DynamicResource ColorAcento}" />
+                                <Label Text="Hab." FontSize="14" HorizontalOptions="Center" TextColor="{DynamicResource ColorTextoSecundario}" />
+                            </VerticalStackLayout>
+
+                            <Grid Grid.Column="1" ColumnDefinitions="*,*" ColumnSpacing="10" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="2">
+                                <Label Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Text="{Binding NombreCompleto}" FontSize="22" FontAttributes="Bold" />
+
+                                <Label Grid.Row="1" Grid.Column="0" Text="{Binding EtiquetaTipoDocumento, StringFormat='{0}: '}" FontSize="16" TextColor="{DynamicResource ColorTextoSecundario}">
+                                    <Label.FormattedText>
+                                        <FormattedString>
+                                            <Span Text="{Binding EtiquetaTipoDocumento}" />
+                                            <Span Text=": " />
+                                            <Span Text="{Binding NumeroDocumento}" TextColor="{DynamicResource ColorTextoPrimario}" />
+                                        </FormattedString>
+                                    </Label.FormattedText>
+                                </Label>
+                                <Label Grid.Row="1" Grid.Column="1" FontSize="16" TextColor="{DynamicResource ColorTextoSecundario}">
+                                    <Label.FormattedText>
+                                        <FormattedString>
+                                            <Span Text="Sexo: " />
+                                            <Span Text="{Binding EtiquetaSexo}" TextColor="{DynamicResource ColorTextoPrimario}" />
+                                            <Span Text="   Nac.: " />
+                                            <Span Text="{Binding FechaNacimientoTexto}" TextColor="{DynamicResource ColorTextoPrimario}" />
+                                        </FormattedString>
+                                    </Label.FormattedText>
+                                </Label>
+
+                                <Label Grid.Row="2" Grid.Column="0" FontSize="16" TextColor="{DynamicResource ColorTextoSecundario}">
+                                    <Label.FormattedText>
+                                        <FormattedString>
+                                            <Span Text="Nacionalidad: " />
+                                            <Span Text="{Binding Nacionalidad}" TextColor="{DynamicResource ColorTextoPrimario}" />
+                                        </FormattedString>
+                                    </Label.FormattedText>
+                                </Label>
+                                <Label Grid.Row="2" Grid.Column="1" FontSize="16" TextColor="{DynamicResource ColorTextoSecundario}">
+                                    <Label.FormattedText>
+                                        <FormattedString>
+                                            <Span Text="Procedencia: " />
+                                            <Span Text="{Binding LugarResidencia}" TextColor="{DynamicResource ColorTextoPrimario}" />
+                                        </FormattedString>
+                                    </Label.FormattedText>
+                                </Label>
+
+                                <Label Grid.Row="3" Grid.Column="0" FontSize="16" TextColor="{DynamicResource ColorTextoSecundario}">
+                                    <Label.FormattedText>
+                                        <FormattedString>
+                                            <Span Text="Motivo de viaje: " />
+                                            <Span Text="{Binding EtiquetaMotivoViaje}" TextColor="{DynamicResource ColorTextoPrimario}" />
+                                        </FormattedString>
+                                    </Label.FormattedText>
+                                </Label>
+                                <Label Grid.Row="3" Grid.Column="1" FontSize="16" TextColor="{DynamicResource ColorTextoSecundario}">
+                                    <Label.FormattedText>
+                                        <FormattedString>
+                                            <Span Text="Tarifa: " />
+                                            <Span Text="{Binding Tarifa, StringFormat='S/ {0:0.00}'}" TextColor="{DynamicResource ColorTextoPrimario}" />
+                                        </FormattedString>
+                                    </Label.FormattedText>
+                                </Label>
+
+                                <Label Grid.Row="4" Grid.Column="0" FontSize="16" TextColor="{DynamicResource ColorTextoSecundario}">
+                                    <Label.FormattedText>
+                                        <FormattedString>
+                                            <Span Text="Ingreso: " />
+                                            <Span Text="{Binding FechaIngresoTexto}" TextColor="{DynamicResource ColorTextoPrimario}" />
+                                        </FormattedString>
+                                    </Label.FormattedText>
+                                </Label>
+                                <Label Grid.Row="4" Grid.Column="1" FontSize="16" TextColor="{DynamicResource ColorTextoSecundario}">
+                                    <Label.FormattedText>
+                                        <FormattedString>
+                                            <Span Text="Salida: " />
+                                            <Span Text="{Binding FechaSalidaTexto}" TextColor="{DynamicResource ColorTextoPrimario}" />
+                                        </FormattedString>
+                                    </Label.FormattedText>
+                                </Label>
+                            </Grid>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+    </Grid>
+</ContentPage>

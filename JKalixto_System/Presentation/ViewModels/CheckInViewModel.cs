@@ -51,6 +51,44 @@ public class CheckInViewModel : BaseViewModel, IQueryAttributable
         set => SetProperty(ref _celular, value);
     }
 
+    // --- Registro de Huéspedes (MINCETUR): D.S. N° 001-2015-MINCETUR, modificado
+    // por D.S. N° 005-2021-MINCETUR — campos que exige el Reglamento de
+    // Establecimientos de Hospedaje además de los de arriba. ---
+    private DateTime _fechaNacimiento = DateTime.Now.AddYears(-30);
+    public DateTime FechaNacimiento
+    {
+        get => _fechaNacimiento;
+        set => SetProperty(ref _fechaNacimiento, value);
+    }
+
+    private string _sexoTexto = "Masculino";
+    public string SexoTexto
+    {
+        get => _sexoTexto;
+        set => SetProperty(ref _sexoTexto, value);
+    }
+
+    private string _nacionalidad = "Peruana";
+    public string Nacionalidad
+    {
+        get => _nacionalidad;
+        set => SetProperty(ref _nacionalidad, value);
+    }
+
+    private string _lugarResidencia = string.Empty;
+    public string LugarResidencia
+    {
+        get => _lugarResidencia;
+        set => SetProperty(ref _lugarResidencia, value);
+    }
+
+    private string _motivoViajeTexto = "Turismo";
+    public string MotivoViajeTexto
+    {
+        get => _motivoViajeTexto;
+        set => SetProperty(ref _motivoViajeTexto, value);
+    }
+
     private bool _esFactura;
     public bool EsFactura
     {
@@ -110,6 +148,8 @@ public class CheckInViewModel : BaseViewModel, IQueryAttributable
     }
 
     public ICommand SeleccionarTipoDocumentoCommand { get; }
+    public ICommand SeleccionarSexoCommand { get; }
+    public ICommand SeleccionarMotivoViajeCommand { get; }
     public ICommand AgregarAcompananteCommand { get; }
     public ICommand QuitarAcompananteCommand { get; }
     public ICommand ConfirmarCheckInCommand { get; }
@@ -126,6 +166,22 @@ public class CheckInViewModel : BaseViewModel, IQueryAttributable
             if (tipo is not null)
             {
                 TipoDocumentoTexto = tipo;
+            }
+        });
+
+        SeleccionarSexoCommand = new Command<string>((valor) =>
+        {
+            if (valor is not null)
+            {
+                SexoTexto = valor;
+            }
+        });
+
+        SeleccionarMotivoViajeCommand = new Command<string>((valor) =>
+        {
+            if (valor is not null)
+            {
+                MotivoViajeTexto = valor;
             }
         });
 
@@ -210,6 +266,14 @@ public class CheckInViewModel : BaseViewModel, IQueryAttributable
                 _ => TipoDocumento.DNI
             };
 
+            var sexo = SexoTexto == "Femenino" ? SexoHuesped.Femenino : SexoHuesped.Masculino;
+            var motivoViaje = MotivoViajeTexto switch
+            {
+                "Negocios" => MotivoViaje.Negocios,
+                "Otro" => MotivoViaje.Otro,
+                _ => MotivoViaje.Turismo
+            };
+
             await _habitacionService.CheckInAsync(new NuevoCheckInDto
             {
                 HabitacionId = HabitacionId,
@@ -217,6 +281,11 @@ public class CheckInViewModel : BaseViewModel, IQueryAttributable
                 NumeroDocumento = NumeroDocumento.Trim(),
                 NombreCompleto = NombreCompleto.Trim(),
                 Celular = Celular.Trim(),
+                FechaNacimiento = FechaNacimiento,
+                Sexo = sexo,
+                Nacionalidad = string.IsNullOrWhiteSpace(Nacionalidad) ? "Peruana" : Nacionalidad.Trim(),
+                LugarResidencia = string.IsNullOrWhiteSpace(LugarResidencia) ? null : LugarResidencia.Trim(),
+                MotivoViaje = motivoViaje,
                 TipoComprobante = EsFactura ? TipoComprobante.Factura : TipoComprobante.Boleta,
                 RUC = EsFactura ? RUC.Trim() : null,
                 RazonSocial = EsFactura ? RazonSocial.Trim() : null,

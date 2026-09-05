@@ -248,6 +248,14 @@ public class NuevoCheckInDto
     public string NumeroDocumento { get; set; } = string.Empty;
     public string NombreCompleto { get; set; } = string.Empty;
     public string Celular { get; set; } = string.Empty;
+
+    // --- Registro de Huéspedes MINCETUR (ver Estadia) ---
+    public DateTime? FechaNacimiento { get; set; }
+    public SexoHuesped? Sexo { get; set; }
+    public string Nacionalidad { get; set; } = "Peruana";
+    public string? LugarResidencia { get; set; }
+    public MotivoViaje? MotivoViaje { get; set; }
+
     public TipoComprobante TipoComprobante { get; set; } = TipoComprobante.Boleta;
     public string? RUC { get; set; }
     public string? RazonSocial { get; set; }
@@ -266,7 +274,7 @@ public interface IHabitacionService
     Task<List<HabitacionCardDto>> ObtenerPorPisoAsync(int piso);
     Task<List<HabitacionCardDto>> ObtenerTodasAsync();
     Task CheckInAsync(NuevoCheckInDto dto);
-    Task CheckOutAsync(int estadiaId, int usuarioId);
+    Task CheckOutAsync(int estadiaId, int usuarioId, MetodoPago metodoPago);
     Task IniciarMantenimientoAsync(int habitacionId, string motivo, int usuarioId);
     Task FinalizarMantenimientoAsync(int habitacionId, int usuarioId);
     Task FinalizarLimpiezaAsync(int habitacionId);
@@ -280,15 +288,72 @@ public interface IHabitacionService
 /// guarden juntos, en la misma operación — así se evita un bug sutil de EF
 /// Core que aparece si cada Repositorio tuviera su propia conexión separada.
 /// </summary>
+// ============================================================
+// FACTURACIÓN — numeración de comprobantes
+// ============================================================
+
+public interface IComprobanteNumeracionService
+{
+    /// <summary>Genera el siguiente número correlativo para ese tipo de comprobante,
+    /// con el formato SUNAT "SERIE-00000001". Esto NO emite el comprobante
+    /// electrónico ante SUNAT (eso requiere contratar un PSE/OSE) — solo asegura que
+    /// el número nunca se repita ni salte, para poder imprimirlo ya mismo en un
+    /// comprobante manual mientras esa integración no exista.</summary>
+    Task<string> ObtenerSiguienteNumeroAsync(TipoComprobante tipo);
+}
+
+public class ComprobanteNumeracionService : IComprobanteNumeracionService
+{
+    private readonly AppDbContext _context;
+
+    public ComprobanteNumeracionService(AppDbContext context)
+    {
+        _context = context;
+    }
+
+    /// <summary>Serie fija por tipo — un solo punto de emisión (el POS del hotel),
+    /// como la gran mayoría de negocios chicos en Perú. Si el día de mañana hay más
+    /// de un punto de venta, esto pasaría a depender de cuál terminal emite.</summary>
+    private static string SerieParaTipo(TipoComprobante tipo) => tipo == TipoComprobante.Factura ? "F001" : "B001";
+
+    public async Task<string> ObtenerSiguienteNumeroAsync(TipoComprobante tipo)
+    {
+        var serie = SerieParaTipo(tipo);
+
+        // Transacción propia: dos ventas casi simultáneas no pueden terminar con el
+        // mismo número — SUNAT exige correlativos únicos y sin repetirse. El índice
+        // único en (Tipo, Serie) es la segunda barrera por si dos "Add" chocaran.
+        await using var transaccion = await _context.Database.BeginTransactionAsync();
+
+        var contador = await _context.NumeracionesComprobante
+            .AsTracking()
+            .FirstOrDefaultAsync(n => n.Tipo == tipo && n.Serie == serie);
+
+        if (contador is null)
+        {
+            contador = new NumeracionComprobante { Tipo = tipo, Serie = serie, UltimoCorrelativo = 0 };
+            _context.NumeracionesComprobante.Add(contador);
+        }
+
+        contador.UltimoCorrelativo++;
+        await _context.SaveChangesAsync();
+        await transaccion.CommitAsync();
+
+        return $"{serie}-{contador.UltimoCorrelativo:00000000}";
+    }
+}
+
 public class HabitacionService : IHabitacionService
 {
     private readonly AppDbContext _context;
     private readonly IAuditoriaService _auditoriaService;
+    private readonly IComprobanteNumeracionService _comprobanteNumeracionService;
 
-    public HabitacionService(AppDbContext context, IAuditoriaService auditoriaService)
+    public HabitacionService(AppDbContext context, IAuditoriaService auditoriaService, IComprobanteNumeracionService comprobanteNumeracionService)
     {
         _context = context;
         _auditoriaService = auditoriaService;
+        _comprobanteNumeracionService = comprobanteNumeracionService;
     }
 
     public async Task<List<HabitacionCardDto>> ObtenerPorPisoAsync(int piso)
@@ -376,6 +441,11 @@ public class HabitacionService : IHabitacionService
             NumeroDocumento = dto.NumeroDocumento,
             NombreCompleto = dto.NombreCompleto,
             Celular = dto.Celular,
+            FechaNacimiento = dto.FechaNacimiento,
+            Sexo = dto.Sexo,
+            Nacionalidad = string.IsNullOrWhiteSpace(dto.Nacionalidad) ? "Peruana" : dto.Nacionalidad,
+            LugarResidencia = dto.LugarResidencia,
+            MotivoViaje = dto.MotivoViaje,
             FechaCheckIn = DateTime.Now,
             Estado = EstadoEstadia.Activa,
             TipoComprobante = dto.TipoComprobante,
@@ -416,7 +486,7 @@ public class HabitacionService : IHabitacionService
             dto.UsuarioId, "Estadia", estadia.Id);
     }
 
-    public async Task CheckOutAsync(int estadiaId, int usuarioId)
+    public async Task CheckOutAsync(int estadiaId, int usuarioId, MetodoPago metodoPago)
     {
         // AsTracking(): se modifican tanto la Estadia (Estado, TotalAcumulado) como
         // su Habitacion (Estado = LimpiezaSalida) y ambas se guardan.
@@ -437,6 +507,8 @@ public class HabitacionService : IHabitacionService
         estadia.Estado = EstadoEstadia.Finalizada;
         estadia.FechaCheckOut = DateTime.Now;
         estadia.UsuarioCheckOutId = usuarioId;
+        estadia.MetodoPago = metodoPago;
+        estadia.NumeroComprobante = await _comprobanteNumeracionService.ObtenerSiguienteNumeroAsync(estadia.TipoComprobante);
 
         if (estadia.Habitacion is not null)
         {
@@ -461,7 +533,7 @@ public class HabitacionService : IHabitacionService
 
         await _auditoriaService.RegistrarAsync(
             "CHECKOUT",
-            $"Check-out de {estadia.NombreCompleto}, habitación {estadia.Habitacion?.Numero}. Total: S/ {estadia.TotalAcumulado:0.00}.",
+            $"Check-out de {estadia.NombreCompleto}, habitación {estadia.Habitacion?.Numero}. Total: S/ {estadia.TotalAcumulado:0.00}. Pagado con {metodoPago}. Comprobante {estadia.NumeroComprobante}.",
             usuarioId, "Estadia", estadia.Id);
     }
 
@@ -1019,9 +1091,20 @@ public class MovimientoCajaCardDto
     public string? PersonalRelacionado { get; set; }
     public decimal Monto { get; set; }
     public OrigenCajaChica OrigenCaja { get; set; }
+    public MetodoPago MetodoPago { get; set; }
     public string UsuarioNombre { get; set; } = string.Empty;
 
     public string HoraTexto => FechaHora.ToString("HH:mm:ss");
+
+    public string EtiquetaMetodoPago => MetodoPago switch
+    {
+        MetodoPago.Efectivo => "Efectivo",
+        MetodoPago.Tarjeta => "Tarjeta",
+        MetodoPago.Yape => "Yape",
+        MetodoPago.Plin => "Plin",
+        MetodoPago.Transferencia => "Transferencia",
+        _ => MetodoPago.ToString()
+    };
 
     public string EtiquetaDireccion => Direccion == DireccionMovimiento.Ingreso ? "Ingreso de dinero" : "Salida de dinero";
 
@@ -1048,6 +1131,7 @@ public class NuevoMovimientoCajaDto
     public string? PersonalRelacionado { get; set; }
     public decimal Monto { get; set; }
     public OrigenCajaChica OrigenCaja { get; set; }
+    public MetodoPago MetodoPago { get; set; } = MetodoPago.Efectivo;
     public int UsuarioId { get; set; }
 }
 
@@ -1118,6 +1202,7 @@ public class GastosService : IGastosService
             PersonalRelacionado = m.PersonalRelacionado,
             Monto = m.Monto,
             OrigenCaja = m.OrigenCaja,
+            MetodoPago = m.MetodoPago,
             UsuarioNombre = usuarios.FirstOrDefault(u => u.Id == m.UsuarioId)?.NombreCompleto ?? "—"
         }).ToList();
     }
@@ -1164,6 +1249,7 @@ public class GastosService : IGastosService
             PersonalRelacionado = dto.PersonalRelacionado,
             Monto = dto.Monto,
             OrigenCaja = dto.OrigenCaja,
+            MetodoPago = dto.MetodoPago,
             UsuarioId = dto.UsuarioId
         };
 
@@ -2002,12 +2088,14 @@ public interface ISaunaService
     Task<List<ClienteSaunaCardDto>> ObtenerClientesActivosAsync();
     Task<int> RegistrarClienteAsync(NuevoClienteSaunaDto dto, int usuarioId);
     Task<List<HabitacionCardDto>> BuscarHuespedesActivosAsync();
-    Task RegistrarVentaAsync(int clienteSaunaId, List<ItemCarritoDto> items, int usuarioId, bool cargarAHabitacion);
+    /// <summary>metodoPago es obligatorio cuando cargarAHabitacion es false (se está
+    /// cobrando ahora mismo); se ignora cuando es true (se cobra recién al Check-out).</summary>
+    Task RegistrarVentaAsync(int clienteSaunaId, List<ItemCarritoDto> items, int usuarioId, bool cargarAHabitacion, MetodoPago? metodoPago);
 
     /// <summary>Venta de Cafetería/servicios DIRECTA a un huésped de hotel, sin pasar
     /// por un registro de ClienteSauna — para el caso de un huésped que solo quiere
     /// un café o un servicio adicional, sin haber ido al Sauna. Ver CafeteriaPage.</summary>
-    Task RegistrarVentaHotelAsync(int estadiaId, List<ItemCarritoDto> items, int usuarioId, bool cargarAHabitacion);
+    Task RegistrarVentaHotelAsync(int estadiaId, List<ItemCarritoDto> items, int usuarioId, bool cargarAHabitacion, MetodoPago? metodoPago);
 
     Task FinalizarSesionAsync(int clienteSaunaId, int usuarioId);
 }
@@ -2021,11 +2109,13 @@ public class SaunaService : ISaunaService
 {
     private readonly AppDbContext _context;
     private readonly IAuditoriaService _auditoriaService;
+    private readonly IComprobanteNumeracionService _comprobanteNumeracionService;
 
-    public SaunaService(AppDbContext context, IAuditoriaService auditoriaService)
+    public SaunaService(AppDbContext context, IAuditoriaService auditoriaService, IComprobanteNumeracionService comprobanteNumeracionService)
     {
         _context = context;
         _auditoriaService = auditoriaService;
+        _comprobanteNumeracionService = comprobanteNumeracionService;
     }
 
     public async Task<List<ProductoCatalogoDto>> ObtenerCatalogoAsync()
@@ -2147,9 +2237,14 @@ public class SaunaService : ISaunaService
         }
     }
 
-    public async Task RegistrarVentaAsync(int clienteSaunaId, List<ItemCarritoDto> items, int usuarioId, bool cargarAHabitacion)
+    public async Task RegistrarVentaAsync(int clienteSaunaId, List<ItemCarritoDto> items, int usuarioId, bool cargarAHabitacion, MetodoPago? metodoPago)
     {
         ValidarCarrito(items);
+
+        if (!cargarAHabitacion && metodoPago is null)
+        {
+            throw new InvalidOperationException("Indica el método de pago para cobrar esta venta.");
+        }
 
         var cliente = await _context.ClientesSauna.FirstOrDefaultAsync(c => c.Id == clienteSaunaId);
         if (cliente is null)
@@ -2184,8 +2279,14 @@ public class SaunaService : ISaunaService
             Estado = cargarAHabitacion ? EstadoVenta.CargadaAHabitacion : EstadoVenta.Pagada,
             EstadiaHotelDestinoId = estadia?.Id,
             UsuarioId = usuarioId,
-            Total = items.Sum(i => i.Subtotal)
+            Total = items.Sum(i => i.Subtotal),
+            MetodoPago = cargarAHabitacion ? null : metodoPago
         };
+
+        if (!cargarAHabitacion)
+        {
+            venta.NumeroComprobante = await _comprobanteNumeracionService.ObtenerSiguienteNumeroAsync(cliente.TipoComprobante);
+        }
 
         foreach (var item in items)
         {
@@ -2224,9 +2325,14 @@ public class SaunaService : ISaunaService
         }
     }
 
-    public async Task RegistrarVentaHotelAsync(int estadiaId, List<ItemCarritoDto> items, int usuarioId, bool cargarAHabitacion)
+    public async Task RegistrarVentaHotelAsync(int estadiaId, List<ItemCarritoDto> items, int usuarioId, bool cargarAHabitacion, MetodoPago? metodoPago)
     {
         ValidarCarrito(items);
+
+        if (!cargarAHabitacion && metodoPago is null)
+        {
+            throw new InvalidOperationException("Indica el método de pago para cobrar esta venta.");
+        }
 
         // AsTracking(): se modifica (TotalAcumulado) y se guarda si cargarAHabitacion.
         var estadia = await _context.Estadias
@@ -2246,8 +2352,14 @@ public class SaunaService : ISaunaService
             Estado = cargarAHabitacion ? EstadoVenta.CargadaAHabitacion : EstadoVenta.Pagada,
             EstadiaHotelDestinoId = estadia.Id,
             UsuarioId = usuarioId,
-            Total = items.Sum(i => i.Subtotal)
+            Total = items.Sum(i => i.Subtotal),
+            MetodoPago = cargarAHabitacion ? null : metodoPago
         };
+
+        if (!cargarAHabitacion)
+        {
+            venta.NumeroComprobante = await _comprobanteNumeracionService.ObtenerSiguienteNumeroAsync(estadia.TipoComprobante);
+        }
 
         foreach (var item in items)
         {
@@ -2296,5 +2408,283 @@ public class SaunaService : ISaunaService
             "SALIDA_SAUNA",
             $"{cliente.NombreCompleto} finalizó su sesión de Sauna.",
             usuarioId, "ClienteSauna", cliente.Id);
+    }
+}
+
+// ============================================================
+// REGISTRO DE HUÉSPEDES (MINCETUR) — DTO + Servicio
+// Reglamento de Establecimientos de Hospedaje: D.S. N° 001-2015-MINCETUR,
+// modificado por D.S. N° 005-2021-MINCETUR.
+// ============================================================
+
+/// <summary>Una fila del Registro de Huéspedes exigido por MINCETUR — junta los
+/// campos que ya se piden en el Check-in (Estadia) en el formato/columnas que pide
+/// la norma. Incluye estadías históricas, no solo las activas: el registro es un
+/// libro acumulativo, no una foto del momento.</summary>
+public class RegistroHuespedDto
+{
+    public int EstadiaId { get; set; }
+    public string NombreCompleto { get; set; } = string.Empty;
+    public DateTime? FechaNacimiento { get; set; }
+    public SexoHuesped? Sexo { get; set; }
+    public string Nacionalidad { get; set; } = string.Empty;
+    public string? LugarResidencia { get; set; }
+    public TipoDocumento TipoDocumento { get; set; }
+    public string NumeroDocumento { get; set; } = string.Empty;
+    public MotivoViaje? MotivoViaje { get; set; }
+    public DateTime FechaIngreso { get; set; }
+    public DateTime? FechaSalida { get; set; }
+    public int NumeroHabitacion { get; set; }
+    public decimal Tarifa { get; set; }
+
+    public string EtiquetaTipoDocumento => TipoDocumento switch
+    {
+        TipoDocumento.Pasaporte => "Pasaporte",
+        TipoDocumento.CarneExtranjeria => "Carné Ext.",
+        _ => "DNI"
+    };
+
+    public string EtiquetaSexo => Sexo switch
+    {
+        SexoHuesped.Masculino => "M",
+        SexoHuesped.Femenino => "F",
+        _ => "—"
+    };
+
+    // Con tipo completo (no solo "MotivoViaje.Turismo"): la propiedad de arriba se
+    // llama igual que el enum, así que el nombre corto queda tapado por la propiedad.
+    public string EtiquetaMotivoViaje => MotivoViaje switch
+    {
+        JKalixto_System.Domain.Models.MotivoViaje.Turismo => "Turismo",
+        JKalixto_System.Domain.Models.MotivoViaje.Negocios => "Negocios",
+        JKalixto_System.Domain.Models.MotivoViaje.Otro => "Otro",
+        _ => "—"
+    };
+
+    public string FechaNacimientoTexto => FechaNacimiento?.ToString("dd/MM/yyyy") ?? "—";
+    public string FechaIngresoTexto => FechaIngreso.ToString("dd/MM/yyyy HH:mm");
+    public string FechaSalidaTexto => FechaSalida?.ToString("dd/MM/yyyy HH:mm") ?? "En curso";
+}
+
+public interface IRegistroHuespedesService
+{
+    Task<List<RegistroHuespedDto>> ObtenerRegistroAsync();
+}
+
+public class RegistroHuespedesService : IRegistroHuespedesService
+{
+    private readonly AppDbContext _context;
+
+    public RegistroHuespedesService(AppDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<List<RegistroHuespedDto>> ObtenerRegistroAsync()
+    {
+        var estadias = await _context.Estadias
+            .Include(e => e.Habitacion)
+            .OrderByDescending(e => e.FechaCheckIn)
+            .ToListAsync();
+
+        return estadias.Select(e => new RegistroHuespedDto
+        {
+            EstadiaId = e.Id,
+            NombreCompleto = e.NombreCompleto,
+            FechaNacimiento = e.FechaNacimiento,
+            Sexo = e.Sexo,
+            Nacionalidad = e.Nacionalidad,
+            LugarResidencia = e.LugarResidencia,
+            TipoDocumento = e.TipoDocumento,
+            NumeroDocumento = e.NumeroDocumento,
+            MotivoViaje = e.MotivoViaje,
+            FechaIngreso = e.FechaCheckIn,
+            FechaSalida = e.FechaCheckOut,
+            NumeroHabitacion = e.Habitacion?.Numero ?? 0,
+            Tarifa = e.Habitacion?.TarifaNoche ?? 0
+        }).ToList();
+    }
+}
+
+// ============================================================
+// LIBRO DE RECLAMACIONES — DTOs + Servicio
+// (Ley N° 29571 — Código de Protección y Defensa del Consumidor —
+// D.S. N° 011-2011-PCM y D.S. N° 042-2011-PCM)
+// ============================================================
+
+public class NuevoReclamoDto
+{
+    public string NombreCompleto { get; set; } = string.Empty;
+    public string Domicilio { get; set; } = string.Empty;
+    public TipoDocumento TipoDocumento { get; set; } = TipoDocumento.DNI;
+    public string NumeroDocumento { get; set; } = string.Empty;
+    public string? Telefono { get; set; }
+    public string? Email { get; set; }
+    public bool EsMenorDeEdad { get; set; }
+    public string? NombreApoderado { get; set; }
+    public string? DocumentoApoderado { get; set; }
+    public string BienContratado { get; set; } = string.Empty;
+    public decimal? MontoReclamado { get; set; }
+    public TipoReclamoQueja Tipo { get; set; }
+    public string DetalleReclamo { get; set; } = string.Empty;
+    public string? PedidoConsumidor { get; set; }
+}
+
+public class ReclamoCardDto
+{
+    public int Id { get; set; }
+    public DateTime Fecha { get; set; }
+    public string NombreCompleto { get; set; } = string.Empty;
+    public string NumeroDocumento { get; set; } = string.Empty;
+    public string BienContratado { get; set; } = string.Empty;
+    public decimal? MontoReclamado { get; set; }
+    public TipoReclamoQueja Tipo { get; set; }
+    public string DetalleReclamo { get; set; } = string.Empty;
+    public string? PedidoConsumidor { get; set; }
+    public EstadoReclamo Estado { get; set; }
+    public string? RespuestaEstablecimiento { get; set; }
+    public DateTime? FechaRespuesta { get; set; }
+
+    public string FechaTexto => Fecha.ToString("dd/MM/yyyy HH:mm");
+    public string EtiquetaTipo => Tipo == TipoReclamoQueja.Reclamo ? "Reclamo" : "Queja";
+    public string EtiquetaEstado => Estado == EstadoReclamo.Pendiente ? "Pendiente" : "Respondido";
+
+    /// <summary>Plazo legal para responder: 15 días HÁBILES desde la fecha de
+    /// presentación (Ley N° 29571). No descuenta feriados —solo fines de semana—
+    /// así que es una referencia, no un cálculo oficial exacto.</summary>
+    public DateTime FechaLimiteRespuesta => SumarDiasHabiles(Fecha, 15);
+
+    public bool PlazoVencido => Estado == EstadoReclamo.Pendiente && DateTime.Now > FechaLimiteRespuesta;
+
+    private static DateTime SumarDiasHabiles(DateTime fecha, int diasHabiles)
+    {
+        var resultado = fecha;
+        var contados = 0;
+        while (contados < diasHabiles)
+        {
+            resultado = resultado.AddDays(1);
+            if (resultado.DayOfWeek != DayOfWeek.Saturday && resultado.DayOfWeek != DayOfWeek.Sunday)
+            {
+                contados++;
+            }
+        }
+        return resultado;
+    }
+}
+
+public interface IReclamosService
+{
+    Task<int> RegistrarAsync(NuevoReclamoDto dto, int usuarioId);
+    Task<List<ReclamoCardDto>> ObtenerTodosAsync();
+    Task ResponderAsync(int reclamoId, string respuesta, int usuarioId);
+}
+
+/// <summary>Registro de reclamos/quejas del Libro de Reclamaciones. El personal lo
+/// llena a pedido del consumidor en el momento (esta app es de uso interno, no un
+/// kiosco de autoatención) — sigue siendo válido: la norma exige que el
+/// establecimiento LO PONGA A DISPOSICIÓN, no que el consumidor lo opere él mismo.</summary>
+public class ReclamosService : IReclamosService
+{
+    private readonly AppDbContext _context;
+    private readonly IAuditoriaService _auditoriaService;
+
+    public ReclamosService(AppDbContext context, IAuditoriaService auditoriaService)
+    {
+        _context = context;
+        _auditoriaService = auditoriaService;
+    }
+
+    public async Task<int> RegistrarAsync(NuevoReclamoDto dto, int usuarioId)
+    {
+        if (string.IsNullOrWhiteSpace(dto.NombreCompleto) || string.IsNullOrWhiteSpace(dto.NumeroDocumento) || string.IsNullOrWhiteSpace(dto.Domicilio))
+        {
+            throw new InvalidOperationException("Nombre, documento y domicilio del consumidor son obligatorios.");
+        }
+        if (string.IsNullOrWhiteSpace(dto.BienContratado))
+        {
+            throw new InvalidOperationException("Indica qué producto o servicio contrató el consumidor.");
+        }
+        if (string.IsNullOrWhiteSpace(dto.DetalleReclamo))
+        {
+            throw new InvalidOperationException("El detalle del reclamo o queja es obligatorio.");
+        }
+
+        var reclamo = new Reclamo
+        {
+            Fecha = DateTime.Now,
+            NombreCompleto = dto.NombreCompleto.Trim(),
+            Domicilio = dto.Domicilio.Trim(),
+            TipoDocumento = dto.TipoDocumento,
+            NumeroDocumento = dto.NumeroDocumento.Trim(),
+            Telefono = dto.Telefono,
+            Email = dto.Email,
+            EsMenorDeEdad = dto.EsMenorDeEdad,
+            NombreApoderado = dto.EsMenorDeEdad ? dto.NombreApoderado : null,
+            DocumentoApoderado = dto.EsMenorDeEdad ? dto.DocumentoApoderado : null,
+            BienContratado = dto.BienContratado.Trim(),
+            MontoReclamado = dto.MontoReclamado,
+            Tipo = dto.Tipo,
+            DetalleReclamo = dto.DetalleReclamo.Trim(),
+            PedidoConsumidor = dto.PedidoConsumidor,
+            Estado = EstadoReclamo.Pendiente,
+            UsuarioRegistroId = usuarioId
+        };
+
+        _context.Reclamos.Add(reclamo);
+        await _context.SaveChangesAsync();
+
+        await _auditoriaService.RegistrarAsync(
+            reclamo.Tipo == TipoReclamoQueja.Reclamo ? "RECLAMO_REGISTRADO" : "QUEJA_REGISTRADA",
+            $"{(reclamo.Tipo == TipoReclamoQueja.Reclamo ? "Reclamo" : "Queja")} de {reclamo.NombreCompleto} por \"{reclamo.BienContratado}\".",
+            usuarioId, "Reclamo", reclamo.Id);
+
+        return reclamo.Id;
+    }
+
+    public async Task<List<ReclamoCardDto>> ObtenerTodosAsync()
+    {
+        var reclamos = await _context.Reclamos.OrderByDescending(r => r.Fecha).ToListAsync();
+
+        return reclamos.Select(r => new ReclamoCardDto
+        {
+            Id = r.Id,
+            Fecha = r.Fecha,
+            NombreCompleto = r.NombreCompleto,
+            NumeroDocumento = r.NumeroDocumento,
+            BienContratado = r.BienContratado,
+            MontoReclamado = r.MontoReclamado,
+            Tipo = r.Tipo,
+            DetalleReclamo = r.DetalleReclamo,
+            PedidoConsumidor = r.PedidoConsumidor,
+            Estado = r.Estado,
+            RespuestaEstablecimiento = r.RespuestaEstablecimiento,
+            FechaRespuesta = r.FechaRespuesta
+        }).ToList();
+    }
+
+    public async Task ResponderAsync(int reclamoId, string respuesta, int usuarioId)
+    {
+        if (string.IsNullOrWhiteSpace(respuesta))
+        {
+            throw new InvalidOperationException("La respuesta no puede estar vacía.");
+        }
+
+        // AsTracking(): se modifica (RespuestaEstablecimiento, Estado) y se guarda.
+        var reclamo = await _context.Reclamos.AsTracking().FirstOrDefaultAsync(r => r.Id == reclamoId);
+        if (reclamo is null)
+        {
+            throw new InvalidOperationException("El reclamo no existe.");
+        }
+
+        reclamo.RespuestaEstablecimiento = respuesta.Trim();
+        reclamo.FechaRespuesta = DateTime.Now;
+        reclamo.Estado = EstadoReclamo.Respondido;
+
+        await _context.SaveChangesAsync();
+
+        await _auditoriaService.RegistrarAsync(
+            "RECLAMO_RESPONDIDO",
+            $"Se respondió el {(reclamo.Tipo == TipoReclamoQueja.Reclamo ? "reclamo" : "queja")} de {reclamo.NombreCompleto}.",
+            usuarioId, "Reclamo", reclamo.Id);
     }
 }

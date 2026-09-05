@@ -66,6 +66,9 @@ public static class MauiProgram
         builder.Services.AddTransient<ISaunaService, SaunaService>();
         builder.Services.AddTransient<ICierreCajaService, CierreCajaService>();
         builder.Services.AddTransient<IInventarioService, InventarioService>();
+        builder.Services.AddTransient<IComprobanteNumeracionService, ComprobanteNumeracionService>();
+        builder.Services.AddTransient<IRegistroHuespedesService, RegistroHuespedesService>();
+        builder.Services.AddTransient<IReclamosService, ReclamosService>();
 
         // ISessionService es Singleton a propósito: debe recordar quién inició
         // sesión mientras la app sigue abierta, sin importar a qué página se navegue.
@@ -109,6 +112,12 @@ public static class MauiProgram
         builder.Services.AddTransient<AlmacenMovimientoViewModel>();
         builder.Services.AddTransient<CafeteriaPage>();
         builder.Services.AddTransient<CafeteriaViewModel>();
+        builder.Services.AddTransient<ReclamosPage>();
+        builder.Services.AddTransient<ReclamosViewModel>();
+        builder.Services.AddTransient<ReclamoNuevoPage>();
+        builder.Services.AddTransient<ReclamoNuevoViewModel>();
+        builder.Services.AddTransient<RegistroHuespedesPage>();
+        builder.Services.AddTransient<RegistroHuespedesViewModel>();
 
 #if DEBUG
         builder.Logging.AddDebug();

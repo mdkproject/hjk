@@ -87,6 +87,14 @@
         <ShellContent Route="AlmacenPage" ContentTemplate="{DataTemplate pages:AlmacenPage}" />
     </FlyoutItem>
 
+    <FlyoutItem Title="Registro de Huéspedes">
+        <ShellContent Route="RegistroHuespedesPage" ContentTemplate="{DataTemplate pages:RegistroHuespedesPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Libro de Reclamaciones">
+        <ShellContent Route="ReclamosPage" ContentTemplate="{DataTemplate pages:ReclamosPage}" />
+    </FlyoutItem>
+
     <FlyoutItem x:Name="AuditoriaFlyoutItem" Title="Ver Auditoría">
         <ShellContent Route="AuditoriaPage" ContentTemplate="{DataTemplate pages:AuditoriaPage}" />
     </FlyoutItem>

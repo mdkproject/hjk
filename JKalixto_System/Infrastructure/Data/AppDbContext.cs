@@ -28,6 +28,8 @@ public class AppDbContext : DbContext
     public DbSet<Insumo> Insumos => Set<Insumo>();
     public DbSet<MovimientoInventario> MovimientosInventario => Set<MovimientoInventario>();
     public DbSet<LogAuditoria> LogsAuditoria => Set<LogAuditoria>();
+    public DbSet<NumeracionComprobante> NumeracionesComprobante => Set<NumeracionComprobante>();
+    public DbSet<Reclamo> Reclamos => Set<Reclamo>();
 
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
@@ -107,6 +109,9 @@ public class AppDbContext : DbContext
             entity.Property(e => e.NumeroDocumento).IsRequired().HasMaxLength(20);
             entity.Property(e => e.NombreCompleto).IsRequired().HasMaxLength(150);
             entity.Property(e => e.TotalAcumulado).HasPrecision(10, 2);
+            entity.Property(e => e.Nacionalidad).IsRequired().HasMaxLength(60);
+            entity.Property(e => e.LugarResidencia).HasMaxLength(100);
+            entity.Property(e => e.NumeroComprobante).HasMaxLength(20);
 
             entity.HasOne(e => e.Habitacion)
                   .WithMany()
@@ -148,6 +153,7 @@ public class AppDbContext : DbContext
             entity.ToTable("VentasSauna");
             entity.HasKey(v => v.Id);
             entity.Property(v => v.Total).HasPrecision(10, 2);
+            entity.Property(v => v.NumeroComprobante).HasMaxLength(20);
 
             entity.HasMany(v => v.Detalles)
                   .WithOne()
@@ -214,6 +220,41 @@ public class AppDbContext : DbContext
             entity.HasKey(l => l.Id);
             entity.Property(l => l.TipoAccion).IsRequired().HasMaxLength(50);
             entity.Property(l => l.EntidadAfectada).IsRequired().HasMaxLength(50);
+        });
+
+        // ----------------------------------------------------------------
+        // FACTURACIÓN — numeración de comprobantes
+        // ----------------------------------------------------------------
+        modelBuilder.Entity<NumeracionComprobante>(entity =>
+        {
+            entity.ToTable("NumeracionesComprobante");
+            entity.HasKey(n => n.Id);
+            entity.Property(n => n.Serie).IsRequired().HasMaxLength(4);
+
+            // Único por Tipo+Serie: no puede haber dos contadores para la misma
+            // combinación (eso sí permitiría números repetidos).
+            entity.HasIndex(n => new { n.Tipo, n.Serie }).IsUnique();
+        });
+
+        // ----------------------------------------------------------------
+        // LIBRO DE RECLAMACIONES
+        // ----------------------------------------------------------------
+        modelBuilder.Entity<Reclamo>(entity =>
+        {
+            entity.ToTable("Reclamos");
+            entity.HasKey(r => r.Id);
+            entity.Property(r => r.NombreCompleto).IsRequired().HasMaxLength(150);
+            entity.Property(r => r.Domicilio).IsRequired().HasMaxLength(200);
+            entity.Property(r => r.NumeroDocumento).IsRequired().HasMaxLength(20);
+            entity.Property(r => r.Telefono).HasMaxLength(20);
+            entity.Property(r => r.Email).HasMaxLength(100);
+            entity.Property(r => r.NombreApoderado).HasMaxLength(150);
+            entity.Property(r => r.DocumentoApoderado).HasMaxLength(20);
+            entity.Property(r => r.BienContratado).IsRequired().HasMaxLength(200);
+            entity.Property(r => r.MontoReclamado).HasPrecision(10, 2);
+            entity.Property(r => r.DetalleReclamo).IsRequired().HasMaxLength(1000);
+            entity.Property(r => r.PedidoConsumidor).HasMaxLength(500);
+            entity.Property(r => r.RespuestaEstablecimiento).HasMaxLength(1000);
         });
 
         // ==================================================================

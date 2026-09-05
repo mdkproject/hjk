@@ -90,6 +90,34 @@ public enum EstadoEstadia
     Finalizada
 }
 
+/// <summary>Cómo pagó el cliente — igual que en cualquier POS peruano real (Yape y
+/// Plin son, junto con efectivo, los medios más usados en el día a día).</summary>
+public enum MetodoPago
+{
+    Efectivo,
+    Tarjeta,
+    Yape,
+    Plin,
+    Transferencia
+}
+
+/// <summary>Para el Registro de Huéspedes exigido por MINCETUR (D.S. N° 001-2015-MINCETUR,
+/// modificado por D.S. N° 005-2021-MINCETUR) — ver Estadia.MotivoViaje.</summary>
+public enum MotivoViaje
+{
+    Turismo,
+    Negocios,
+    Otro
+}
+
+/// <summary>Sexo del huésped — campo obligatorio del Registro de Huéspedes MINCETUR,
+/// no una clasificación general del sistema.</summary>
+public enum SexoHuesped
+{
+    Masculino,
+    Femenino
+}
+
 public enum TipoComprobante
 {
     Boleta,
@@ -181,6 +209,16 @@ public class Estadia
     public string NombreCompleto { get; set; } = string.Empty;
     public string Celular { get; set; } = string.Empty;
 
+    // --- Registro de Huéspedes (MINCETUR): campos que exige el Reglamento de
+    // Establecimientos de Hospedaje además de los de arriba. Nacionalidad por
+    // defecto "Peruana" porque es el caso más común y evita fricción en cada
+    // Check-in; el resto queda nullable porque no todo Check-in viejo los tiene. ---
+    public DateTime? FechaNacimiento { get; set; }
+    public SexoHuesped? Sexo { get; set; }
+    public string Nacionalidad { get; set; } = "Peruana";
+    public string? LugarResidencia { get; set; }
+    public MotivoViaje? MotivoViaje { get; set; }
+
     public DateTime FechaCheckIn { get; set; }
     public DateTime? FechaCheckOut { get; set; }
     public EstadoEstadia Estado { get; set; } = EstadoEstadia.Activa;
@@ -190,6 +228,17 @@ public class Estadia
     public string? RUC { get; set; }
     public string? RazonSocial { get; set; }
     public string? CorreoFacturacion { get; set; }
+
+    /// <summary>Serie y correlativo del comprobante (ej: "B001-00000123"), asignado al
+    /// Check-out — ver IComprobanteNumeracionService. Es la numeración correlativa que
+    /// exige SUNAT para cualquier boleta/factura; NO reemplaza la emisión electrónica
+    /// real ante SUNAT (eso requiere contratar un PSE/OSE), pero deja el número listo
+    /// para imprimir en un comprobante manual mientras esa integración no exista.</summary>
+    public string? NumeroComprobante { get; set; }
+
+    /// <summary>Cómo se cobró el total al hacer Check-out. Nulo mientras la estadía
+    /// sigue activa (todavía no se cobró nada).</summary>
+    public MetodoPago? MetodoPago { get; set; }
 
     /// <summary>Se activa siempre al hacer Check-in: da acceso gratuito al Sauna.</summary>
     public bool AccesoSaunaIncluido { get; set; } = true;
@@ -314,6 +363,13 @@ public class VentaSauna
     public int? EstadiaHotelDestinoId { get; set; }
     public int UsuarioId { get; set; }
     public List<DetalleVenta> Detalles { get; set; } = new();
+
+    /// <summary>Nulo cuando la venta se cargó a la habitación (todavía no se cobró
+    /// directamente) — se llena solo cuando se cobra en el momento.</summary>
+    public MetodoPago? MetodoPago { get; set; }
+
+    /// <summary>Serie y correlativo del comprobante — ver Estadia.NumeroComprobante.</summary>
+    public string? NumeroComprobante { get; set; }
 }
 
 public class DetalleVenta
@@ -382,6 +438,7 @@ public class MovimientoCaja
 
     public decimal Monto { get; set; }
     public OrigenCajaChica OrigenCaja { get; set; }
+    public MetodoPago MetodoPago { get; set; } = MetodoPago.Efectivo;
     public int UsuarioId { get; set; }
 }
 
@@ -401,6 +458,86 @@ public class CierreCaja
     public decimal TotalSauna { get; set; }
     public DateTime FechaCierre { get; set; }
     public int UsuarioId { get; set; }
+}
+
+// ============================================================
+// MÓDULO FACTURACIÓN — numeración de comprobantes
+// ============================================================
+
+/// <summary>
+/// Contador de serie-correlativo por Serie+Tipo de comprobante (ej: la fila
+/// "B001"/Boleta guarda el último correlativo usado, 123, y el próximo
+/// comprobante recibe "B001-00000124"). Es la parte de la numeración SUNAT que
+/// SÍ se puede resolver localmente (que nunca se repita ni se salte un número);
+/// la emisión electrónica real ante SUNAT es un paso aparte que requiere
+/// contratar un PSE/OSE — ver IComprobanteNumeracionService.
+/// </summary>
+public class NumeracionComprobante
+{
+    public int Id { get; set; }
+    public TipoComprobante Tipo { get; set; }
+    public string Serie { get; set; } = string.Empty;
+    public int UltimoCorrelativo { get; set; }
+}
+
+// ============================================================
+// MÓDULO ATENCIÓN AL CLIENTE — Libro de Reclamaciones
+// (Ley N° 29571, D.S. N° 011-2011-PCM y D.S. N° 042-2011-PCM: todo
+// establecimiento comercial en Perú debe tener uno, físico o virtual)
+// ============================================================
+
+/// <summary>"Reclamo" = disconformidad con el producto/servicio en sí;
+/// "Queja" = malestar con la atención recibida — distinción exigida por la norma.</summary>
+public enum TipoReclamoQueja
+{
+    Reclamo,
+    Queja
+}
+
+public enum EstadoReclamo
+{
+    Pendiente,
+    Respondido
+}
+
+/// <summary>
+/// Una entrada del Libro de Reclamaciones. El personal la registra en el momento
+/// (ver ReclamosService) a pedido del consumidor — el establecimiento tiene 15
+/// días hábiles (por ley) para responder. Campos según la Guía Informativa de
+/// INDECOPI y los D.S. 011-2011-PCM / 042-2011-PCM.
+/// </summary>
+public class Reclamo
+{
+    public int Id { get; set; }
+    public DateTime Fecha { get; set; } = DateTime.Now;
+
+    // --- Datos del consumidor (obligatorios) ---
+    public string NombreCompleto { get; set; } = string.Empty;
+    public string Domicilio { get; set; } = string.Empty;
+    public TipoDocumento TipoDocumento { get; set; } = TipoDocumento.DNI;
+    public string NumeroDocumento { get; set; } = string.Empty;
+    public string? Telefono { get; set; }
+    public string? Email { get; set; }
+
+    // --- Si el consumidor es menor de edad: datos del padre/madre/apoderado ---
+    public bool EsMenorDeEdad { get; set; }
+    public string? NombreApoderado { get; set; }
+    public string? DocumentoApoderado { get; set; }
+
+    // --- El reclamo/queja en sí ---
+    /// <summary>Qué se contrató (ej: "Hospedaje habitación 305", "Consumo de Cafetería").</summary>
+    public string BienContratado { get; set; } = string.Empty;
+    public decimal? MontoReclamado { get; set; }
+    public TipoReclamoQueja Tipo { get; set; }
+    public string DetalleReclamo { get; set; } = string.Empty;
+    public string? PedidoConsumidor { get; set; }
+
+    // --- Respuesta del establecimiento (dentro de 15 días hábiles, por ley) ---
+    public EstadoReclamo Estado { get; set; } = EstadoReclamo.Pendiente;
+    public string? RespuestaEstablecimiento { get; set; }
+    public DateTime? FechaRespuesta { get; set; }
+
+    public int UsuarioRegistroId { get; set; }
 }
 
 // ============================================================

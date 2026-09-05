@@ -32,6 +32,13 @@ public class GastoNuevoViewModel : BaseViewModel
         set => SetProperty(ref _origenTexto, value);
     }
 
+    private string _metodoPagoTexto = "Efectivo";
+    public string MetodoPagoTexto
+    {
+        get => _metodoPagoTexto;
+        set => SetProperty(ref _metodoPagoTexto, value);
+    }
+
     private string _descripcion = string.Empty;
     public string Descripcion
     {
@@ -70,6 +77,7 @@ public class GastoNuevoViewModel : BaseViewModel
     public ICommand SeleccionarDireccionCommand { get; }
     public ICommand SeleccionarCategoriaCommand { get; }
     public ICommand SeleccionarOrigenCommand { get; }
+    public ICommand SeleccionarMetodoPagoCommand { get; }
     public ICommand ConfirmarCommand { get; }
     public ICommand CancelarCommand { get; }
 
@@ -100,6 +108,14 @@ public class GastoNuevoViewModel : BaseViewModel
             if (valor is not null)
             {
                 OrigenTexto = valor;
+            }
+        });
+
+        SeleccionarMetodoPagoCommand = new Command<string>((valor) =>
+        {
+            if (valor is not null)
+            {
+                MetodoPagoTexto = valor;
             }
         });
 
@@ -145,6 +161,14 @@ public class GastoNuevoViewModel : BaseViewModel
                 _ => CategoriaMovimientoCaja.GastosDiarios
             };
             var origen = OrigenTexto == "Sauna" ? OrigenCajaChica.Sauna : OrigenCajaChica.Hotel;
+            var metodoPago = MetodoPagoTexto switch
+            {
+                "Tarjeta" => MetodoPago.Tarjeta,
+                "Yape" => MetodoPago.Yape,
+                "Plin" => MetodoPago.Plin,
+                "Transferencia" => MetodoPago.Transferencia,
+                _ => MetodoPago.Efectivo
+            };
 
             await _gastosService.RegistrarMovimientoAsync(new NuevoMovimientoCajaDto
             {
@@ -154,6 +178,7 @@ public class GastoNuevoViewModel : BaseViewModel
                 PersonalRelacionado = string.IsNullOrWhiteSpace(PersonalRelacionado) ? null : PersonalRelacionado.Trim(),
                 Monto = monto,
                 OrigenCaja = origen,
+                MetodoPago = metodoPago,
                 UsuarioId = usuarioId
             });
 

@@ -51,6 +51,25 @@
             </VerticalStackLayout>
 
             <VerticalStackLayout Spacing="6">
+                <Label Text="Método de pago" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                    <HorizontalStackLayout Spacing="6">
+                        <Button Text="Efectivo" Command="{Binding SeleccionarMetodoPagoCommand}" CommandParameter="Efectivo"
+                                BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="38" FontSize="19" FontAttributes="None" Padding="12,0" />
+                        <Button Text="Tarjeta" Command="{Binding SeleccionarMetodoPagoCommand}" CommandParameter="Tarjeta"
+                                BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="38" FontSize="19" FontAttributes="None" Padding="12,0" />
+                        <Button Text="Yape" Command="{Binding SeleccionarMetodoPagoCommand}" CommandParameter="Yape"
+                                BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="38" FontSize="19" FontAttributes="None" Padding="12,0" />
+                        <Button Text="Plin" Command="{Binding SeleccionarMetodoPagoCommand}" CommandParameter="Plin"
+                                BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="38" FontSize="19" FontAttributes="None" Padding="12,0" />
+                        <Button Text="Transferencia" Command="{Binding SeleccionarMetodoPagoCommand}" CommandParameter="Transferencia"
+                                BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="38" FontSize="19" FontAttributes="None" Padding="12,0" />
+                    </HorizontalStackLayout>
+                </ScrollView>
+                <Label Text="{Binding MetodoPagoTexto, StringFormat='Seleccionado: {0}'}" FontSize="18" TextColor="{DynamicResource ColorTextoSecundario}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="6">
                 <Label Text="Descripción *" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
                 <Entry Text="{Binding Descripcion}" Placeholder="Ej: Pedido de gaseosas" BackgroundColor="{DynamicResource ColorTarjeta}" />
             </VerticalStackLayout>

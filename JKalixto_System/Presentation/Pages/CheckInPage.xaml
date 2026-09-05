@@ -42,6 +42,50 @@
 
             <BoxView HeightRequest="1" Color="{DynamicResource ColorBorde}" Margin="0,4" />
 
+            <!-- Registro de Huéspedes (MINCETUR): D.S. N° 001-2015-MINCETUR, modificado
+                 por D.S. N° 005-2021-MINCETUR — campos que exige el Reglamento de
+                 Establecimientos de Hospedaje además de los de arriba. -->
+            <Label Text="Registro de Huéspedes (obligatorio por MINCETUR)" FontSize="20" FontAttributes="Bold" />
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Fecha de nacimiento" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <DatePicker Date="{Binding FechaNacimiento}" BackgroundColor="{DynamicResource ColorTarjeta}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Sexo" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <HorizontalStackLayout Spacing="8">
+                    <Button Text="Masculino" Command="{Binding SeleccionarSexoCommand}" CommandParameter="Masculino"
+                            BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="40" FontAttributes="None" />
+                    <Button Text="Femenino" Command="{Binding SeleccionarSexoCommand}" CommandParameter="Femenino"
+                            BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="40" FontAttributes="None" />
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Nacionalidad" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <Entry Text="{Binding Nacionalidad}" Placeholder="Peruana" BackgroundColor="{DynamicResource ColorTarjeta}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Lugar de procedencia (ciudad de residencia)" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <Entry Text="{Binding LugarResidencia}" Placeholder="Ej: Arequipa" BackgroundColor="{DynamicResource ColorTarjeta}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Motivo de viaje" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <HorizontalStackLayout Spacing="8">
+                    <Button Text="Turismo" Command="{Binding SeleccionarMotivoViajeCommand}" CommandParameter="Turismo"
+                            BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="40" FontAttributes="None" />
+                    <Button Text="Negocios" Command="{Binding SeleccionarMotivoViajeCommand}" CommandParameter="Negocios"
+                            BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="40" FontAttributes="None" />
+                    <Button Text="Otro" Command="{Binding SeleccionarMotivoViajeCommand}" CommandParameter="Otro"
+                            BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="40" FontAttributes="None" />
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
+
+            <BoxView HeightRequest="1" Color="{DynamicResource ColorBorde}" Margin="0,4" />
+
             <!-- Facturación -->
             <HorizontalStackLayout Spacing="10">
                 <Switch IsToggled="{Binding EsFactura}" OnColor="{DynamicResource ColorAcento}" />

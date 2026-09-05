@@ -16,7 +16,7 @@ namespace JKalixto_System.Tests;
 public class HabitacionServiceTests
 {
     private static HabitacionService NuevoServicio(JKalixto_System.Infrastructure.Data.AppDbContext contexto)
-        => new(contexto, new AuditoriaService(contexto, new SessionService()));
+        => new(contexto, new AuditoriaService(contexto, new SessionService()), new ComprobanteNumeracionService(contexto));
 
     [Fact]
     public async Task CheckInAsync_HabitacionDisponible_CreaEstadiaYOcupaHabitacion()
@@ -97,8 +97,8 @@ public class HabitacionServiceTests
         await using var contextoRecepcionista1 = bd.NuevoContexto();
         await using var contextoRecepcionista2 = bd.NuevoContexto();
 
-        var servicio1 = new HabitacionService(contextoRecepcionista1, new AuditoriaService(contextoRecepcionista1, new SessionService()));
-        var servicio2 = new HabitacionService(contextoRecepcionista2, new AuditoriaService(contextoRecepcionista2, new SessionService()));
+        var servicio1 = new HabitacionService(contextoRecepcionista1, new AuditoriaService(contextoRecepcionista1, new SessionService()), new ComprobanteNumeracionService(contextoRecepcionista1));
+        var servicio2 = new HabitacionService(contextoRecepcionista2, new AuditoriaService(contextoRecepcionista2, new SessionService()), new ComprobanteNumeracionService(contextoRecepcionista2));
 
         // Task.Run fuerza que las dos llamadas corran en hilos del pool distintos,
         // como pasaría de verdad con dos terminales — si simplemente se llamara
