@@ -21,7 +21,10 @@ public class DashboardServiceTests
     {
         using var bd = new BaseDeDatosDePrueba();
 
-        var habitaciones = await bd.Contexto.Habitaciones.OrderBy(h => h.Id).ToListAsync();
+        // AsTracking(): esta prueba modifica las habitaciones directamente (abajo) y
+        // las guarda — BaseDeDatosDePrueba usa NoTracking por defecto, igual que la
+        // app real, así que hace falta pedirlo explícito acá también.
+        var habitaciones = await bd.Contexto.Habitaciones.AsTracking().OrderBy(h => h.Id).ToListAsync();
         var totalHabitaciones = habitaciones.Count;
 
         var habitacion1 = habitaciones[0];

@@ -354,7 +354,12 @@ public class HabitacionService : IHabitacionService
 
     public async Task CheckInAsync(NuevoCheckInDto dto)
     {
-        var habitacion = await _context.Habitaciones.FirstOrDefaultAsync(h => h.Id == dto.HabitacionId);
+        // AsTracking(): esta lectura SE MODIFICA (habitacion.Estado = Ocupada, más
+        // abajo) y se guarda. Además es la que necesita el ConcurrencyToken de
+        // Habitacion.Estado para detectar dos Check-in simultáneos — sin seguimiento,
+        // EF Core no tiene el valor original con el cual comparar y el cambio ni
+        // siquiera llegaría a guardarse.
+        var habitacion = await _context.Habitaciones.AsTracking().FirstOrDefaultAsync(h => h.Id == dto.HabitacionId);
         if (habitacion is null)
         {
             throw new InvalidOperationException("La habitación no existe.");
@@ -413,8 +418,11 @@ public class HabitacionService : IHabitacionService
 
     public async Task CheckOutAsync(int estadiaId, int usuarioId)
     {
+        // AsTracking(): se modifican tanto la Estadia (Estado, TotalAcumulado) como
+        // su Habitacion (Estado = LimpiezaSalida) y ambas se guardan.
         var estadia = await _context.Estadias
             .Include(e => e.Habitacion)
+            .AsTracking()
             .FirstOrDefaultAsync(e => e.Id == estadiaId);
 
         if (estadia is null)
@@ -465,7 +473,8 @@ public class HabitacionService : IHabitacionService
             throw new InvalidOperationException("El motivo de mantenimiento es obligatorio.");
         }
 
-        var habitacion = await _context.Habitaciones.FirstOrDefaultAsync(h => h.Id == habitacionId);
+        // AsTracking(): se modifica (Estado, MotivoMantenimiento, fecha) y se guarda.
+        var habitacion = await _context.Habitaciones.AsTracking().FirstOrDefaultAsync(h => h.Id == habitacionId);
         if (habitacion is null)
         {
             throw new InvalidOperationException("La habitación no existe.");
@@ -489,7 +498,8 @@ public class HabitacionService : IHabitacionService
 
     public async Task FinalizarMantenimientoAsync(int habitacionId, int usuarioId)
     {
-        var habitacion = await _context.Habitaciones.FirstOrDefaultAsync(h => h.Id == habitacionId);
+        // AsTracking(): se modifica (Estado, MotivoMantenimiento) y se guarda.
+        var habitacion = await _context.Habitaciones.AsTracking().FirstOrDefaultAsync(h => h.Id == habitacionId);
         if (habitacion is null)
         {
             throw new InvalidOperationException("La habitación no existe.");
@@ -510,7 +520,8 @@ public class HabitacionService : IHabitacionService
 
     public async Task FinalizarLimpiezaAsync(int habitacionId)
     {
-        var habitacion = await _context.Habitaciones.FirstOrDefaultAsync(h => h.Id == habitacionId);
+        // AsTracking(): se modifica (Estado = Disponible) y se guarda.
+        var habitacion = await _context.Habitaciones.AsTracking().FirstOrDefaultAsync(h => h.Id == habitacionId);
         if (habitacion is null)
         {
             throw new InvalidOperationException("La habitación no existe.");
@@ -1180,7 +1191,8 @@ public class GastosService : IGastosService
             throw new UnauthorizedAccessException("No tienes permiso para eliminar movimientos de caja.");
         }
 
-        var movimiento = await _context.MovimientosCaja.FirstOrDefaultAsync(m => m.Id == movimientoId);
+        // AsTracking(): se va a eliminar (Remove) a continuación.
+        var movimiento = await _context.MovimientosCaja.AsTracking().FirstOrDefaultAsync(m => m.Id == movimientoId);
         if (movimiento is null)
         {
             throw new InvalidOperationException("El movimiento no existe.");
@@ -1416,7 +1428,8 @@ public class ReservaService : IReservaService
 
     public async Task CancelarReservaAsync(int reservaId, int usuarioId)
     {
-        var reserva = await _context.Reservas.Include(r => r.Habitacion).FirstOrDefaultAsync(r => r.Id == reservaId);
+        // AsTracking(): se modifica (Estado = Cancelada) y se guarda.
+        var reserva = await _context.Reservas.Include(r => r.Habitacion).AsTracking().FirstOrDefaultAsync(r => r.Id == reservaId);
         if (reserva is null)
         {
             throw new InvalidOperationException("La reserva no existe.");
@@ -1433,7 +1446,8 @@ public class ReservaService : IReservaService
 
     public async Task ConvertirEnCheckInAsync(int reservaId, int usuarioId)
     {
-        var reserva = await _context.Reservas.Include(r => r.Acompanantes).FirstOrDefaultAsync(r => r.Id == reservaId);
+        // AsTracking(): se modifica (Estado = CheckInRealizado) y se guarda.
+        var reserva = await _context.Reservas.Include(r => r.Acompanantes).AsTracking().FirstOrDefaultAsync(r => r.Id == reservaId);
         if (reserva is null)
         {
             throw new InvalidOperationException("La reserva no existe.");
@@ -1444,7 +1458,9 @@ public class ReservaService : IReservaService
             throw new InvalidOperationException("Esta reserva ya no está confirmada.");
         }
 
-        var habitacion = await _context.Habitaciones.FirstOrDefaultAsync(h => h.Id == reserva.HabitacionId);
+        // AsTracking(): se modifica (Estado = Ocupada) y se guarda; también es la que
+        // necesita el ConcurrencyToken de Habitacion.Estado (ver CheckInAsync).
+        var habitacion = await _context.Habitaciones.AsTracking().FirstOrDefaultAsync(h => h.Id == reserva.HabitacionId);
         if (habitacion is null)
         {
             throw new InvalidOperationException("La habitación de esta reserva ya no existe.");
@@ -1945,7 +1961,8 @@ public class InventarioService : IInventarioService
             throw new InvalidOperationException("La cantidad debe ser mayor a cero.");
         }
 
-        var insumo = await _context.Insumos.FirstOrDefaultAsync(i => i.Id == dto.InsumoId);
+        // AsTracking(): se modifica (StockActual) y se guarda.
+        var insumo = await _context.Insumos.AsTracking().FirstOrDefaultAsync(i => i.Id == dto.InsumoId);
         if (insumo is null)
         {
             throw new InvalidOperationException("El insumo no existe.");
@@ -2148,8 +2165,10 @@ public class SaunaService : ISaunaService
                 throw new InvalidOperationException("Este cliente no está vinculado a una habitación del hotel.");
             }
 
+            // AsTracking(): se modifica (TotalAcumulado) y se guarda si cargarAHabitacion.
             estadia = await _context.Estadias
                 .Include(e => e.Habitacion)
+                .AsTracking()
                 .FirstOrDefaultAsync(e => e.Id == cliente.EstadiaHotelId.Value && e.Estado == EstadoEstadia.Activa);
 
             if (estadia is null)
@@ -2209,8 +2228,10 @@ public class SaunaService : ISaunaService
     {
         ValidarCarrito(items);
 
+        // AsTracking(): se modifica (TotalAcumulado) y se guarda si cargarAHabitacion.
         var estadia = await _context.Estadias
             .Include(e => e.Habitacion)
+            .AsTracking()
             .FirstOrDefaultAsync(e => e.Id == estadiaId && e.Estado == EstadoEstadia.Activa);
 
         if (estadia is null)
@@ -2259,7 +2280,8 @@ public class SaunaService : ISaunaService
 
     public async Task FinalizarSesionAsync(int clienteSaunaId, int usuarioId)
     {
-        var cliente = await _context.ClientesSauna.FirstOrDefaultAsync(c => c.Id == clienteSaunaId);
+        // AsTracking(): se modifica (Estado, FechaSalida) y se guarda.
+        var cliente = await _context.ClientesSauna.AsTracking().FirstOrDefaultAsync(c => c.Id == clienteSaunaId);
         if (cliente is null)
         {
             throw new InvalidOperationException("El cliente no existe.");

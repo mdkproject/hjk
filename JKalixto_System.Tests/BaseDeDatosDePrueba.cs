@@ -35,10 +35,14 @@ public sealed class BaseDeDatosDePrueba : IDisposable
     /// </summary>
     public AppDbContext NuevoContexto()
     {
-        // Mismo "Default Timeout" que MauiProgram.cs: dos escrituras casi
-        // simultáneas deben esperar su turno, no chocar con "database is locked".
+        // Misma configuración que MauiProgram.cs: mismo "Default Timeout", y
+        // NoTracking por defecto — así, si algún método real se olvida de pedir
+        // ".AsTracking()" donde hace falta (lee una fila, la modifica y la guarda),
+        // las pruebas lo detectan igual que pasaría en la app real, en vez de
+        // "funcionar en la prueba" solo porque EF Core rastrea todo por defecto.
         var opciones = new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlite($"Data Source={_rutaArchivo};Default Timeout=5")
+            .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking)
             .Options;
 
         return new AppDbContext(opciones);

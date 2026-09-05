@@ -38,8 +38,17 @@ public static class MauiProgram
         // la vez. Sin este timeout, el segundo recibe un error crudo de "database is
         // locked" al instante. Con esto, espera hasta 5 segundos a que el primero
         // termine antes de fallar — tiempo de sobra en el uso real del hotel.
+        // "NoTracking" por defecto: la gran mayoría de las consultas de este sistema
+        // son de solo lectura (listar habitaciones, el dashboard, el calendario,
+        // reportes) y nunca se vuelven a guardar — pedirle a EF Core que las siga
+        // rastreando para detectar cambios es trabajo de más que nunca se usa. Los
+        // pocos métodos que sí leen una fila para modificarla y guardarla (Check-in,
+        // Check-out, registrar una venta, etc.) piden seguimiento explícito con
+        // ".AsTracking()" en esa consulta puntual — ver Servicios.cs.
         builder.Services.AddDbContext<AppDbContext>(
-            options => options.UseSqlite($"Data Source={dbPath};Default Timeout=5"),
+            options => options
+                .UseSqlite($"Data Source={dbPath};Default Timeout=5")
+                .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking),
             ServiceLifetime.Transient);
 
         // --- Repositorios ---

@@ -61,7 +61,9 @@ public class HabitacionServiceTests
     public async Task CheckInAsync_HabitacionYaOcupada_LanzaExcepcion()
     {
         using var bd = new BaseDeDatosDePrueba();
-        var habitacion = await bd.Contexto.Habitaciones.FirstAsync(h => h.Estado == EstadoHabitacion.Disponible);
+        // AsTracking(): esta prueba modifica la habitación directamente (arreglo del
+        // escenario) y la guarda — BaseDeDatosDePrueba usa NoTracking por defecto.
+        var habitacion = await bd.Contexto.Habitaciones.AsTracking().FirstAsync(h => h.Estado == EstadoHabitacion.Disponible);
         habitacion.Estado = EstadoHabitacion.Ocupada;
         await bd.Contexto.SaveChangesAsync();
 
