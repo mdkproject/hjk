@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Microsoft.Maui.Controls;
@@ -15,6 +17,10 @@ public class ClientesViewModel : BaseViewModel
     private readonly ISaunaService _saunaService;
     private readonly ISessionService _sessionService;
 
+    /// <summary>Copia completa traída del servicio; Clientes es la vista ya filtrada
+    /// por TextoBusqueda — mismo patrón que RecepcionViewModel con las habitaciones.</summary>
+    private List<ClienteUnificadoDto> _todosLosClientes = new();
+
     public ObservableCollection<ClienteUnificadoDto> Clientes { get; } = new();
 
     private string _origenSeleccionado = "Hotel";
@@ -22,6 +28,21 @@ public class ClientesViewModel : BaseViewModel
     {
         get => _origenSeleccionado;
         set => SetProperty(ref _origenSeleccionado, value);
+    }
+
+    private string _textoBusqueda = string.Empty;
+    /// <summary>Filtro predictivo: se re-aplica en cada tecla, sin golpear la base de
+    /// datos (ya está todo en memoria en _todosLosClientes).</summary>
+    public string TextoBusqueda
+    {
+        get => _textoBusqueda;
+        set
+        {
+            if (SetProperty(ref _textoBusqueda, value))
+            {
+                AplicarFiltroBusqueda();
+            }
+        }
     }
 
     private ClienteUnificadoDto? _clienteSeleccionado;
@@ -139,21 +160,38 @@ public class ClientesViewModel : BaseViewModel
         try
         {
             IsBusy = true;
-            var lista = OrigenSeleccionado == "Sauna"
+            _todosLosClientes = OrigenSeleccionado == "Sauna"
                 ? await _clientesService.ObtenerClientesSaunaAsync()
                 : await _clientesService.ObtenerClientesHotelAsync();
 
-            Clientes.Clear();
-            foreach (var c in lista)
-            {
-                Clientes.Add(c);
-            }
-            HayClientes = Clientes.Count > 0;
+            AplicarFiltroBusqueda();
         }
         finally
         {
             IsBusy = false;
         }
+    }
+
+    /// <summary>Filtra por nombre o ubicación (habitación/candado) — coincidencia parcial,
+    /// sin distinguir mayúsculas/acentos exactos, para que "jose" encuentre "José Pérez".</summary>
+    private void AplicarFiltroBusqueda()
+    {
+        IEnumerable<ClienteUnificadoDto> query = _todosLosClientes;
+
+        if (!string.IsNullOrWhiteSpace(TextoBusqueda))
+        {
+            var texto = TextoBusqueda.Trim();
+            query = query.Where(c =>
+                c.NombreCliente.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
+                c.UbicacionTexto.Contains(texto, StringComparison.OrdinalIgnoreCase));
+        }
+
+        Clientes.Clear();
+        foreach (var c in query)
+        {
+            Clientes.Add(c);
+        }
+        HayClientes = Clientes.Count > 0;
     }
 
     private async Task CargarDetalleAsync(ClienteUnificadoDto cliente)

@@ -10,7 +10,7 @@
              Shell.NavBarIsVisible="True"
              BackgroundColor="{DynamicResource ColorFondo}">
 
-    <Grid RowDefinitions="Auto,Auto,*" Padding="16" RowSpacing="14">
+    <Grid RowDefinitions="Auto,Auto,Auto,*" Padding="16" RowSpacing="14">
 
         <!-- Reloj/fecha/tema: fila propia de ancho completo, alineada a la derecha —
              misma posición fija en TODAS las pantallas. Ver
@@ -24,7 +24,15 @@
                 TextColor="{DynamicResource ColorFondo}"
                 HeightRequest="48" />
 
-        <CollectionView Grid.Row="2" ItemsSource="{Binding Reclamos}" EmptyView="Todavía no hay reclamos ni quejas registrados.">
+        <Border Grid.Row="2" BackgroundColor="{DynamicResource ColorTarjeta}" Stroke="{DynamicResource ColorBorde}" StrokeThickness="1" Padding="12,0" HeightRequest="44">
+            <Border.StrokeShape><RoundRectangle CornerRadius="8" /></Border.StrokeShape>
+            <Grid ColumnDefinitions="Auto,*">
+                <Label Grid.Column="0" Text="🔍" FontSize="16" VerticalOptions="Center" Margin="0,0,8,0" />
+                <Entry Grid.Column="1" Text="{Binding TextoBusqueda}" Placeholder="Buscar por nombre, documento o bien contratado..." BackgroundColor="Transparent" VerticalOptions="Center" />
+            </Grid>
+        </Border>
+
+        <CollectionView Grid.Row="3" ItemsSource="{Binding Reclamos}" EmptyView="Todavía no hay reclamos ni quejas registrados.">
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="services:ReclamoCardDto">
                     <Border BackgroundColor="{DynamicResource ColorTarjeta}"

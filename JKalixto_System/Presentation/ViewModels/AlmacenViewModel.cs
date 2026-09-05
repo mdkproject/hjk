@@ -33,6 +33,19 @@ public class AlmacenViewModel : BaseViewModel
         }
     }
 
+    private string _textoBusqueda = string.Empty;
+    public string TextoBusqueda
+    {
+        get => _textoBusqueda;
+        set
+        {
+            if (SetProperty(ref _textoBusqueda, value))
+            {
+                AplicarFiltro();
+            }
+        }
+    }
+
     private bool _hayInsumos;
     public bool HayInsumos
     {
@@ -88,9 +101,15 @@ public class AlmacenViewModel : BaseViewModel
             _ => (CategoriaInsumo?)null
         };
 
-        var query = categoria.HasValue
+        IEnumerable<InsumoCardDto> query = categoria.HasValue
             ? _todosLosInsumos.Where(i => i.Categoria == categoria.Value)
             : _todosLosInsumos;
+
+        if (!string.IsNullOrWhiteSpace(TextoBusqueda))
+        {
+            var texto = TextoBusqueda.Trim();
+            query = query.Where(i => i.Nombre.Contains(texto, System.StringComparison.OrdinalIgnoreCase));
+        }
 
         Insumos.Clear();
         foreach (var i in query)

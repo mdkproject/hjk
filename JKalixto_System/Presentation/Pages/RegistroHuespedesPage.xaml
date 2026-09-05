@@ -10,7 +10,7 @@
              Shell.NavBarIsVisible="True"
              BackgroundColor="{DynamicResource ColorFondo}">
 
-    <Grid RowDefinitions="Auto,Auto,*" Padding="16" RowSpacing="10">
+    <Grid RowDefinitions="Auto,Auto,Auto,*" Padding="16" RowSpacing="10">
 
         <!-- Reloj/fecha/tema: fila propia de ancho completo, alineada a la derecha —
              misma posición fija en TODAS las pantallas. Ver
@@ -21,7 +21,15 @@
                Text="Registro de Huéspedes — campos exigidos por el Reglamento de Establecimientos de Hospedaje (MINCETUR). Se completan en el Check-in."
                FontSize="16" TextColor="{DynamicResource ColorTextoSecundario}" />
 
-        <CollectionView Grid.Row="2" ItemsSource="{Binding Registro}" EmptyView="Todavía no hay huéspedes registrados.">
+        <Border Grid.Row="2" BackgroundColor="{DynamicResource ColorTarjeta}" Stroke="{DynamicResource ColorBorde}" StrokeThickness="1" Padding="12,0" HeightRequest="44">
+            <Border.StrokeShape><RoundRectangle CornerRadius="8" /></Border.StrokeShape>
+            <Grid ColumnDefinitions="Auto,*">
+                <Label Grid.Column="0" Text="🔍" FontSize="16" VerticalOptions="Center" Margin="0,0,8,0" />
+                <Entry Grid.Column="1" Text="{Binding TextoBusqueda}" Placeholder="Buscar por nombre o documento..." BackgroundColor="Transparent" VerticalOptions="Center" />
+            </Grid>
+        </Border>
+
+        <CollectionView Grid.Row="3" ItemsSource="{Binding Registro}" EmptyView="Todavía no hay huéspedes registrados.">
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="services:RegistroHuespedDto">
                     <Border BackgroundColor="{DynamicResource ColorTarjeta}"

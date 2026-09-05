@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Microsoft.Maui.Controls;
@@ -13,7 +15,22 @@ public class GastosViewModel : BaseViewModel
     private readonly IGastosService _gastosService;
     private readonly ISessionService _sessionService;
 
+    private List<MovimientoCajaCardDto> _todosLosMovimientos = new();
+
     public ObservableCollection<MovimientoCajaCardDto> Movimientos { get; } = new();
+
+    private string _textoBusqueda = string.Empty;
+    public string TextoBusqueda
+    {
+        get => _textoBusqueda;
+        set
+        {
+            if (SetProperty(ref _textoBusqueda, value))
+            {
+                AplicarFiltroBusqueda();
+            }
+        }
+    }
 
     private bool _hayMovimientos;
     public bool HayMovimientos
@@ -68,13 +85,8 @@ public class GastosViewModel : BaseViewModel
             IsBusy = true;
             var hoy = DateTime.Now;
 
-            var lista = await _gastosService.ObtenerDelDiaAsync(hoy);
-            Movimientos.Clear();
-            foreach (var m in lista)
-            {
-                Movimientos.Add(m);
-            }
-            HayMovimientos = Movimientos.Count > 0;
+            _todosLosMovimientos = await _gastosService.ObtenerDelDiaAsync(hoy);
+            AplicarFiltroBusqueda();
 
             var cajaChica = await _gastosService.ObtenerResumenCajaChicaAsync(hoy);
             CajaChicaHotelTexto = $"S/ {cajaChica.MontoEsperadoHotel:0.00}  (base S/ {cajaChica.MontoBaseHotel:0.00})";
@@ -84,6 +96,28 @@ public class GastosViewModel : BaseViewModel
         {
             IsBusy = false;
         }
+    }
+
+    /// <summary>Filtra los movimientos de HOY por descripción o personal relacionado —
+    /// no golpea la base de datos, ya están todos cargados en memoria.</summary>
+    private void AplicarFiltroBusqueda()
+    {
+        IEnumerable<MovimientoCajaCardDto> query = _todosLosMovimientos;
+
+        if (!string.IsNullOrWhiteSpace(TextoBusqueda))
+        {
+            var texto = TextoBusqueda.Trim();
+            query = query.Where(m =>
+                m.Descripcion.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
+                (m.PersonalRelacionado?.Contains(texto, StringComparison.OrdinalIgnoreCase) ?? false));
+        }
+
+        Movimientos.Clear();
+        foreach (var m in query)
+        {
+            Movimientos.Add(m);
+        }
+        HayMovimientos = Movimientos.Count > 0;
     }
 
     private async Task GestionarMovimientoAsync(MovimientoCajaCardDto movimiento)

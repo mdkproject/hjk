@@ -10,7 +10,7 @@
              Shell.NavBarIsVisible="True"
              BackgroundColor="{DynamicResource ColorFondo}">
 
-    <Grid RowDefinitions="Auto,Auto,Auto,*" Padding="16" RowSpacing="14">
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" Padding="16" RowSpacing="14">
 
         <!-- Reloj/fecha/tema: fila propia de ancho completo, alineada a la derecha —
              misma posición fija en TODAS las pantallas. Ver
@@ -24,8 +24,16 @@
                 TextColor="{DynamicResource ColorFondo}"
                 HeightRequest="48" />
 
+        <Border Grid.Row="2" BackgroundColor="{DynamicResource ColorTarjeta}" Stroke="{DynamicResource ColorBorde}" StrokeThickness="1" Padding="12,0" HeightRequest="44">
+            <Border.StrokeShape><RoundRectangle CornerRadius="8" /></Border.StrokeShape>
+            <Grid ColumnDefinitions="Auto,*">
+                <Label Grid.Column="0" Text="🔍" FontSize="16" VerticalOptions="Center" Margin="0,0,8,0" />
+                <Entry Grid.Column="1" Text="{Binding TextoBusqueda}" Placeholder="Buscar por descripción o personal..." BackgroundColor="Transparent" VerticalOptions="Center" />
+            </Grid>
+        </Border>
+
         <!-- Caja Chica: Hotel y Sauna por separado -->
-        <Grid Grid.Row="2" ColumnDefinitions="*,*" ColumnSpacing="10">
+        <Grid Grid.Row="3" ColumnDefinitions="*,*" ColumnSpacing="10">
             <Border Grid.Column="0" BackgroundColor="{DynamicResource ColorTarjeta}" Stroke="{DynamicResource ColorBorde}" StrokeThickness="1" Padding="14">
                 <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
                 <VerticalStackLayout Spacing="4">
@@ -42,7 +50,7 @@
             </Border>
         </Grid>
 
-        <CollectionView Grid.Row="3" ItemsSource="{Binding Movimientos}" EmptyView="Todavía no hay movimientos registrados hoy.">
+        <CollectionView Grid.Row="4" ItemsSource="{Binding Movimientos}" EmptyView="Todavía no hay movimientos registrados hoy.">
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="services:MovimientoCajaCardDto">
                     <Border BackgroundColor="{DynamicResource ColorTarjeta}"

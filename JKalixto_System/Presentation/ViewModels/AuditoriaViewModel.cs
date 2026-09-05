@@ -1,4 +1,7 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading.Tasks;
 using JKalixto_System.Domain.Models;
 using JKalixto_System.Application.Services;
@@ -9,7 +12,22 @@ public class AuditoriaViewModel : BaseViewModel
 {
     private readonly IAuditoriaService _auditoriaService;
 
+    private List<LogAuditoria> _todosLosEventos = new();
+
     public ObservableCollection<LogAuditoria> Eventos { get; } = new();
+
+    private string _textoBusqueda = string.Empty;
+    public string TextoBusqueda
+    {
+        get => _textoBusqueda;
+        set
+        {
+            if (SetProperty(ref _textoBusqueda, value))
+            {
+                AplicarFiltroBusqueda();
+            }
+        }
+    }
 
     private bool _hayEventos;
     public bool HayEventos
@@ -34,14 +52,8 @@ public class AuditoriaViewModel : BaseViewModel
         try
         {
             IsBusy = true;
-            var eventos = await _auditoriaService.ObtenerRecientesAsync(200);
-
-            Eventos.Clear();
-            foreach (var e in eventos)
-            {
-                Eventos.Add(e);
-            }
-            HayEventos = Eventos.Count > 0;
+            _todosLosEventos = await _auditoriaService.ObtenerRecientesAsync(200);
+            AplicarFiltroBusqueda();
         }
         catch (System.UnauthorizedAccessException ex)
         {
@@ -59,5 +71,28 @@ public class AuditoriaViewModel : BaseViewModel
         {
             IsBusy = false;
         }
+    }
+
+    /// <summary>Filtra por descripción, usuario o tipo de acción — sobre los 200 eventos
+    /// más recientes que ya se trajeron de la base, sin volver a golpearla.</summary>
+    private void AplicarFiltroBusqueda()
+    {
+        IEnumerable<LogAuditoria> query = _todosLosEventos;
+
+        if (!string.IsNullOrWhiteSpace(TextoBusqueda))
+        {
+            var texto = TextoBusqueda.Trim();
+            query = query.Where(e =>
+                e.Descripcion.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
+                e.UsuarioNombre.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
+                e.TipoAccion.Contains(texto, StringComparison.OrdinalIgnoreCase));
+        }
+
+        Eventos.Clear();
+        foreach (var e in query)
+        {
+            Eventos.Add(e);
+        }
+        HayEventos = Eventos.Count > 0;
     }
 }

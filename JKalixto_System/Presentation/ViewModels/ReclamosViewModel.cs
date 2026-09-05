@@ -1,4 +1,7 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Microsoft.Maui.Controls;
@@ -20,7 +23,22 @@ public class ReclamosViewModel : BaseViewModel
     private readonly IReclamosService _reclamosService;
     private readonly ISessionService _sessionService;
 
+    private List<ReclamoCardDto> _todosLosReclamos = new();
+
     public ObservableCollection<ReclamoCardDto> Reclamos { get; } = new();
+
+    private string _textoBusqueda = string.Empty;
+    public string TextoBusqueda
+    {
+        get => _textoBusqueda;
+        set
+        {
+            if (SetProperty(ref _textoBusqueda, value))
+            {
+                AplicarFiltroBusqueda();
+            }
+        }
+    }
 
     private bool _hayReclamos;
     public bool HayReclamos
@@ -59,19 +77,36 @@ public class ReclamosViewModel : BaseViewModel
         try
         {
             IsBusy = true;
-            var lista = await _reclamosService.ObtenerTodosAsync();
-
-            Reclamos.Clear();
-            foreach (var r in lista)
-            {
-                Reclamos.Add(r);
-            }
-            HayReclamos = Reclamos.Count > 0;
+            _todosLosReclamos = await _reclamosService.ObtenerTodosAsync();
+            AplicarFiltroBusqueda();
         }
         finally
         {
             IsBusy = false;
         }
+    }
+
+    /// <summary>Filtra por nombre, documento o bien contratado — todo en memoria, sin
+    /// volver a golpear la base de datos.</summary>
+    private void AplicarFiltroBusqueda()
+    {
+        IEnumerable<ReclamoCardDto> query = _todosLosReclamos;
+
+        if (!string.IsNullOrWhiteSpace(TextoBusqueda))
+        {
+            var texto = TextoBusqueda.Trim();
+            query = query.Where(r =>
+                r.NombreCompleto.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
+                r.NumeroDocumento.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
+                r.BienContratado.Contains(texto, StringComparison.OrdinalIgnoreCase));
+        }
+
+        Reclamos.Clear();
+        foreach (var r in query)
+        {
+            Reclamos.Add(r);
+        }
+        HayReclamos = Reclamos.Count > 0;
     }
 
     private async Task GestionarReclamoAsync(ReclamoCardDto reclamo)

@@ -1,4 +1,7 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading.Tasks;
 using JKalixto_System.Application.Services;
 
@@ -12,7 +15,22 @@ public class RegistroHuespedesViewModel : BaseViewModel
 {
     private readonly IRegistroHuespedesService _registroHuespedesService;
 
+    private List<RegistroHuespedDto> _todoElRegistro = new();
+
     public ObservableCollection<RegistroHuespedDto> Registro { get; } = new();
+
+    private string _textoBusqueda = string.Empty;
+    public string TextoBusqueda
+    {
+        get => _textoBusqueda;
+        set
+        {
+            if (SetProperty(ref _textoBusqueda, value))
+            {
+                AplicarFiltroBusqueda();
+            }
+        }
+    }
 
     private bool _hayRegistros;
     public bool HayRegistros
@@ -37,18 +55,34 @@ public class RegistroHuespedesViewModel : BaseViewModel
         try
         {
             IsBusy = true;
-            var lista = await _registroHuespedesService.ObtenerRegistroAsync();
-
-            Registro.Clear();
-            foreach (var r in lista)
-            {
-                Registro.Add(r);
-            }
-            HayRegistros = Registro.Count > 0;
+            _todoElRegistro = await _registroHuespedesService.ObtenerRegistroAsync();
+            AplicarFiltroBusqueda();
         }
         finally
         {
             IsBusy = false;
         }
+    }
+
+    /// <summary>Filtra por nombre o documento — todo en memoria, sin volver a golpear
+    /// la base de datos.</summary>
+    private void AplicarFiltroBusqueda()
+    {
+        IEnumerable<RegistroHuespedDto> query = _todoElRegistro;
+
+        if (!string.IsNullOrWhiteSpace(TextoBusqueda))
+        {
+            var texto = TextoBusqueda.Trim();
+            query = query.Where(r =>
+                r.NombreCompleto.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
+                r.NumeroDocumento.Contains(texto, StringComparison.OrdinalIgnoreCase));
+        }
+
+        Registro.Clear();
+        foreach (var r in query)
+        {
+            Registro.Add(r);
+        }
+        HayRegistros = Registro.Count > 0;
     }
 }

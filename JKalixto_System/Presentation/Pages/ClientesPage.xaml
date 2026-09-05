@@ -22,9 +22,17 @@
         <Grid Grid.Row="1" ColumnDefinitions="2*,1.1*" ColumnSpacing="14">
 
         <!-- ===================== Columna izquierda: lista ===================== -->
-        <Grid Grid.Column="0" RowDefinitions="Auto,*" RowSpacing="10">
+        <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*" RowSpacing="10">
 
-            <HorizontalStackLayout Grid.Row="0" Spacing="8">
+            <Border Grid.Row="0" BackgroundColor="{DynamicResource ColorTarjeta}" Stroke="{DynamicResource ColorBorde}" StrokeThickness="1" Padding="12,0" HeightRequest="44">
+                <Border.StrokeShape><RoundRectangle CornerRadius="8" /></Border.StrokeShape>
+                <Grid ColumnDefinitions="Auto,*">
+                    <Label Grid.Column="0" Text="🔍" FontSize="16" VerticalOptions="Center" Margin="0,0,8,0" />
+                    <Entry Grid.Column="1" Text="{Binding TextoBusqueda}" Placeholder="Buscar por nombre o ubicación..." BackgroundColor="Transparent" VerticalOptions="Center" />
+                </Grid>
+            </Border>
+
+            <HorizontalStackLayout Grid.Row="1" Spacing="8">
                 <Button Text="Clientes del Hotel"
                         Command="{Binding SeleccionarOrigenCommand}"
                         CommandParameter="Hotel"
@@ -64,7 +72,7 @@
                 <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" Color="{DynamicResource ColorAcento}" Margin="8,0,0,0" />
             </HorizontalStackLayout>
 
-            <Border Grid.Row="1"
+            <Border Grid.Row="2"
                     BackgroundColor="{DynamicResource ColorSuperficie}"
                     Stroke="{DynamicResource ColorBorde}"
                     StrokeThickness="1"

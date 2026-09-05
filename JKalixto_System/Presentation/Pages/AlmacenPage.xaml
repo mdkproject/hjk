@@ -10,7 +10,7 @@
              Shell.NavBarIsVisible="True"
              BackgroundColor="{DynamicResource ColorFondo}">
 
-    <Grid RowDefinitions="Auto,Auto,Auto,*" Padding="16" RowSpacing="10">
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" Padding="16" RowSpacing="10">
 
         <!-- Reloj/fecha/tema: fila propia de ancho completo, alineada a la derecha —
              misma posición fija en TODAS las pantallas. Ver
@@ -27,8 +27,16 @@
 
         </Grid>
 
+        <Border Grid.Row="2" BackgroundColor="{DynamicResource ColorTarjeta}" Stroke="{DynamicResource ColorBorde}" StrokeThickness="1" Padding="12,0" HeightRequest="44">
+            <Border.StrokeShape><RoundRectangle CornerRadius="8" /></Border.StrokeShape>
+            <Grid ColumnDefinitions="Auto,*">
+                <Label Grid.Column="0" Text="🔍" FontSize="16" VerticalOptions="Center" Margin="0,0,8,0" />
+                <Entry Grid.Column="1" Text="{Binding TextoBusqueda}" Placeholder="Buscar insumo por nombre..." BackgroundColor="Transparent" VerticalOptions="Center" />
+            </Grid>
+        </Border>
+
         <!-- Filtro por categoría -->
-        <VerticalStackLayout Grid.Row="2" Spacing="4">
+        <VerticalStackLayout Grid.Row="3" Spacing="4">
             <Label Text="Categoría" FontSize="18" TextColor="{DynamicResource ColorTextoSecundario}" />
             <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
                 <HorizontalStackLayout Spacing="6">
@@ -77,7 +85,7 @@
         </VerticalStackLayout>
 
         <!-- Grilla de insumos -->
-        <CollectionView Grid.Row="3" ItemsSource="{Binding Insumos}" EmptyView="No hay insumos para mostrar con este filtro.">
+        <CollectionView Grid.Row="4" ItemsSource="{Binding Insumos}" EmptyView="No hay insumos para mostrar con este filtro.">
             <CollectionView.ItemsLayout>
                 <GridItemsLayout Orientation="Vertical" Span="3" HorizontalItemSpacing="8" VerticalItemSpacing="8" />
             </CollectionView.ItemsLayout>
