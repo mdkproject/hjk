@@ -248,18 +248,22 @@
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="services:HabitacionCardDto">
                     <!--
-                        Layout a propósito con un Grid (no un VerticalStackLayout): el número
-                        de habitación queda anclado en la esquina superior izquierda
-                        (HorizontalOptions/VerticalOptions="Start" explícitos, sin depender de
-                        que el contenedor lo centre) y el resto del texto queda alineado a la
-                        izquierda debajo, fila por fila, para que toda la información sea
-                        legible de un vistazo sin tener que entrecerrar los ojos.
+                        El número de habitación va en su propia columna a la DERECHA de la
+                        tarjeta (pedido explícito, en vez de arriba-izquierda como antes) — el
+                        resto de la información (tipo, estado, huésped) ocupa la columna
+                        izquierda completa, empezando arriba, en el lugar donde antes estaba
+                        el número. HeightRequest recalculado a mano sumando el alto real de
+                        cada línea posible en el peor caso (habitación Ocupada, que es la que
+                        más líneas muestra) — antes se cortaba el total acumulado porque el
+                        alto viejo (160) no alcanzaba para las 6 líneas apiladas junto con el
+                        número; ahora el número ya no suma a esa cuenta porque vive aparte,
+                        en su propia columna.
                     -->
                     <Border BackgroundColor="{DynamicResource ColorTarjeta}"
                             Stroke="{Binding BrushEstado}"
                             StrokeThickness="2"
                             Padding="10"
-                            HeightRequest="160">
+                            HeightRequest="150">
                         <Border.StrokeShape>
                             <RoundRectangle CornerRadius="10" />
                         </Border.StrokeShape>
@@ -267,44 +271,51 @@
                             <TapGestureRecognizer Tapped="OnHabitacionTapped" />
                         </Border.GestureRecognizers>
 
-                        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
-                              RowSpacing="2"
-                              HorizontalOptions="Start"
-                              VerticalOptions="Start">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
 
-                            <Label Grid.Row="0" Text="{Binding Numero, StringFormat='{0}'}" FontSize="32" FontAttributes="Bold"
-                                   HorizontalOptions="Start" HorizontalTextAlignment="Start" TextColor="{DynamicResource ColorTextoPrimario}" />
+                            <!-- Columna izquierda: toda la info, apilada desde arriba. -->
+                            <Grid Grid.Column="0"
+                                  RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                                  RowSpacing="2"
+                                  HorizontalOptions="Start"
+                                  VerticalOptions="Start">
 
-                            <Label Grid.Row="1" Text="{Binding EtiquetaTipo}" FontSize="15"
-                                   HorizontalOptions="Start" HorizontalTextAlignment="Start" TextColor="{DynamicResource ColorTextoSecundario}" />
+                                <Label Grid.Row="0" Text="{Binding EtiquetaTipo}" FontSize="15"
+                                       HorizontalOptions="Start" HorizontalTextAlignment="Start" TextColor="{DynamicResource ColorTextoSecundario}" />
 
-                            <Border Grid.Row="2" BackgroundColor="{Binding ColorEstado}" Padding="6,2" Margin="0,2,0,2" HorizontalOptions="Start">
-                                <Border.StrokeShape>
-                                    <RoundRectangle CornerRadius="6" />
-                                </Border.StrokeShape>
-                                <Label Text="{Binding EtiquetaEstado}" FontSize="14" TextColor="White" />
-                            </Border>
+                                <Border Grid.Row="1" BackgroundColor="{Binding ColorEstado}" Padding="6,2" Margin="0,2,0,2" HorizontalOptions="Start">
+                                    <Border.StrokeShape>
+                                        <RoundRectangle CornerRadius="6" />
+                                    </Border.StrokeShape>
+                                    <Label Text="{Binding EtiquetaEstado}" FontSize="14" TextColor="White" />
+                                </Border>
 
-                            <!-- Disponible: se ve la tarifa, para decidir el check-in sin abrir el detalle. -->
-                            <Label Grid.Row="3" Text="{Binding TarifaTexto}" FontSize="14"
-                                   HorizontalOptions="Start" HorizontalTextAlignment="Start" TextColor="{DynamicResource ColorTextoSecundario}"
-                                   IsVisible="{Binding EsDisponible}" />
+                                <!-- Disponible: se ve la tarifa, para decidir el check-in sin abrir el detalle. -->
+                                <Label Grid.Row="2" Text="{Binding TarifaTexto}" FontSize="14"
+                                       HorizontalOptions="Start" HorizontalTextAlignment="Start" TextColor="{DynamicResource ColorTextoSecundario}"
+                                       IsVisible="{Binding EsDisponible}" />
 
-                            <!-- Mantenimiento: se ve el motivo, sin tener que abrir el detalle. -->
-                            <Label Grid.Row="3" Text="{Binding MotivoMantenimiento}" FontSize="13"
-                                   HorizontalOptions="Start" HorizontalTextAlignment="Start" LineBreakMode="TailTruncation"
-                                   TextColor="{DynamicResource ColorTextoSecundario}" IsVisible="{Binding EsMantenimiento}" />
+                                <!-- Mantenimiento: se ve el motivo, sin tener que abrir el detalle. -->
+                                <Label Grid.Row="2" Text="{Binding MotivoMantenimiento}" FontSize="13"
+                                       HorizontalOptions="Start" HorizontalTextAlignment="Start" LineBreakMode="TailTruncation"
+                                       TextColor="{DynamicResource ColorTextoSecundario}" IsVisible="{Binding EsMantenimiento}" />
 
-                            <!-- Ocupada: nombre, celular y fecha de ingreso del huésped, más el total acumulado. -->
-                            <Label Grid.Row="3" Text="{Binding NombreHuesped}" FontSize="16" FontAttributes="Bold"
-                                   HorizontalOptions="Start" HorizontalTextAlignment="Start" LineBreakMode="TailTruncation"
-                                   TextColor="{DynamicResource ColorTextoPrimario}" IsVisible="{Binding TieneHuesped}" />
-                            <Label Grid.Row="4" Text="{Binding CelularHuesped, StringFormat='Cel: {0}'}" FontSize="13"
-                                   HorizontalOptions="Start" HorizontalTextAlignment="Start" TextColor="{DynamicResource ColorTextoSecundario}"
-                                   IsVisible="{Binding TieneHuesped}" />
-                            <Label Grid.Row="5" Text="{Binding TotalAcumulado, StringFormat='S/ {0:0.00}'}" FontSize="18" FontAttributes="Bold"
-                                   HorizontalOptions="Start" HorizontalTextAlignment="Start" TextColor="{DynamicResource ColorAcento}"
-                                   IsVisible="{Binding TieneHuesped}" />
+                                <!-- Ocupada: nombre, celular del huésped, más el total acumulado. -->
+                                <Label Grid.Row="2" Text="{Binding NombreHuesped}" FontSize="16" FontAttributes="Bold"
+                                       HorizontalOptions="Start" HorizontalTextAlignment="Start" LineBreakMode="TailTruncation"
+                                       TextColor="{DynamicResource ColorTextoPrimario}" IsVisible="{Binding TieneHuesped}" />
+                                <Label Grid.Row="3" Text="{Binding CelularHuesped, StringFormat='Cel: {0}'}" FontSize="13"
+                                       HorizontalOptions="Start" HorizontalTextAlignment="Start" TextColor="{DynamicResource ColorTextoSecundario}"
+                                       IsVisible="{Binding TieneHuesped}" />
+                                <Label Grid.Row="4" Text="{Binding TotalAcumulado, StringFormat='S/ {0:0.00}'}" FontSize="18" FontAttributes="Bold"
+                                       HorizontalOptions="Start" HorizontalTextAlignment="Start" TextColor="{DynamicResource ColorAcento}"
+                                       IsVisible="{Binding TieneHuesped}" />
+                            </Grid>
+
+                            <!-- Columna derecha: el número, grande, arriba a la derecha. -->
+                            <Label Grid.Column="1" Text="{Binding Numero, StringFormat='{0}'}" FontSize="32" FontAttributes="Bold"
+                                   HorizontalOptions="End" VerticalOptions="Start" HorizontalTextAlignment="End"
+                                   TextColor="{DynamicResource ColorTextoPrimario}" />
                         </Grid>
                     </Border>
                 </DataTemplate>

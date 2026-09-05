@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.EntityFrameworkCore;
 using JKalixto_System.Domain.Models;
 
 namespace JKalixto_System.Infrastructure.Data;
@@ -142,7 +143,11 @@ public static class DatosPruebaSeeder
     /// visualmente los 4 estados posibles de una habitación desde el primer arranque.</summary>
     private static void SembrarEstadosVariosDeHabitaciones(AppDbContext db)
     {
+        // AsTracking(): se modifica (Estado, MotivoMantenimiento) y se guarda — el
+        // DbContext usa NoTracking por defecto (ver MauiProgram.cs), así que sin esto
+        // el cambio de estado ni siquiera llega a guardarse.
         var disponibles = db.Habitaciones
+            .AsTracking()
             .Where(h => h.Estado == EstadoHabitacion.Disponible)
             .ToList()
             .OrderBy(_ => _random.Next())
@@ -177,7 +182,10 @@ public static class DatosPruebaSeeder
     /// de ingreso escalonadas (entre 1 y 30 horas atrás) para que los totales no sean todos iguales.</summary>
     private static List<Estadia> SembrarHuespedesHotel(AppDbContext db, int usuarioId)
     {
+        // AsTracking(): se modifica (Estado = Ocupada) y se guarda — ver nota en
+        // SembrarEstadosVariosDeHabitaciones.
         var disponibles = db.Habitaciones
+            .AsTracking()
             .Where(h => h.Estado == EstadoHabitacion.Disponible)
             .ToList();
 
@@ -318,7 +326,8 @@ public static class DatosPruebaSeeder
 
             if (esCargoAHabitacion)
             {
-                var estadia = db.Estadias.FirstOrDefault(e => e.Id == cliente.EstadiaHotelId!.Value);
+                // AsTracking(): se modifica (TotalAcumulado) y se guarda.
+                var estadia = db.Estadias.AsTracking().FirstOrDefault(e => e.Id == cliente.EstadiaHotelId!.Value);
                 if (estadia is not null)
                 {
                     estadia.TotalAcumulado += total;

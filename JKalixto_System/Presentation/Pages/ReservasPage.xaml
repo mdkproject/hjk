@@ -279,35 +279,41 @@
                 </CollectionView.ItemsLayout>
                 <CollectionView.ItemTemplate>
                     <DataTemplate x:DataType="services:HabitacionCardDto">
+                        <!-- Mismo criterio que Registro Hotel: el número va en su propia
+                             columna a la derecha; el resto de la info ocupa la izquierda
+                             completa, empezando arriba (donde antes estaba el número). -->
                         <Border BackgroundColor="{DynamicResource ColorTarjeta}"
                                 Stroke="{Binding BrushEstado}"
                                 StrokeThickness="2"
                                 Padding="8"
-                                HeightRequest="112">
+                                HeightRequest="98">
                             <Border.StrokeShape>
                                 <RoundRectangle CornerRadius="8" />
                             </Border.StrokeShape>
 
-                            <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="2" HorizontalOptions="Start" VerticalOptions="Start">
-                                <Label Grid.Row="0" Text="{Binding Numero}" FontSize="22" FontAttributes="Bold"
-                                       HorizontalOptions="Start" HorizontalTextAlignment="Start" TextColor="{DynamicResource ColorTextoPrimario}" />
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="4">
 
-                                <Label Grid.Row="1" Text="{Binding EtiquetaTipo}" FontSize="12"
-                                       HorizontalOptions="Start" HorizontalTextAlignment="Start" TextColor="{DynamicResource ColorTextoSecundario}" />
+                                <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto" RowSpacing="2" HorizontalOptions="Start" VerticalOptions="Start">
+                                    <Label Grid.Row="0" Text="{Binding EtiquetaTipo}" FontSize="12"
+                                           HorizontalOptions="Start" HorizontalTextAlignment="Start" TextColor="{DynamicResource ColorTextoSecundario}" />
 
-                                <Border Grid.Row="2" BackgroundColor="{Binding ColorEstado}" Padding="5,1" Margin="0,1,0,1" HorizontalOptions="Start">
-                                    <Border.StrokeShape>
-                                        <RoundRectangle CornerRadius="4" />
-                                    </Border.StrokeShape>
-                                    <Label Text="{Binding EtiquetaEstado}" FontSize="10" TextColor="White" />
-                                </Border>
+                                    <Border Grid.Row="1" BackgroundColor="{Binding ColorEstado}" Padding="5,1" Margin="0,1,0,1" HorizontalOptions="Start">
+                                        <Border.StrokeShape>
+                                            <RoundRectangle CornerRadius="4" />
+                                        </Border.StrokeShape>
+                                        <Label Text="{Binding EtiquetaEstado}" FontSize="10" TextColor="White" />
+                                    </Border>
 
-                                <Label Grid.Row="3" Text="{Binding TarifaTexto}" FontSize="11"
-                                       HorizontalOptions="Start" HorizontalTextAlignment="Start" TextColor="{DynamicResource ColorTextoSecundario}"
-                                       IsVisible="{Binding EsDisponible}" />
-                                <Label Grid.Row="3" Text="{Binding NombreHuesped}" FontSize="11"
-                                       HorizontalOptions="Start" HorizontalTextAlignment="Start" LineBreakMode="TailTruncation"
-                                       TextColor="{DynamicResource ColorTextoPrimario}" IsVisible="{Binding TieneHuesped}" />
+                                    <Label Grid.Row="2" Text="{Binding TarifaTexto}" FontSize="11"
+                                           HorizontalOptions="Start" HorizontalTextAlignment="Start" TextColor="{DynamicResource ColorTextoSecundario}"
+                                           IsVisible="{Binding EsDisponible}" />
+                                    <Label Grid.Row="2" Text="{Binding NombreHuesped}" FontSize="11"
+                                           HorizontalOptions="Start" HorizontalTextAlignment="Start" LineBreakMode="TailTruncation"
+                                           TextColor="{DynamicResource ColorTextoPrimario}" IsVisible="{Binding TieneHuesped}" />
+                                </Grid>
+
+                                <Label Grid.Column="1" Text="{Binding Numero}" FontSize="22" FontAttributes="Bold"
+                                       HorizontalOptions="End" VerticalOptions="Start" HorizontalTextAlignment="End" TextColor="{DynamicResource ColorTextoPrimario}" />
                             </Grid>
                         </Border>
                     </DataTemplate>
