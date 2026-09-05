@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="JKalixto_System/JKalixto_System.csproj" />
+  <Project Path="JKalixto_System.Tests/JKalixto_System.Tests.csproj" />
+</Solution>

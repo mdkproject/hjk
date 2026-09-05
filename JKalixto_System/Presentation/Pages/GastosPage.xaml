@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:JKalixto_System.Presentation.ViewModels"
+             xmlns:services="clr-namespace:JKalixto_System.Application.Services"
+             xmlns:controls="clr-namespace:JKalixto_System.Presentation.Controls"
+             x:Class="JKalixto_System.Presentation.Pages.GastosPage"
+             x:DataType="vm:GastosViewModel"
+             Title="{Binding Title}"
+             Shell.NavBarIsVisible="True"
+             BackgroundColor="{DynamicResource ColorFondo}">
+
+    <Grid RowDefinitions="Auto,Auto,Auto,*" Padding="16" RowSpacing="14">
+
+        <!-- Reloj/fecha/tema: fila propia de ancho completo, alineada a la derecha —
+             misma posición fija en TODAS las pantallas. Ver
+             Presentation/Controls/BarraRelojTemaView. -->
+        <controls:BarraRelojTemaView Grid.Row="0" HorizontalOptions="End" />
+
+        <Button Grid.Row="1"
+                Text="+ Nuevo Movimiento"
+                Command="{Binding NuevoMovimientoCommand}"
+                BackgroundColor="{DynamicResource ColorAcento}"
+                TextColor="{DynamicResource ColorFondo}"
+                HeightRequest="48" />
+
+        <!-- Caja Chica: Hotel y Sauna por separado -->
+        <Grid Grid.Row="2" ColumnDefinitions="*,*" ColumnSpacing="10">
+            <Border Grid.Column="0" BackgroundColor="{DynamicResource ColorTarjeta}" Stroke="{DynamicResource ColorBorde}" StrokeThickness="1" Padding="14">
+                <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Caja Chica — Hotel" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                    <Label Text="{Binding CajaChicaHotelTexto}" FontSize="26" FontAttributes="Bold" TextColor="{DynamicResource ColorAcento}" />
+                </VerticalStackLayout>
+            </Border>
+            <Border Grid.Column="1" BackgroundColor="{DynamicResource ColorTarjeta}" Stroke="{DynamicResource ColorBorde}" StrokeThickness="1" Padding="14">
+                <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Caja Chica — Sauna" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                    <Label Text="{Binding CajaChicaSaunaTexto}" FontSize="26" FontAttributes="Bold" TextColor="{DynamicResource ColorAcento}" />
+                </VerticalStackLayout>
+            </Border>
+        </Grid>
+
+        <CollectionView Grid.Row="3" ItemsSource="{Binding Movimientos}" EmptyView="Todavía no hay movimientos registrados hoy.">
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="services:MovimientoCajaCardDto">
+                    <Border BackgroundColor="{DynamicResource ColorTarjeta}"
+                            Stroke="{DynamicResource ColorBorde}"
+                            StrokeThickness="1"
+                            Padding="14"
+                            Margin="0,0,0,8">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="10" />
+                        </Border.StrokeShape>
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnMovimientoTapped" />
+                        </Border.GestureRecognizers>
+
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                            <Label Grid.Column="0" Text="{Binding HoraTexto}" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" VerticalOptions="Center" WidthRequest="65" />
+
+                            <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                <Label Text="{Binding TipoCompletoTexto}" FontSize="18" TextColor="{DynamicResource ColorAcento}" />
+                                <Label Text="{Binding Descripcion}" FontSize="22" FontAttributes="Bold" />
+                                <Label Text="{Binding UsuarioNombre, StringFormat='Cajero: {0}'}" FontSize="18" TextColor="{DynamicResource ColorTextoSecundario}" />
+                            </VerticalStackLayout>
+
+                            <Label Grid.Column="2" Text="{Binding MontoTexto}" FontSize="26" FontAttributes="Bold" VerticalOptions="Center" TextColor="{DynamicResource ColorTextoPrimario}" />
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+    </Grid>
+</ContentPage>

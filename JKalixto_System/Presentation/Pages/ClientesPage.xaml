@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:JKalixto_System.Presentation.ViewModels"
+             xmlns:services="clr-namespace:JKalixto_System.Application.Services"
+             xmlns:controls="clr-namespace:JKalixto_System.Presentation.Controls"
+             x:Class="JKalixto_System.Presentation.Pages.ClientesPage"
+             x:DataType="vm:ClientesViewModel"
+             Title="{Binding Title}"
+             Shell.NavBarIsVisible="True"
+             BackgroundColor="{DynamicResource ColorFondo}">
+
+    <Grid RowDefinitions="Auto,*" Padding="16" RowSpacing="10">
+
+        <!-- Reloj/fecha/tema: fila propia de ancho completo (por encima de las dos
+             columnas), alineada a la derecha — misma posición fija en TODAS las
+             pantallas. Sigue yendo DENTRO del contenido (no en la barra de Windows)
+             para que nunca se corte, como antes. Ver
+             Presentation/Controls/BarraRelojTemaView. -->
+        <controls:BarraRelojTemaView Grid.Row="0" HorizontalOptions="End" />
+
+        <Grid Grid.Row="1" ColumnDefinitions="2*,1.1*" ColumnSpacing="14">
+
+        <!-- ===================== Columna izquierda: lista ===================== -->
+        <Grid Grid.Column="0" RowDefinitions="Auto,*" RowSpacing="10">
+
+            <HorizontalStackLayout Grid.Row="0" Spacing="8">
+                <Button Text="Clientes del Hotel"
+                        Command="{Binding SeleccionarOrigenCommand}"
+                        CommandParameter="Hotel"
+                        BackgroundColor="{DynamicResource ColorTarjeta}"
+                        TextColor="{DynamicResource ColorTextoPrimario}"
+                        BorderColor="{DynamicResource ColorBorde}"
+                        BorderWidth="1"
+                        HeightRequest="44"
+                        FontAttributes="None">
+                    <Button.Triggers>
+                        <DataTrigger TargetType="Button" Binding="{Binding OrigenSeleccionado}" Value="Hotel">
+                            <Setter Property="BackgroundColor" Value="{DynamicResource ColorAcento}" />
+                            <Setter Property="TextColor" Value="{DynamicResource ColorFondo}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource ColorAcento}" />
+                            <Setter Property="FontAttributes" Value="Bold" />
+                        </DataTrigger>
+                    </Button.Triggers>
+                </Button>
+                <Button Text="Clientes del Sauna"
+                        Command="{Binding SeleccionarOrigenCommand}"
+                        CommandParameter="Sauna"
+                        BackgroundColor="{DynamicResource ColorTarjeta}"
+                        TextColor="{DynamicResource ColorTextoPrimario}"
+                        BorderColor="{DynamicResource ColorBorde}"
+                        BorderWidth="1"
+                        HeightRequest="44"
+                        FontAttributes="None">
+                    <Button.Triggers>
+                        <DataTrigger TargetType="Button" Binding="{Binding OrigenSeleccionado}" Value="Sauna">
+                            <Setter Property="BackgroundColor" Value="{DynamicResource ColorAcento}" />
+                            <Setter Property="TextColor" Value="{DynamicResource ColorFondo}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource ColorAcento}" />
+                            <Setter Property="FontAttributes" Value="Bold" />
+                        </DataTrigger>
+                    </Button.Triggers>
+                </Button>
+                <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" Color="{DynamicResource ColorAcento}" Margin="8,0,0,0" />
+            </HorizontalStackLayout>
+
+            <Border Grid.Row="1"
+                    BackgroundColor="{DynamicResource ColorSuperficie}"
+                    Stroke="{DynamicResource ColorBorde}"
+                    StrokeThickness="1"
+                    Padding="0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="10" />
+                </Border.StrokeShape>
+
+                <Grid RowDefinitions="Auto,*">
+                    <!-- Encabezado de columnas -->
+                    <Grid Grid.Row="0" ColumnDefinitions="Auto,2*,1.2*,Auto,Auto" Padding="14,10" ColumnSpacing="8" BackgroundColor="{DynamicResource ColorTarjeta}">
+                        <Label Grid.Column="0" Text="Hora" FontSize="18" FontAttributes="Bold" TextColor="{DynamicResource ColorTextoSecundario}" WidthRequest="55" />
+                        <Label Grid.Column="1" Text="Cliente" FontSize="18" FontAttributes="Bold" TextColor="{DynamicResource ColorTextoSecundario}" />
+                        <Label Grid.Column="2" Text="Ubicación" FontSize="18" FontAttributes="Bold" TextColor="{DynamicResource ColorTextoSecundario}" />
+                        <Label Grid.Column="3" Text="Estado" FontSize="18" FontAttributes="Bold" TextColor="{DynamicResource ColorTextoSecundario}" WidthRequest="90" />
+                        <Label Grid.Column="4" Text="Total" FontSize="18" FontAttributes="Bold" TextColor="{DynamicResource ColorTextoSecundario}" WidthRequest="70" HorizontalTextAlignment="End" />
+                    </Grid>
+
+                    <CollectionView Grid.Row="1" ItemsSource="{Binding Clientes}" EmptyView="No hay clientes registrados hoy.">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="services:ClienteUnificadoDto">
+                                <Border BackgroundColor="Transparent" Padding="0">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnClienteTapped" />
+                                    </Border.GestureRecognizers>
+                                    <VerticalStackLayout>
+                                        <Grid ColumnDefinitions="Auto,2*,1.2*,Auto,Auto" Padding="14,10" ColumnSpacing="8">
+                                            <Label Grid.Column="0" Text="{Binding HoraRegistroTexto}" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" WidthRequest="55" />
+                                            <Label Grid.Column="1" Text="{Binding NombreCliente}" FontSize="21" FontAttributes="Bold" LineBreakMode="TailTruncation" />
+                                            <Label Grid.Column="2" Text="{Binding UbicacionTexto}" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                                            <Border Grid.Column="3" BackgroundColor="{DynamicResource ColorBorde}" Padding="6,2" WidthRequest="90" HorizontalOptions="Start">
+                                                <Border.StrokeShape><RoundRectangle CornerRadius="5" /></Border.StrokeShape>
+                                                <Label Text="{Binding EstadoTexto}" FontSize="14" HorizontalTextAlignment="Center" />
+                                            </Border>
+                                            <Label Grid.Column="4" Text="{Binding Total, StringFormat='S/ {0:0.00}'}" FontSize="19" FontAttributes="Bold" TextColor="{DynamicResource ColorAcento}" WidthRequest="70" HorizontalTextAlignment="End" />
+                                        </Grid>
+                                        <BoxView HeightRequest="1" Color="{DynamicResource ColorBorde}" Opacity="0.5" />
+                                    </VerticalStackLayout>
+                                </Border>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- ===================== Columna derecha: detalle + reloj ===================== -->
+        <Grid Grid.Column="1" RowDefinitions="*,Auto" RowSpacing="12">
+
+            <Border Grid.Row="0"
+                    BackgroundColor="{DynamicResource ColorSuperficie}"
+                    Stroke="{DynamicResource ColorBorde}"
+                    StrokeThickness="1"
+                    Padding="16">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="10" />
+                </Border.StrokeShape>
+
+                <Grid>
+                    <Label Text="Tocá un cliente de la lista para ver su detalle y consumo."
+                           FontSize="21"
+                           TextColor="{DynamicResource ColorTextoSecundario}"
+                           HorizontalTextAlignment="Center"
+                           VerticalOptions="Center"
+                           IsVisible="{Binding NoHayDetalle}" />
+
+                    <ScrollView IsVisible="{Binding HayDetalle}">
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="{Binding Detalle.NombreCliente}" FontSize="29" FontAttributes="Bold" />
+                            <Label Text="{Binding Detalle.UbicacionTexto}" FontSize="21" TextColor="{DynamicResource ColorAcento}" />
+
+                            <BoxView HeightRequest="1" Color="{DynamicResource ColorBorde}" />
+
+                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" RowSpacing="6">
+                                <Label Grid.Row="0" Grid.Column="0" Text="{Binding Detalle.EtiquetaTipoDocumento, StringFormat='{0}:'}" FontSize="18" TextColor="{DynamicResource ColorTextoSecundario}" />
+                                <Label Grid.Row="0" Grid.Column="1" Text="{Binding Detalle.NumeroDocumento}" FontSize="19" />
+                                <Label Grid.Row="1" Grid.Column="0" Text="Celular:" FontSize="18" TextColor="{DynamicResource ColorTextoSecundario}" />
+                                <Label Grid.Row="1" Grid.Column="1" Text="{Binding Detalle.Celular}" FontSize="19" />
+                            </Grid>
+
+                            <Label Text="{Binding Detalle.HoraRegistroTexto, StringFormat='Registrado: {0}'}" FontSize="18" TextColor="{DynamicResource ColorTextoSecundario}" />
+
+                            <BoxView HeightRequest="1" Color="{DynamicResource ColorBorde}" />
+
+                            <Label Text="Servicios / Productos" FontSize="21" FontAttributes="Bold" />
+
+                            <CollectionView ItemsSource="{Binding Detalle.Consumos}" HeightRequest="180">
+                                <CollectionView.EmptyView>
+                                    <Label Text="Sin consumos registrados." FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                                </CollectionView.EmptyView>
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate x:DataType="services:ConsumoItemDto">
+                                        <Grid ColumnDefinitions="Auto,*,Auto,Auto" Padding="0,4" ColumnSpacing="6">
+                                            <Label Grid.Column="0" Text="{Binding HoraTexto}" FontSize="16" TextColor="{DynamicResource ColorTextoSecundario}" WidthRequest="42" />
+                                            <Label Grid.Column="1" Text="{Binding Descripcion}" FontSize="19" LineBreakMode="TailTruncation" />
+                                            <Label Grid.Column="2" Text="{Binding Cantidad, StringFormat='x{0}'}" FontSize="18" TextColor="{DynamicResource ColorTextoSecundario}" />
+                                            <Label Grid.Column="3" Text="{Binding Subtotal, StringFormat='S/ {0:0.00}'}" FontSize="19" FontAttributes="Bold" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+
+                            <BoxView HeightRequest="1" Color="{DynamicResource ColorBorde}" />
+
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label Grid.Column="0" Text="Total" FontSize="24" FontAttributes="Bold" />
+                                <Label Grid.Column="1" Text="{Binding Detalle.Total, StringFormat='S/ {0:0.00}'}" FontSize="29" FontAttributes="Bold" TextColor="{DynamicResource ColorAcento}" />
+                            </Grid>
+
+                            <Button Text="+ Agregar Consumo (POS)"
+                                    Command="{Binding AgregarConsumoCommand}"
+                                    IsVisible="{Binding Detalle.PuedeAgregarConsumo}"
+                                    BackgroundColor="{DynamicResource ColorAcento}"
+                                    TextColor="{DynamicResource ColorFondo}"
+                                    HeightRequest="46" />
+
+                            <Button Text="Pagar y Finalizar"
+                                    Command="{Binding PagarCommand}"
+                                    IsVisible="{Binding Detalle.PuedePagar}"
+                                    BackgroundColor="{DynamicResource ColorDisponible}"
+                                    TextColor="White"
+                                    HeightRequest="46" />
+                        </VerticalStackLayout>
+                    </ScrollView>
+                </Grid>
+            </Border>
+
+        </Grid>
+
+        </Grid>
+    </Grid>
+</ContentPage>

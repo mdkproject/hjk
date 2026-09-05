@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Application xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="JKalixto_System.App">
+
+    <Application.Resources>
+        <ResourceDictionary>
+
+            <!-- ============================================
+                 PALETA DE COLORES OFICIAL — Hotel-Sauna JKalixto
+                 (tema oscuro por defecto, inspirado en Google Calendar — ver
+                 TemaService.cs, que es la fuente de verdad real en tiempo de
+                 ejecución; estos valores solo evitan un parpadeo antes de que
+                 TemaService.Inicializar() los sobrescriba al arrancar)
+                 ============================================ -->
+            <Color x:Key="ColorFondo">#202124</Color>
+            <Color x:Key="ColorSuperficie">#292A2D</Color>
+            <Color x:Key="ColorTarjeta">#303134</Color>
+            <Color x:Key="ColorBorde">#3C4043</Color>
+            <Color x:Key="ColorAcento">#C9A84C</Color>
+            <Color x:Key="ColorTextoPrimario">#E8EAED</Color>
+            <Color x:Key="ColorTextoSecundario">#9AA0A6</Color>
+            <Color x:Key="ColorDisponible">#81C995</Color>
+            <Color x:Key="ColorOcupada">#669DF6</Color>
+            <Color x:Key="ColorLimpieza">#FDD663</Color>
+            <Color x:Key="ColorMantenimiento">#F28B82</Color>
+            <Color x:Key="ColorReservada">#D7AEFB</Color>
+            <Color x:Key="ColorSaunaDamas">#F6AEA9</Color>
+
+            <!-- Estilos base. DynamicResource (no StaticResource) para que, al cambiar
+                 de tema, TODAS las pantallas se repinten solas sin reiniciar la app. -->
+            <Style TargetType="ContentPage">
+                <Setter Property="BackgroundColor" Value="{DynamicResource ColorFondo}" />
+            </Style>
+
+            <Style TargetType="Label">
+                <Setter Property="TextColor" Value="{DynamicResource ColorTextoPrimario}" />
+            </Style>
+
+            <Style TargetType="Entry">
+                <Setter Property="TextColor" Value="{DynamicResource ColorTextoPrimario}" />
+                <Setter Property="PlaceholderColor" Value="{DynamicResource ColorTextoSecundario}" />
+                <Setter Property="FontSize" Value="24" />
+            </Style>
+
+            <Style TargetType="Button">
+                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="FontAttributes" Value="Bold" />
+            </Style>
+
+        </ResourceDictionary>
+    </Application.Resources>
+
+</Application>

@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:JKalixto_System.Presentation.ViewModels"
+             x:Class="JKalixto_System.Presentation.Pages.CheckInPage"
+             x:DataType="vm:CheckInViewModel"
+             Title="{Binding Title}"
+             Shell.NavBarIsVisible="True"
+             BackgroundColor="{DynamicResource ColorFondo}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="16">
+
+            <Label Text="Datos del huésped principal" FontSize="24" FontAttributes="Bold" />
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Tipo de documento" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <HorizontalStackLayout Spacing="8">
+                    <Button Text="DNI" Command="{Binding SeleccionarTipoDocumentoCommand}" CommandParameter="DNI"
+                            BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="40" FontAttributes="None" />
+                    <Button Text="Pasaporte" Command="{Binding SeleccionarTipoDocumentoCommand}" CommandParameter="Pasaporte"
+                            BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="40" FontAttributes="None" />
+                    <Button Text="Carné Ext." Command="{Binding SeleccionarTipoDocumentoCommand}" CommandParameter="Carné Ext."
+                            BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="40" FontAttributes="None" />
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="{Binding TipoDocumentoTexto, StringFormat='Número de {0} *'}" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <Entry Text="{Binding NumeroDocumento}" Placeholder="12345678" BackgroundColor="{DynamicResource ColorTarjeta}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Nombre completo *" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <Entry Text="{Binding NombreCompleto}" Placeholder="Nombres y apellidos" BackgroundColor="{DynamicResource ColorTarjeta}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Celular *" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <Entry Text="{Binding Celular}" Placeholder="9XXXXXXXX" Keyboard="Telephone" BackgroundColor="{DynamicResource ColorTarjeta}" />
+            </VerticalStackLayout>
+
+            <BoxView HeightRequest="1" Color="{DynamicResource ColorBorde}" Margin="0,4" />
+
+            <!-- Facturación -->
+            <HorizontalStackLayout Spacing="10">
+                <Switch IsToggled="{Binding EsFactura}" OnColor="{DynamicResource ColorAcento}" />
+                <Label Text="Requiere Factura (por defecto: Boleta)" VerticalOptions="Center" FontSize="21" />
+            </HorizontalStackLayout>
+
+            <VerticalStackLayout Spacing="12" IsVisible="{Binding EsFactura}">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="RUC (11 dígitos) *" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                    <Entry Text="{Binding RUC}" Placeholder="20123456789" Keyboard="Numeric" MaxLength="11" BackgroundColor="{DynamicResource ColorTarjeta}" />
+                </VerticalStackLayout>
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="Razón Social *" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                    <Entry Text="{Binding RazonSocial}" Placeholder="Empresa S.A.C." BackgroundColor="{DynamicResource ColorTarjeta}" />
+                </VerticalStackLayout>
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="Correo de facturación *" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                    <Entry Text="{Binding CorreoFacturacion}" Placeholder="correo@empresa.com" Keyboard="Email" BackgroundColor="{DynamicResource ColorTarjeta}" />
+                </VerticalStackLayout>
+            </VerticalStackLayout>
+
+            <BoxView HeightRequest="1" Color="{DynamicResource ColorBorde}" Margin="0,4" />
+
+            <!-- Acompañantes -->
+            <Label Text="Acompañantes (opcional)" FontSize="24" FontAttributes="Bold" />
+
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <Entry Grid.Column="0" Text="{Binding NuevoAcompanante}" Placeholder="Nombre del acompañante" BackgroundColor="{DynamicResource ColorTarjeta}" />
+                <Button Grid.Column="1" Text="Agregar" Command="{Binding AgregarAcompananteCommand}"
+                        BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorAcento}"
+                        BorderColor="{DynamicResource ColorBorde}" BorderWidth="1" />
+            </Grid>
+
+            <CollectionView ItemsSource="{Binding Acompanantes}">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                        <Grid ColumnDefinitions="*,Auto" Padding="0,4">
+                            <Label Grid.Column="0" Text="{Binding .}" VerticalOptions="Center" FontSize="21" />
+                            <Border Grid.Column="1"
+                                    BackgroundColor="{DynamicResource ColorMantenimiento}"
+                                    WidthRequest="26" HeightRequest="26" Padding="0">
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="13" />
+                                </Border.StrokeShape>
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnQuitarAcompananteTapped" />
+                                </Border.GestureRecognizers>
+                                <Label Text="✕" TextColor="White" FontSize="21" HorizontalOptions="Center" VerticalOptions="Center" />
+                            </Border>
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Mensaje / consideración (opcional)" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                <Entry Text="{Binding Observaciones}" Placeholder="Ej: llega después de las 10pm" BackgroundColor="{DynamicResource ColorTarjeta}" />
+            </VerticalStackLayout>
+
+            <Label Text="{Binding MensajeError}"
+                   TextColor="{DynamicResource ColorMantenimiento}"
+                   FontSize="21"
+                   IsVisible="{Binding HayError}" />
+
+            <Button Text="Confirmar Check-in"
+                    Command="{Binding ConfirmarCheckInCommand}"
+                    BackgroundColor="{DynamicResource ColorAcento}"
+                    TextColor="{DynamicResource ColorFondo}"
+                    HeightRequest="50"
+                    Margin="0,10,0,0" />
+
+            <Button Text="Cancelar"
+                    Command="{Binding CancelarCommand}"
+                    BackgroundColor="Transparent"
+                    TextColor="{DynamicResource ColorTextoSecundario}"
+                    HeightRequest="40" />
+
+            <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" Color="{DynamicResource ColorAcento}" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

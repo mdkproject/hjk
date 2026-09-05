@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:JKalixto_System.Presentation.ViewModels"
+             xmlns:services="clr-namespace:JKalixto_System.Application.Services"
+             xmlns:controls="clr-namespace:JKalixto_System.Presentation.Controls"
+             x:Class="JKalixto_System.Presentation.Pages.SaunaPage"
+             x:DataType="vm:SaunaViewModel"
+             Title="{Binding Title}"
+             Shell.NavBarIsVisible="True"
+             BackgroundColor="{DynamicResource ColorFondo}">
+
+    <Grid RowDefinitions="Auto,Auto,*" Padding="16" RowSpacing="14">
+
+        <!-- Reloj/fecha/tema: fila propia de ancho completo, alineada a la derecha —
+             misma posición fija en TODAS las pantallas. Ver
+             Presentation/Controls/BarraRelojTemaView. -->
+        <controls:BarraRelojTemaView Grid.Row="0" HorizontalOptions="End" />
+
+        <Border Grid.Row="1" BackgroundColor="{DynamicResource ColorSaunaDamas}" Padding="0">
+            <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
+            <Button Text="➕ Nuevo Cliente de Sauna"
+                    Command="{Binding NuevoClienteCommand}"
+                    BackgroundColor="Transparent"
+                    TextColor="White"
+                    HeightRequest="50" />
+        </Border>
+
+        <CollectionView Grid.Row="2" ItemsSource="{Binding ClientesActivos}" EmptyView="No hay clientes activos en el Sauna en este momento.">
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="services:ClienteSaunaCardDto">
+                    <Border BackgroundColor="{DynamicResource ColorTarjeta}"
+                            Stroke="{DynamicResource ColorBorde}"
+                            StrokeThickness="1"
+                            Padding="14"
+                            Margin="0,0,0,8">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="10" />
+                        </Border.StrokeShape>
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnClienteTapped" />
+                        </Border.GestureRecognizers>
+
+                        <Grid ColumnDefinitions="*,Auto">
+                            <VerticalStackLayout Grid.Column="0" Spacing="2">
+                                <Label Text="{Binding NombreCompleto}" FontSize="26" FontAttributes="Bold" TextColor="{DynamicResource ColorTextoPrimario}" />
+                                <Label FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}">
+                                    <Label.FormattedText>
+                                        <FormattedString>
+                                            <Span Text="Candado " />
+                                            <Span Text="{Binding NumeroCandado}" />
+                                            <Span Text="  •  Sección " />
+                                            <Span Text="{Binding EtiquetaSeccion}" />
+                                        </FormattedString>
+                                    </Label.FormattedText>
+                                </Label>
+                                <Label Text="🏨 Huésped del Hotel (entrada gratis)" FontSize="18" TextColor="{DynamicResource ColorAcento}" IsVisible="{Binding EsHuespedHotel}" />
+                            </VerticalStackLayout>
+
+                            <Label Grid.Column="1"
+                                   Text="{Binding TotalConsumo, StringFormat='S/ {0:0.00}'}"
+                                   FontSize="26"
+                                   FontAttributes="Bold"
+                                   TextColor="{DynamicResource ColorAcento}"
+                                   VerticalOptions="Center" />
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+    </Grid>
+</ContentPage>

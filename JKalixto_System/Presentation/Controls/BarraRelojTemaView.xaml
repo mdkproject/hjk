@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+    Barra de reloj + fecha + botón de alternar tema, reutilizable en cualquier
+    pantalla. No fija su propio BindingContext: hereda el de la página que la
+    contiene (todas las páginas usan un ViewModel que extiende BaseViewModel,
+    que es justamente donde viven RelojTexto/FechaTexto/TemaIconoTexto y
+    AlternarTemaCommand — ver BaseViewModel.cs).
+
+    Cada página es responsable de llamar IniciarReloj()/DetenerReloj() de su
+    propio ViewModel en OnAppearing/OnDisappearing (así nunca queda más de un
+    timer corriendo).
+
+    Ubicación: en TODAS las páginas principales este control va en su PROPIA
+    fila (Grid.Row="0" con HorizontalOptions="End"), como la primera fila del
+    Grid raíz de la página — nunca como capa flotante encima de otro
+    contenido, porque una fila de Grid siempre reserva su propio espacio y
+    empuja el resto hacia abajo, así nunca hay riesgo de que algo lo tape (por
+    ejemplo, una columna "*" que se estire donde antes había una columna
+    reservada para el reloj). Esto da la MISMA posición fija en todas las
+    pantallas sin depender de cómo esté armado el resto del layout. Va
+    adentro del contenido (no en la barra nativa de Windows) porque ahí se
+    cortaba visualmente.
+-->
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:JKalixto_System.Presentation.ViewModels"
+             x:Class="JKalixto_System.Presentation.Controls.BarraRelojTemaView"
+             x:DataType="vm:BaseViewModel">
+
+    <Border BackgroundColor="{DynamicResource ColorSuperficie}"
+            Stroke="{DynamicResource ColorBorde}"
+            StrokeThickness="1"
+            Padding="16,10">
+        <Border.StrokeShape>
+            <RoundRectangle CornerRadius="10" />
+        </Border.StrokeShape>
+
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+            <Border Grid.Column="0"
+                    BackgroundColor="{DynamicResource ColorTarjeta}"
+                    Stroke="{DynamicResource ColorBorde}"
+                    StrokeThickness="1"
+                    WidthRequest="40"
+                    HeightRequest="40"
+                    Padding="0"
+                    VerticalOptions="Center">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="20" />
+                </Border.StrokeShape>
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding AlternarTemaCommand}" />
+                </Border.GestureRecognizers>
+                <Label Text="{Binding TemaIconoTexto}"
+                       FontSize="27"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center" />
+            </Border>
+
+            <VerticalStackLayout Grid.Column="1" Spacing="0" HorizontalOptions="End" VerticalOptions="Center">
+                <Label Text="{Binding RelojTexto}" FontSize="35" FontAttributes="Bold" HorizontalOptions="End" TextColor="{DynamicResource ColorAcento}" />
+                <Label Text="{Binding FechaTexto}" FontSize="18" HorizontalOptions="End" TextColor="{DynamicResource ColorTextoSecundario}" />
+            </VerticalStackLayout>
+        </Grid>
+    </Border>
+</ContentView>

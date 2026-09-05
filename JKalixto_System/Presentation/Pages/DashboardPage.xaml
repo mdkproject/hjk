@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:JKalixto_System.Presentation.ViewModels"
+             xmlns:services="clr-namespace:JKalixto_System.Application.Services"
+             xmlns:models="clr-namespace:JKalixto_System.Domain.Models"
+             xmlns:controls="clr-namespace:JKalixto_System.Presentation.Controls"
+             x:Class="JKalixto_System.Presentation.Pages.DashboardPage"
+             x:DataType="vm:DashboardViewModel"
+             BackgroundColor="{DynamicResource ColorFondo}">
+
+    <RefreshView Command="{Binding RefrescarCommand}" IsRefreshing="{Binding IsBusy}">
+        <ScrollView>
+            <VerticalStackLayout Padding="24" Spacing="20">
+
+                <!-- Reloj/fecha/tema: misma posición fija en TODAS las pantallas — ver
+                     Presentation/Controls/BarraRelojTemaView. -->
+                <controls:BarraRelojTemaView HorizontalOptions="End" />
+
+                <!-- Encabezado -->
+                <HorizontalStackLayout Spacing="12" VerticalOptions="Center">
+                    <Label Text="🏨" FontSize="48" VerticalOptions="Center" />
+                    <VerticalStackLayout Spacing="0">
+                        <Label Text="Reportes" FontSize="38" FontAttributes="Bold" TextColor="{DynamicResource ColorAcento}" />
+                        <Label FontSize="21" TextColor="{DynamicResource ColorTextoSecundario}">
+                            <Label.FormattedText>
+                                <FormattedString>
+                                    <Span Text="{Binding NombreUsuario}" TextColor="{DynamicResource ColorTextoPrimario}" FontAttributes="Bold" />
+                                    <Span Text="  •  " />
+                                    <Span Text="{Binding RolUsuarioTexto}" />
+                                </FormattedString>
+                            </Label.FormattedText>
+                        </Label>
+                    </VerticalStackLayout>
+                </HorizontalStackLayout>
+
+                <!-- KPIs -->
+                <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="12">
+
+                    <Border Grid.Row="0" Grid.Column="0" BackgroundColor="{DynamicResource ColorTarjeta}" Stroke="{DynamicResource ColorBorde}" StrokeThickness="1" Padding="14">
+                        <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Ingresos Hotel" FontSize="18" TextColor="{DynamicResource ColorTextoSecundario}" />
+                            <Label Text="{Binding IngresosHotelTexto}" FontSize="29" FontAttributes="Bold" TextColor="{DynamicResource ColorAcento}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border Grid.Row="0" Grid.Column="1" BackgroundColor="{DynamicResource ColorTarjeta}" Stroke="{DynamicResource ColorBorde}" StrokeThickness="1" Padding="14">
+                        <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Ingresos Sauna" FontSize="18" TextColor="{DynamicResource ColorTextoSecundario}" />
+                            <Label Text="{Binding IngresosSaunaTexto}" FontSize="29" FontAttributes="Bold" TextColor="{DynamicResource ColorSaunaDamas}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border Grid.Row="0" Grid.Column="2" BackgroundColor="{DynamicResource ColorTarjeta}" Stroke="{DynamicResource ColorBorde}" StrokeThickness="1" Padding="14">
+                        <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Total Hoy" FontSize="18" TextColor="{DynamicResource ColorTextoSecundario}" />
+                            <Label Text="{Binding IngresosTotalTexto}" FontSize="29" FontAttributes="Bold" TextColor="{DynamicResource ColorTextoPrimario}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- Trío clásico de la industria hotelera: Ocupación, ADR y RevPAR
+                         siempre se miran juntos porque cada uno solo cuenta parte de la
+                         historia (ej: 100% de ocupación con tarifas regaladas se ve mal
+                         en el RevPAR aunque la Ocupación diga que "va todo bien"). -->
+                    <Border Grid.Row="1" Grid.Column="0" BackgroundColor="{DynamicResource ColorTarjeta}" Stroke="{DynamicResource ColorBorde}" StrokeThickness="1" Padding="14">
+                        <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Ocupación" FontSize="18" TextColor="{DynamicResource ColorTextoSecundario}" />
+                            <Label Text="{Binding TasaOcupacionTexto}" FontSize="29" FontAttributes="Bold" TextColor="{DynamicResource ColorOcupada}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border Grid.Row="1" Grid.Column="1" BackgroundColor="{DynamicResource ColorTarjeta}" Stroke="{DynamicResource ColorBorde}" StrokeThickness="1" Padding="14">
+                        <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Tarifa Promedio (ADR)" FontSize="18" TextColor="{DynamicResource ColorTextoSecundario}" />
+                            <Label Text="{Binding TarifaPromedioTexto}" FontSize="29" FontAttributes="Bold" TextColor="{DynamicResource ColorAcento}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border Grid.Row="1" Grid.Column="2" BackgroundColor="{DynamicResource ColorTarjeta}" Stroke="{DynamicResource ColorBorde}" StrokeThickness="1" Padding="14">
+                        <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="RevPAR" FontSize="18" TextColor="{DynamicResource ColorTextoSecundario}" />
+                            <Label Text="{Binding RevParTexto}" FontSize="29" FontAttributes="Bold" TextColor="{DynamicResource ColorAcento}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border Grid.Row="2" Grid.Column="0" BackgroundColor="{DynamicResource ColorTarjeta}" Stroke="{DynamicResource ColorBorde}" StrokeThickness="1" Padding="14">
+                        <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Clientes Sauna Hoy" FontSize="18" TextColor="{DynamicResource ColorTextoSecundario}" />
+                            <Label Text="{Binding ClientesSaunaHoy, StringFormat='{0}'}" FontSize="29" FontAttributes="Bold" TextColor="{DynamicResource ColorSaunaDamas}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border Grid.Row="2" Grid.Column="1" BackgroundColor="{DynamicResource ColorTarjeta}" Stroke="{DynamicResource ColorBorde}" StrokeThickness="1" Padding="14">
+                        <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Alertas Activas" FontSize="18" TextColor="{DynamicResource ColorTextoSecundario}" />
+                            <Label Text="{Binding AlertasActivas, StringFormat='{0}'}" FontSize="29" FontAttributes="Bold" TextColor="{DynamicResource ColorMantenimiento}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                </Grid>
+
+                <Label Text="⚠️ Hay habitaciones en mantenimiento hace más de 4 horas. Revisa Recepción."
+                       TextColor="{DynamicResource ColorMantenimiento}"
+                       FontSize="19"
+                       IsVisible="{Binding HayAlertas}" />
+
+                <!-- Estado de habitaciones -->
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Estado de Habitaciones" FontSize="24" FontAttributes="Bold" />
+
+                    <CollectionView ItemsSource="{Binding ResumenEstados}" HeightRequest="20" VerticalOptions="Start">
+                        <CollectionView.ItemsLayout>
+                            <LinearItemsLayout Orientation="Horizontal" ItemSpacing="0" />
+                        </CollectionView.ItemsLayout>
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="services:EstadoHabitacionResumenDto">
+                                <BoxView WidthRequest="{Binding AnchoBarra}" HeightRequest="20" Color="{Binding ColorBarra}" />
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+
+                    <CollectionView ItemsSource="{Binding ResumenEstados}">
+                        <CollectionView.ItemsLayout>
+                            <LinearItemsLayout Orientation="Horizontal" ItemSpacing="18" />
+                        </CollectionView.ItemsLayout>
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="services:EstadoHabitacionResumenDto">
+                                <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
+                                    <BoxView WidthRequest="10" HeightRequest="10" CornerRadius="5" Color="{Binding ColorBarra}" VerticalOptions="Center" />
+                                    <Label FontSize="19" VerticalOptions="Center">
+                                        <Label.FormattedText>
+                                            <FormattedString>
+                                                <Span Text="{Binding Etiqueta}" TextColor="{DynamicResource ColorTextoSecundario}" />
+                                                <Span Text=": " TextColor="{DynamicResource ColorTextoSecundario}" />
+                                                <Span Text="{Binding Cantidad, StringFormat='{0}'}" TextColor="{DynamicResource ColorTextoPrimario}" FontAttributes="Bold" />
+                                            </FormattedString>
+                                        </Label.FormattedText>
+                                    </Label>
+                                </HorizontalStackLayout>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+
+                <!-- Últimos eventos -->
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Últimos Eventos" FontSize="24" FontAttributes="Bold" />
+
+                    <Border BackgroundColor="{DynamicResource ColorTarjeta}" Stroke="{DynamicResource ColorBorde}" StrokeThickness="1" Padding="12">
+                        <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
+                        <CollectionView ItemsSource="{Binding UltimosEventos}" EmptyView="Todavía no hay eventos registrados.">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate x:DataType="models:LogAuditoria">
+                                    <Grid Padding="0,6" ColumnDefinitions="55,*" ColumnSpacing="10">
+                                        <Label Grid.Column="0" Text="{Binding Timestamp, StringFormat='{0:HH:mm}'}" FontSize="19" TextColor="{DynamicResource ColorTextoSecundario}" />
+                                        <Label Grid.Column="1" Text="{Binding Descripcion}" FontSize="21" LineBreakMode="TailTruncation" />
+                                    </Grid>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </Border>
+                </VerticalStackLayout>
+
+                <Button Text="Cerrar Sesión"
+                        Command="{Binding CerrarSesionCommand}"
+                        BackgroundColor="{DynamicResource ColorTarjeta}"
+                        TextColor="{DynamicResource ColorAcento}"
+                        BorderColor="{DynamicResource ColorBorde}"
+                        BorderWidth="1"
+                        HeightRequest="44"
+                        Margin="0,10,0,0" />
+
+            </VerticalStackLayout>
+        </ScrollView>
+    </RefreshView>
+</ContentPage>

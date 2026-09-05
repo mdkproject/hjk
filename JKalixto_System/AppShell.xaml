@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Shell xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+       xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+       xmlns:pages="clr-namespace:JKalixto_System.Presentation.Pages"
+       x:Class="JKalixto_System.AppShell"
+       Shell.FlyoutBehavior="Flyout"
+       FlyoutIsPresented="True"
+       Shell.FlyoutWidth="230"
+       Shell.TabBarIsVisible="False"
+       Shell.NavBarIsVisible="True"
+       FlyoutBackgroundColor="{DynamicResource ColorSuperficie}"
+       BackgroundColor="{DynamicResource ColorFondo}">
+
+    <!--
+        Encabezado de la barra lateral: nombre del sistema. Sobrio, sin emojis
+        (según lo pedido) — cuando haya un logo/ícono en imagen, va acá.
+    -->
+    <Shell.FlyoutHeader>
+        <Grid Padding="22,30,22,22" BackgroundColor="{DynamicResource ColorSuperficie}">
+            <VerticalStackLayout Spacing="3">
+                <Label Text="HKX" FontSize="19" FontAttributes="Bold" CharacterSpacing="1.5" TextColor="{DynamicResource ColorAcento}" />
+                <Label Text="Hotel &amp; Sauna System" FontSize="11" TextColor="{DynamicResource ColorTextoSecundario}" />
+            </VerticalStackLayout>
+        </Grid>
+    </Shell.FlyoutHeader>
+
+    <!--
+        NOTA IMPORTANTE (por qué no hay Shell.TitleView acá):
+        Antes había un reloj + botón de tema puestos en Shell.TitleView. En
+        Windows, esa zona es la BARRA DE TÍTULO NATIVA del sistema operativo
+        (la misma franja de minimizar/maximizar/cerrar), que tiene un ancho
+        fijo y limitado — Windows le mete su propio botón de "..." y corta lo
+        que no entra, sin importar cómo se ajuste el layout desde MAUI. Por
+        eso el reloj se veía cortado.
+        El reloj y el botón de tema ahora viven DENTRO del contenido de la
+        pantalla de Clientes (abajo a la derecha, como en el sistema de
+        referencia), no en la barra de título de Windows.
+    -->
+
+    <!--
+        Cada FlyoutItem = una pestaña de la barra lateral (ícono por ahora
+        ausente a propósito: sin emojis, listo para reemplazar por una imagen
+        más adelante — ver Icon="..." cuando haya archivos de ícono).
+        FlyoutIsPresented="True" arriba hace que arranque expandida; el usuario
+        la puede minimizar/expandir con el botón ☰ de la barra superior.
+
+        ORDEN: de arriba hacia abajo, de la pantalla que más se toca en el día a
+        día de la operación (check-in/check-out, sauna, cafetería) a la que
+        menos (auditoría, reportes son de uso puntual/gerencial). Registro Hotel
+        es ahora la primera pestaña = la pantalla con la que arranca la app,
+        reemplazando a Clientes.
+    -->
+
+    <FlyoutItem Title="Registro Hotel">
+        <ShellContent Route="RecepcionPage" ContentTemplate="{DataTemplate pages:RecepcionPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Registro Sauna">
+        <ShellContent Route="SaunaPage" ContentTemplate="{DataTemplate pages:SaunaPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Cafetería">
+        <ShellContent Route="CafeteriaPage" ContentTemplate="{DataTemplate pages:CafeteriaPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Reservas">
+        <ShellContent Route="ReservasPage" ContentTemplate="{DataTemplate pages:ReservasPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Clientes">
+        <ShellContent Route="ClientesPage" ContentTemplate="{DataTemplate pages:ClientesPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Cierre de Caja">
+        <ShellContent Route="CierreCajaPage" ContentTemplate="{DataTemplate pages:CierreCajaPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Gastos">
+        <ShellContent Route="GastosPage" ContentTemplate="{DataTemplate pages:GastosPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Calendario">
+        <ShellContent Route="CalendarioPage" ContentTemplate="{DataTemplate pages:CalendarioPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Almacén">
+        <ShellContent Route="AlmacenPage" ContentTemplate="{DataTemplate pages:AlmacenPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem x:Name="AuditoriaFlyoutItem" Title="Ver Auditoría">
+        <ShellContent Route="AuditoriaPage" ContentTemplate="{DataTemplate pages:AuditoriaPage}" />
+    </FlyoutItem>
+
+    <!-- Antes se llamaba "Panel Principal" y era la pantalla de entrada;
+         ahora vive acá, como pediste, con los KPIs/gráficos que ya tenía. -->
+    <FlyoutItem Title="Reportes">
+        <ShellContent Route="DashboardPage" ContentTemplate="{DataTemplate pages:DashboardPage}" />
+    </FlyoutItem>
+
+</Shell>
