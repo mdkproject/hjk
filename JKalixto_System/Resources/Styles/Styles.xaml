@@ -407,8 +407,15 @@
 
     <Style TargetType="Shell" ApplyToDerivedTypes="True">
         <Setter Property="Shell.BackgroundColor" Value="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource OffBlack}}" />
-        <Setter Property="Shell.ForegroundColor" Value="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource SecondaryDarkText}}" />
-        <Setter Property="Shell.TitleColor" Value="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource SecondaryDarkText}}" />
+        <!-- ForegroundColor/TitleColor: antes usaban AppThemeBinding (el tema del
+             SISTEMA OPERATIVO), que queda desconectado del interruptor de tema propio
+             de la app (TemaService/ColorAcento, etc.) — por eso el título de cada
+             pantalla (la "pestaña actual", arriba de todo) se veía de un morado clarito
+             fijo en vez de responder al modo oscuro/claro elegido en la app. Con
+             DynamicResource sigue al mismo interruptor que todo lo demás: casi blanco
+             en oscuro, azul marino oscuro en claro. -->
+        <Setter Property="Shell.ForegroundColor" Value="{DynamicResource ColorTextoPrimario}" />
+        <Setter Property="Shell.TitleColor" Value="{DynamicResource ColorTextoPrimario}" />
         <Setter Property="Shell.DisabledColor" Value="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray950}}" />
         <Setter Property="Shell.UnselectedColor" Value="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray200}}" />
         <Setter Property="Shell.NavBarHasShadow" Value="False" />

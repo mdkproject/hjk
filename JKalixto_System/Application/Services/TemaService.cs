@@ -80,7 +80,10 @@ public static class TemaService
             recursos["ColorSuperficie"] = Color.FromArgb("#FFFFFF");
             recursos["ColorTarjeta"] = Color.FromArgb("#FFFFFF");
             recursos["ColorBorde"] = Color.FromArgb("#D8DEE9");
-            recursos["ColorAcento"] = Color.FromArgb("#9C7A2E");
+            // Azul claro en vez del dorado/amarillo original — distinto del azul de
+            // "Ocupada" (#2563EB, más oscuro/saturado) para no confundir un botón
+            // resaltado con el color de estado de una habitación ocupada.
+            recursos["ColorAcento"] = Color.FromArgb("#0EA5E9");
             recursos["ColorTextoPrimario"] = Color.FromArgb("#1A2233");
             recursos["ColorTextoSecundario"] = Color.FromArgb("#64748B");
             recursos["ColorDisponible"] = Color.FromArgb("#16A34A");
