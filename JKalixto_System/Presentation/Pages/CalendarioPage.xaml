@@ -24,6 +24,16 @@
             <ScrollView>
                 <VerticalStackLayout Spacing="16">
 
+                    <!-- Buscador: por número de habitación o por nombre de huésped
+                         (busca en todo el mes visible, no solo en el día de hoy). -->
+                    <Border BackgroundColor="{DynamicResource ColorTarjeta}" Stroke="{DynamicResource ColorBorde}" StrokeThickness="1" Padding="10,0" HeightRequest="40">
+                        <Border.StrokeShape><RoundRectangle CornerRadius="8" /></Border.StrokeShape>
+                        <Grid ColumnDefinitions="Auto,*">
+                            <Label Grid.Column="0" Text="🔍" FontSize="14" VerticalOptions="Center" Margin="0,0,6,0" />
+                            <Entry Grid.Column="1" Text="{Binding TextoBusqueda}" Placeholder="Habitación o huésped..." FontSize="14" BackgroundColor="Transparent" VerticalOptions="Center" />
+                        </Grid>
+                    </Border>
+
                     <!-- Mini-calendario: navega el mismo mes que la grilla grande; tocar
                          un día scrollea la grilla principal hasta esa columna. -->
                     <VerticalStackLayout Spacing="6">

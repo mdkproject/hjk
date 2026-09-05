@@ -12,10 +12,18 @@
     <Grid ColumnDefinitions="1.4*,1*" Padding="16" ColumnSpacing="14">
 
         <!-- ===================== Columna izquierda: catálogo completo, sin scroll interno ===================== -->
-        <Grid Grid.Column="0" RowDefinitions="Auto,*" RowSpacing="10">
+        <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*" RowSpacing="10">
             <Label Grid.Row="0" Text="Catálogo — toca para agregar" FontSize="22" FontAttributes="Bold" />
 
-            <ScrollView Grid.Row="1">
+            <Border Grid.Row="1" BackgroundColor="{DynamicResource ColorTarjeta}" Stroke="{DynamicResource ColorBorde}" StrokeThickness="1" Padding="12,0" HeightRequest="42">
+                <Border.StrokeShape><RoundRectangle CornerRadius="8" /></Border.StrokeShape>
+                <Grid ColumnDefinitions="Auto,*">
+                    <Label Grid.Column="0" Text="🔍" FontSize="15" VerticalOptions="Center" Margin="0,0,8,0" />
+                    <Entry Grid.Column="1" Text="{Binding TextoBusqueda}" Placeholder="Buscar ítem del catálogo..." BackgroundColor="Transparent" VerticalOptions="Center" />
+                </Grid>
+            </Border>
+
+            <ScrollView Grid.Row="2">
                 <CollectionView ItemsSource="{Binding Catalogo}">
                     <CollectionView.ItemsLayout>
                         <GridItemsLayout Orientation="Vertical" Span="4" HorizontalItemSpacing="8" VerticalItemSpacing="8" />

@@ -20,7 +20,7 @@
         <Grid Grid.Row="1" ColumnDefinitions="1.3*,1*" ColumnSpacing="14">
 
         <!-- ===================== Columna izquierda: lista de reservas ===================== -->
-        <Grid Grid.Column="0" RowDefinitions="Auto,*" RowSpacing="14">
+        <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*" RowSpacing="14">
 
             <Button Grid.Row="0"
                     Text="+ Nueva Reserva"
@@ -29,7 +29,15 @@
                     TextColor="{DynamicResource ColorFondo}"
                     HeightRequest="48" />
 
-            <CollectionView Grid.Row="1" ItemsSource="{Binding Reservas}" EmptyView="Todavía no hay reservas registradas.">
+            <Border Grid.Row="1" BackgroundColor="{DynamicResource ColorTarjeta}" Stroke="{DynamicResource ColorBorde}" StrokeThickness="1" Padding="12,0" HeightRequest="44">
+                <Border.StrokeShape><RoundRectangle CornerRadius="8" /></Border.StrokeShape>
+                <Grid ColumnDefinitions="Auto,*">
+                    <Label Grid.Column="0" Text="🔍" FontSize="16" VerticalOptions="Center" Margin="0,0,8,0" />
+                    <Entry Grid.Column="1" Text="{Binding TextoBusquedaReservas}" Placeholder="Buscar por cliente, habitación o celular..." BackgroundColor="Transparent" VerticalOptions="Center" />
+                </Grid>
+            </Border>
+
+            <CollectionView Grid.Row="2" ItemsSource="{Binding Reservas}" EmptyView="Todavía no hay reservas registradas.">
                 <CollectionView.ItemTemplate>
                     <DataTemplate x:DataType="services:ReservaCardDto">
                         <Border BackgroundColor="{DynamicResource ColorTarjeta}"

@@ -84,6 +84,19 @@ public class RecepcionViewModel : BaseViewModel
         set => SetProperty(ref _filtroEstadoTexto, value);
     }
 
+    private string _textoBusqueda = string.Empty;
+    public string TextoBusqueda
+    {
+        get => _textoBusqueda;
+        set
+        {
+            if (SetProperty(ref _textoBusqueda, value))
+            {
+                AplicarFiltros();
+            }
+        }
+    }
+
     private bool _hayHabitaciones;
     public bool HayHabitaciones
     {
@@ -207,6 +220,18 @@ public class RecepcionViewModel : BaseViewModel
             {
                 query = paraContar.Where(h => h.Estado == estado.Value);
             }
+        }
+
+        // El buscador se aplica al final, sobre lo que ya quedó filtrado por
+        // piso/tipo/estado — por número de habitación o por datos del huésped.
+        if (!string.IsNullOrWhiteSpace(TextoBusqueda))
+        {
+            var texto = TextoBusqueda.Trim();
+            query = query.Where(h =>
+                h.Numero.ToString().Contains(texto, System.StringComparison.OrdinalIgnoreCase) ||
+                (h.NombreHuesped?.Contains(texto, System.StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (h.CelularHuesped?.Contains(texto, System.StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (h.NumeroDocumentoHuesped?.Contains(texto, System.StringComparison.OrdinalIgnoreCase) ?? false));
         }
 
         Habitaciones.Clear();

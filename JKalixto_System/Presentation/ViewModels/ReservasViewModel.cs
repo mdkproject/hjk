@@ -16,7 +16,24 @@ public class ReservasViewModel : BaseViewModel
     private readonly IHabitacionService _habitacionService;
     private readonly ISessionService _sessionService;
 
+    /// <summary>Copia completa de reservas próximas; Reservas es la vista ya filtrada
+    /// por TextoBusquedaReservas.</summary>
+    private List<ReservaCardDto> _todasLasReservas = new();
+
     public ObservableCollection<ReservaCardDto> Reservas { get; } = new();
+
+    private string _textoBusquedaReservas = string.Empty;
+    public string TextoBusquedaReservas
+    {
+        get => _textoBusquedaReservas;
+        set
+        {
+            if (SetProperty(ref _textoBusquedaReservas, value))
+            {
+                AplicarFiltroReservas();
+            }
+        }
+    }
 
     private bool _hayReservas;
     public bool HayReservas
@@ -164,14 +181,8 @@ public class ReservasViewModel : BaseViewModel
         try
         {
             IsBusy = true;
-            var lista = await _reservaService.ObtenerProximasAsync();
-
-            Reservas.Clear();
-            foreach (var r in lista)
-            {
-                Reservas.Add(r);
-            }
-            HayReservas = Reservas.Count > 0;
+            _todasLasReservas = await _reservaService.ObtenerProximasAsync();
+            AplicarFiltroReservas();
 
             _todasLasHabitaciones = await _habitacionService.ObtenerTodasAsync();
             AplicarFiltroHabitaciones();
@@ -180,6 +191,29 @@ public class ReservasViewModel : BaseViewModel
         {
             IsBusy = false;
         }
+    }
+
+    /// <summary>Filtra la lista de reservas por nombre de cliente, número de habitación
+    /// o celular — en memoria, sin volver a golpear la base de datos.</summary>
+    private void AplicarFiltroReservas()
+    {
+        IEnumerable<ReservaCardDto> query = _todasLasReservas;
+
+        if (!string.IsNullOrWhiteSpace(TextoBusquedaReservas))
+        {
+            var texto = TextoBusquedaReservas.Trim();
+            query = query.Where(r =>
+                r.NombreCliente.Contains(texto, System.StringComparison.OrdinalIgnoreCase) ||
+                r.NumeroHabitacion.ToString().Contains(texto, System.StringComparison.OrdinalIgnoreCase) ||
+                r.Celular.Contains(texto, System.StringComparison.OrdinalIgnoreCase));
+        }
+
+        Reservas.Clear();
+        foreach (var r in query)
+        {
+            Reservas.Add(r);
+        }
+        HayReservas = Reservas.Count > 0;
     }
 
     private void AplicarFiltroHabitaciones()

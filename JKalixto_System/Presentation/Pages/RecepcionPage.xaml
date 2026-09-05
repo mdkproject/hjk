@@ -10,7 +10,7 @@
              Shell.NavBarIsVisible="True"
              BackgroundColor="{DynamicResource ColorFondo}">
 
-    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" Padding="16" RowSpacing="10">
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" Padding="16" RowSpacing="10">
 
         <!-- Reloj/fecha/tema: fila propia de ancho completo, alineada a la derecha —
              misma posición fija en TODAS las pantallas. Al ir en su propia fila (no
@@ -18,8 +18,16 @@
              Ver Presentation/Controls/BarraRelojTemaView. -->
         <controls:BarraRelojTemaView Grid.Row="0" HorizontalOptions="End" />
 
+        <Border Grid.Row="1" BackgroundColor="{DynamicResource ColorTarjeta}" Stroke="{DynamicResource ColorBorde}" StrokeThickness="1" Padding="12,0" HeightRequest="44">
+            <Border.StrokeShape><RoundRectangle CornerRadius="8" /></Border.StrokeShape>
+            <Grid ColumnDefinitions="Auto,*">
+                <Label Grid.Column="0" Text="🔍" FontSize="16" VerticalOptions="Center" Margin="0,0,8,0" />
+                <Entry Grid.Column="1" Text="{Binding TextoBusqueda}" Placeholder="Buscar por número de habitación, huésped, celular o documento..." BackgroundColor="Transparent" VerticalOptions="Center" />
+            </Grid>
+        </Border>
+
         <!-- Selector de piso + contador de resultados -->
-        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="14">
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="14">
             <HorizontalStackLayout Grid.Column="0" Spacing="8">
                 <Button Text="Todos" Command="{Binding SeleccionarPisoCommand}" CommandParameter="Todos"
                         BackgroundColor="{DynamicResource ColorTarjeta}" TextColor="{DynamicResource ColorTextoPrimario}" HeightRequest="42" WidthRequest="80" FontAttributes="None">
@@ -84,7 +92,7 @@
         </Grid>
 
         <!-- Contador de estados (del piso/tipo actualmente filtrado) -->
-        <HorizontalStackLayout Grid.Row="2" Spacing="18">
+        <HorizontalStackLayout Grid.Row="3" Spacing="18">
             <HorizontalStackLayout Spacing="6">
                 <BoxView Color="{DynamicResource ColorDisponible}" WidthRequest="14" HeightRequest="14" CornerRadius="4" />
                 <Label Text="{Binding ContadorDisponible, StringFormat='Disponible: {0}'}" FontSize="17" TextColor="{DynamicResource ColorTextoSecundario}" VerticalOptions="Center" />
@@ -104,7 +112,7 @@
         </HorizontalStackLayout>
 
         <!-- Filtros: tipo de habitación + estado, agrupados en una sola tarjeta -->
-        <Border Grid.Row="3"
+        <Border Grid.Row="4"
                 BackgroundColor="{DynamicResource ColorSuperficie}"
                 Stroke="{DynamicResource ColorBorde}"
                 StrokeThickness="1"
@@ -241,7 +249,7 @@
         </Border>
 
         <!-- Grilla de habitaciones (filtradas) -->
-        <CollectionView Grid.Row="4" ItemsSource="{Binding Habitaciones}" EmptyView="No hay habitaciones para mostrar con estos filtros.">
+        <CollectionView Grid.Row="5" ItemsSource="{Binding Habitaciones}" EmptyView="No hay habitaciones para mostrar con estos filtros.">
             <CollectionView.ItemsLayout>
                 <GridItemsLayout Orientation="Vertical" Span="3" HorizontalItemSpacing="8" VerticalItemSpacing="8" />
             </CollectionView.ItemsLayout>

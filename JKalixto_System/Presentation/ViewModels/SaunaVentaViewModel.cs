@@ -34,8 +34,25 @@ public class SaunaVentaViewModel : BaseViewModel, IQueryAttributable
         set => SetProperty(ref _esHuespedHotel, value);
     }
 
+    private List<ProductoCatalogoDto> _catalogoCompleto = new();
+
     public ObservableCollection<ProductoCatalogoDto> Catalogo { get; } = new();
     public ObservableCollection<ItemCarritoDto> Carrito { get; } = new();
+
+    private string _textoBusqueda = string.Empty;
+    /// <summary>Buscador de ítems del catálogo (Cafetería/Sauna) — filtra en vivo, sin
+    /// volver a pedir el catálogo (ya está todo en memoria en _catalogoCompleto).</summary>
+    public string TextoBusqueda
+    {
+        get => _textoBusqueda;
+        set
+        {
+            if (SetProperty(ref _textoBusqueda, value))
+            {
+                AplicarFiltroBusqueda();
+            }
+        }
+    }
 
     private string _totalTexto = "S/ 0.00";
     public string TotalTexto
@@ -158,14 +175,27 @@ public class SaunaVentaViewModel : BaseViewModel, IQueryAttributable
 
     public async Task CargarAsync()
     {
-        if (Catalogo.Count > 0)
+        if (_catalogoCompleto.Count > 0)
         {
             return; // el catálogo no cambia durante la venta, no hace falta recargarlo cada vez
         }
 
-        var productos = await _saunaService.ObtenerCatalogoAsync();
+        _catalogoCompleto = await _saunaService.ObtenerCatalogoAsync();
+        AplicarFiltroBusqueda();
+    }
+
+    private void AplicarFiltroBusqueda()
+    {
+        IEnumerable<ProductoCatalogoDto> query = _catalogoCompleto;
+
+        if (!string.IsNullOrWhiteSpace(TextoBusqueda))
+        {
+            var texto = TextoBusqueda.Trim();
+            query = query.Where(p => p.Nombre.Contains(texto, System.StringComparison.OrdinalIgnoreCase));
+        }
+
         Catalogo.Clear();
-        foreach (var p in productos)
+        foreach (var p in query)
         {
             Catalogo.Add(p);
         }

@@ -89,6 +89,22 @@ public class CalendarioViewModel : BaseViewModel
         }
     }
 
+    private string _textoBusqueda = string.Empty;
+    /// <summary>Busca por número de habitación o por el nombre de cualquier huésped
+    /// que aparezca en ese mes (aunque no esté activo hoy) — coincide con la lógica de
+    /// "encontrar dónde estuvo/está tal persona este mes".</summary>
+    public string TextoBusqueda
+    {
+        get => _textoBusqueda;
+        set
+        {
+            if (SetProperty(ref _textoBusqueda, value))
+            {
+                AplicarFiltros();
+            }
+        }
+    }
+
     private int _contadorDisponible;
     public int ContadorDisponible
     {
@@ -282,6 +298,17 @@ public class CalendarioViewModel : BaseViewModel
             {
                 query = query.Where(c => c.EstadoActual == estado.Value);
             }
+        }
+
+        // El buscador se aplica al final: por número de habitación, o por el nombre de
+        // CUALQUIER huésped que haya pasado por esa habitación en el mes visible (no
+        // solo el de hoy) — así sirve para encontrar dónde estuvo alguien ese mes.
+        if (!string.IsNullOrWhiteSpace(TextoBusqueda))
+        {
+            var texto = TextoBusqueda.Trim();
+            query = query.Where(c =>
+                c.Numero.ToString().Contains(texto, StringComparison.OrdinalIgnoreCase) ||
+                c.Celdas.Any(celda => celda.NombreCliente?.Contains(texto, StringComparison.OrdinalIgnoreCase) ?? false));
         }
 
         Calendario = new CalendarioMensualDto

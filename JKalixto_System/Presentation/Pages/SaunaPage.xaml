@@ -10,7 +10,7 @@
              Shell.NavBarIsVisible="True"
              BackgroundColor="{DynamicResource ColorFondo}">
 
-    <Grid RowDefinitions="Auto,Auto,*" Padding="16" RowSpacing="14">
+    <Grid RowDefinitions="Auto,Auto,Auto,*" Padding="16" RowSpacing="14">
 
         <!-- Reloj/fecha/tema: fila propia de ancho completo, alineada a la derecha —
              misma posición fija en TODAS las pantallas. Ver
@@ -26,7 +26,15 @@
                     HeightRequest="50" />
         </Border>
 
-        <CollectionView Grid.Row="2" ItemsSource="{Binding ClientesActivos}" EmptyView="No hay clientes activos en el Sauna en este momento.">
+        <Border Grid.Row="2" BackgroundColor="{DynamicResource ColorTarjeta}" Stroke="{DynamicResource ColorBorde}" StrokeThickness="1" Padding="12,0" HeightRequest="44">
+            <Border.StrokeShape><RoundRectangle CornerRadius="8" /></Border.StrokeShape>
+            <Grid ColumnDefinitions="Auto,*">
+                <Label Grid.Column="0" Text="🔍" FontSize="16" VerticalOptions="Center" Margin="0,0,8,0" />
+                <Entry Grid.Column="1" Text="{Binding TextoBusqueda}" Placeholder="Buscar por nombre o candado..." BackgroundColor="Transparent" VerticalOptions="Center" />
+            </Grid>
+        </Border>
+
+        <CollectionView Grid.Row="3" ItemsSource="{Binding ClientesActivos}" EmptyView="No hay clientes activos en el Sauna en este momento.">
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="services:ClienteSaunaCardDto">
                     <Border BackgroundColor="{DynamicResource ColorTarjeta}"

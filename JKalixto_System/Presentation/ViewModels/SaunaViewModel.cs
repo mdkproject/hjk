@@ -1,4 +1,7 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Microsoft.Maui.Controls;
@@ -12,7 +15,22 @@ public class SaunaViewModel : BaseViewModel
     private readonly ISaunaService _saunaService;
     private readonly ISessionService _sessionService;
 
+    private List<ClienteSaunaCardDto> _todosLosClientes = new();
+
     public ObservableCollection<ClienteSaunaCardDto> ClientesActivos { get; } = new();
+
+    private string _textoBusqueda = string.Empty;
+    public string TextoBusqueda
+    {
+        get => _textoBusqueda;
+        set
+        {
+            if (SetProperty(ref _textoBusqueda, value))
+            {
+                AplicarFiltroBusqueda();
+            }
+        }
+    }
 
     private bool _hayClientes;
     public bool HayClientes
@@ -51,19 +69,35 @@ public class SaunaViewModel : BaseViewModel
         try
         {
             IsBusy = true;
-            var lista = await _saunaService.ObtenerClientesActivosAsync();
-
-            ClientesActivos.Clear();
-            foreach (var c in lista)
-            {
-                ClientesActivos.Add(c);
-            }
-            HayClientes = ClientesActivos.Count > 0;
+            _todosLosClientes = await _saunaService.ObtenerClientesActivosAsync();
+            AplicarFiltroBusqueda();
         }
         finally
         {
             IsBusy = false;
         }
+    }
+
+    /// <summary>Filtra por nombre o número de candado — en memoria, sin volver a
+    /// golpear la base de datos.</summary>
+    private void AplicarFiltroBusqueda()
+    {
+        IEnumerable<ClienteSaunaCardDto> query = _todosLosClientes;
+
+        if (!string.IsNullOrWhiteSpace(TextoBusqueda))
+        {
+            var texto = TextoBusqueda.Trim();
+            query = query.Where(c =>
+                c.NombreCompleto.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
+                c.NumeroCandado.Contains(texto, StringComparison.OrdinalIgnoreCase));
+        }
+
+        ClientesActivos.Clear();
+        foreach (var c in query)
+        {
+            ClientesActivos.Add(c);
+        }
+        HayClientes = ClientesActivos.Count > 0;
     }
 
     private async Task GestionarClienteAsync(ClienteSaunaCardDto cliente)
