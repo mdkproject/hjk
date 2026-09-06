@@ -1,5 +1,8 @@
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Storage;
+#if WINDOWS
+using Microsoft.UI.Windowing;
+#endif
 
 namespace JKalixto_System.Application.Services;
 
@@ -28,6 +31,62 @@ public static class TemaService
     private const string ClavePreferencia = "TemaOscuro";
 
     public static bool EsOscuro { get; private set; } = true;
+
+#if WINDOWS
+    // Referencia a la barra de título nativa de Windows, registrada una vez
+    // desde MauiProgram.cs (ConfigureMauiHandlers) apenas se crea la ventana,
+    // después de activar ExtendsContentIntoTitleBar. Los botones de
+    // minimizar/maximizar/cerrar son 100% nativos de Windows (no son XAML de
+    // MAUI), así que no pueden atarse a un {DynamicResource} — hay que
+    // pintarlos "a mano" acá, cada vez que cambia el tema, con los mismos
+    // tonos que usa el resto de la app.
+    private static AppWindowTitleBar? _barraTitulo;
+
+    public static void RegistrarBarraTitulo(AppWindowTitleBar barraTitulo)
+    {
+        _barraTitulo = barraTitulo;
+        AplicarColoresBarraTitulo();
+    }
+
+    private static void AplicarColoresBarraTitulo()
+    {
+        if (_barraTitulo is null)
+        {
+            return;
+        }
+
+        if (EsOscuro)
+        {
+            _barraTitulo.BackgroundColor = Windows.UI.Color.FromArgb(255, 0x29, 0x2A, 0x2D);
+            _barraTitulo.ForegroundColor = Windows.UI.Color.FromArgb(255, 0xE8, 0xEA, 0xED);
+            _barraTitulo.InactiveBackgroundColor = Windows.UI.Color.FromArgb(255, 0x29, 0x2A, 0x2D);
+            _barraTitulo.InactiveForegroundColor = Windows.UI.Color.FromArgb(255, 0x9A, 0xA0, 0xA6);
+            _barraTitulo.ButtonBackgroundColor = Windows.UI.Color.FromArgb(255, 0x29, 0x2A, 0x2D);
+            _barraTitulo.ButtonForegroundColor = Windows.UI.Color.FromArgb(255, 0xE8, 0xEA, 0xED);
+            _barraTitulo.ButtonHoverBackgroundColor = Windows.UI.Color.FromArgb(255, 0x3C, 0x40, 0x43);
+            _barraTitulo.ButtonHoverForegroundColor = Windows.UI.Color.FromArgb(255, 0xE8, 0xEA, 0xED);
+            _barraTitulo.ButtonPressedBackgroundColor = Windows.UI.Color.FromArgb(255, 0x20, 0x21, 0x24);
+            _barraTitulo.ButtonPressedForegroundColor = Windows.UI.Color.FromArgb(255, 0xE8, 0xEA, 0xED);
+            _barraTitulo.ButtonInactiveBackgroundColor = Windows.UI.Color.FromArgb(255, 0x29, 0x2A, 0x2D);
+            _barraTitulo.ButtonInactiveForegroundColor = Windows.UI.Color.FromArgb(255, 0x9A, 0xA0, 0xA6);
+        }
+        else
+        {
+            _barraTitulo.BackgroundColor = Windows.UI.Color.FromArgb(255, 0xFF, 0xFF, 0xFF);
+            _barraTitulo.ForegroundColor = Windows.UI.Color.FromArgb(255, 0x1A, 0x22, 0x33);
+            _barraTitulo.InactiveBackgroundColor = Windows.UI.Color.FromArgb(255, 0xFF, 0xFF, 0xFF);
+            _barraTitulo.InactiveForegroundColor = Windows.UI.Color.FromArgb(255, 0x64, 0x74, 0x8B);
+            _barraTitulo.ButtonBackgroundColor = Windows.UI.Color.FromArgb(255, 0xFF, 0xFF, 0xFF);
+            _barraTitulo.ButtonForegroundColor = Windows.UI.Color.FromArgb(255, 0x1A, 0x22, 0x33);
+            _barraTitulo.ButtonHoverBackgroundColor = Windows.UI.Color.FromArgb(255, 0xD8, 0xDE, 0xE9);
+            _barraTitulo.ButtonHoverForegroundColor = Windows.UI.Color.FromArgb(255, 0x1A, 0x22, 0x33);
+            _barraTitulo.ButtonPressedBackgroundColor = Windows.UI.Color.FromArgb(255, 0xEE, 0xF1, 0xF6);
+            _barraTitulo.ButtonPressedForegroundColor = Windows.UI.Color.FromArgb(255, 0x1A, 0x22, 0x33);
+            _barraTitulo.ButtonInactiveBackgroundColor = Windows.UI.Color.FromArgb(255, 0xFF, 0xFF, 0xFF);
+            _barraTitulo.ButtonInactiveForegroundColor = Windows.UI.Color.FromArgb(255, 0x64, 0x74, 0x8B);
+        }
+    }
+#endif
 
     /// <summary>Se llama una sola vez, al arrancar la app (en App.xaml.cs), antes de crear la primera pantalla.</summary>
     public static void Inicializar()
@@ -93,5 +152,9 @@ public static class TemaService
             recursos["ColorReservada"] = Color.FromArgb("#7C3AED");
             recursos["ColorSaunaDamas"] = Color.FromArgb("#DB2777");
         }
+
+#if WINDOWS
+        AplicarColoresBarraTitulo();
+#endif
     }
 }

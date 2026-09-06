@@ -38,11 +38,11 @@
     -->
 
     <!--
-        Cada FlyoutItem = una pestaña de la barra lateral (ícono por ahora
-        ausente a propósito: sin emojis, listo para reemplazar por una imagen
-        más adelante — ver Icon="..." cuando haya archivos de ícono).
-        FlyoutIsPresented="True" arriba hace que arranque expandida; el usuario
-        la puede minimizar/expandir con el botón ☰ de la barra superior.
+        Cada FlyoutItem = una pestaña de la barra lateral, ahora con ícono real
+        (fuente "Segoe MDL2 Assets", nativa de Windows — no son emojis, y se
+        quedan visibles aun cuando el flyout se colapsa a modo ícono con el
+        botón ☰ de arriba). FlyoutIsPresented="True" arriba hace que arranque
+        expandida.
 
         ORDEN: de arriba hacia abajo, de la pantalla que más se toca en el día a
         día de la operación (check-in/check-out, sauna, cafetería) a la que
@@ -52,56 +52,95 @@
     -->
 
     <FlyoutItem Title="Registro Hotel">
+        <FlyoutItem.Icon>
+            <FontImageSource FontFamily="Segoe MDL2 Assets" Glyph="&#xE80F;" Color="{DynamicResource ColorTextoSecundario}" Size="20" />
+        </FlyoutItem.Icon>
         <ShellContent Route="RecepcionPage" ContentTemplate="{DataTemplate pages:RecepcionPage}" />
     </FlyoutItem>
 
     <FlyoutItem Title="Registro Sauna">
+        <FlyoutItem.Icon>
+            <FontImageSource FontFamily="Segoe MDL2 Assets" Glyph="&#xE8FD;" Color="{DynamicResource ColorTextoSecundario}" Size="20" />
+        </FlyoutItem.Icon>
         <ShellContent Route="SaunaPage" ContentTemplate="{DataTemplate pages:SaunaPage}" />
     </FlyoutItem>
 
     <FlyoutItem Title="Cafetería">
+        <FlyoutItem.Icon>
+            <FontImageSource FontFamily="Segoe MDL2 Assets" Glyph="&#xE7BF;" Color="{DynamicResource ColorTextoSecundario}" Size="20" />
+        </FlyoutItem.Icon>
         <ShellContent Route="CafeteriaPage" ContentTemplate="{DataTemplate pages:CafeteriaPage}" />
     </FlyoutItem>
 
     <FlyoutItem Title="Reservas">
+        <FlyoutItem.Icon>
+            <FontImageSource FontFamily="Segoe MDL2 Assets" Glyph="&#xE787;" Color="{DynamicResource ColorTextoSecundario}" Size="20" />
+        </FlyoutItem.Icon>
         <ShellContent Route="ReservasPage" ContentTemplate="{DataTemplate pages:ReservasPage}" />
     </FlyoutItem>
 
     <FlyoutItem Title="Clientes">
+        <FlyoutItem.Icon>
+            <FontImageSource FontFamily="Segoe MDL2 Assets" Glyph="&#xE77B;" Color="{DynamicResource ColorTextoSecundario}" Size="20" />
+        </FlyoutItem.Icon>
         <ShellContent Route="ClientesPage" ContentTemplate="{DataTemplate pages:ClientesPage}" />
     </FlyoutItem>
 
     <FlyoutItem Title="Cierre de Caja">
+        <FlyoutItem.Icon>
+            <FontImageSource FontFamily="Segoe MDL2 Assets" Glyph="&#xE8A5;" Color="{DynamicResource ColorTextoSecundario}" Size="20" />
+        </FlyoutItem.Icon>
         <ShellContent Route="CierreCajaPage" ContentTemplate="{DataTemplate pages:CierreCajaPage}" />
     </FlyoutItem>
 
     <FlyoutItem Title="Gastos">
+        <FlyoutItem.Icon>
+            <FontImageSource FontFamily="Segoe MDL2 Assets" Glyph="&#xE70F;" Color="{DynamicResource ColorTextoSecundario}" Size="20" />
+        </FlyoutItem.Icon>
         <ShellContent Route="GastosPage" ContentTemplate="{DataTemplate pages:GastosPage}" />
     </FlyoutItem>
 
     <FlyoutItem Title="Calendario">
+        <FlyoutItem.Icon>
+            <FontImageSource FontFamily="Segoe MDL2 Assets" Glyph="&#xE787;" Color="{DynamicResource ColorTextoSecundario}" Size="20" />
+        </FlyoutItem.Icon>
         <ShellContent Route="CalendarioPage" ContentTemplate="{DataTemplate pages:CalendarioPage}" />
     </FlyoutItem>
 
     <FlyoutItem Title="Almacén">
+        <FlyoutItem.Icon>
+            <FontImageSource FontFamily="Segoe MDL2 Assets" Glyph="&#xE713;" Color="{DynamicResource ColorTextoSecundario}" Size="20" />
+        </FlyoutItem.Icon>
         <ShellContent Route="AlmacenPage" ContentTemplate="{DataTemplate pages:AlmacenPage}" />
     </FlyoutItem>
 
     <FlyoutItem Title="Registro de Huéspedes">
+        <FlyoutItem.Icon>
+            <FontImageSource FontFamily="Segoe MDL2 Assets" Glyph="&#xE8FD;" Color="{DynamicResource ColorTextoSecundario}" Size="20" />
+        </FlyoutItem.Icon>
         <ShellContent Route="RegistroHuespedesPage" ContentTemplate="{DataTemplate pages:RegistroHuespedesPage}" />
     </FlyoutItem>
 
     <FlyoutItem Title="Libro de Reclamaciones">
+        <FlyoutItem.Icon>
+            <FontImageSource FontFamily="Segoe MDL2 Assets" Glyph="&#xE946;" Color="{DynamicResource ColorTextoSecundario}" Size="20" />
+        </FlyoutItem.Icon>
         <ShellContent Route="ReclamosPage" ContentTemplate="{DataTemplate pages:ReclamosPage}" />
     </FlyoutItem>
 
     <FlyoutItem x:Name="AuditoriaFlyoutItem" Title="Ver Auditoría">
+        <FlyoutItem.Icon>
+            <FontImageSource FontFamily="Segoe MDL2 Assets" Glyph="&#xE71D;" Color="{DynamicResource ColorTextoSecundario}" Size="20" />
+        </FlyoutItem.Icon>
         <ShellContent Route="AuditoriaPage" ContentTemplate="{DataTemplate pages:AuditoriaPage}" />
     </FlyoutItem>
 
     <!-- Antes se llamaba "Panel Principal" y era la pantalla de entrada;
          ahora vive acá, como pediste, con los KPIs/gráficos que ya tenía. -->
     <FlyoutItem Title="Reportes">
+        <FlyoutItem.Icon>
+            <FontImageSource FontFamily="Segoe MDL2 Assets" Glyph="&#xE734;" Color="{DynamicResource ColorTextoSecundario}" Size="20" />
+        </FlyoutItem.Icon>
         <ShellContent Route="DashboardPage" ContentTemplate="{DataTemplate pages:DashboardPage}" />
     </FlyoutItem>
 

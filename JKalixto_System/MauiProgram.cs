@@ -10,6 +10,11 @@ using JKalixto_System.Infrastructure.Repositories;
 using JKalixto_System.Application.Services;
 using JKalixto_System.Presentation.Pages;
 using JKalixto_System.Presentation.ViewModels;
+#if WINDOWS
+using Microsoft.UI;
+using Microsoft.UI.Windowing;
+using WinRT.Interop;
+#endif
 
 namespace JKalixto_System;
 
@@ -25,6 +30,44 @@ public static class MauiProgram
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                 fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
             });
+
+#if WINDOWS
+        // ------------------------------------------------------------------
+        // BARRA DE TÍTULO — por defecto, en Windows, el ☰ y el título de
+        // Shell se dibujan DENTRO de la barra de título NATIVA del sistema
+        // operativo (blanca, ajena a los temas de la app — por eso pintar
+        // Shell.TitleColor con {DynamicResource} no alcanzaba: esa franja no
+        // es contenido de MAUI, es chrome de Windows).
+        //
+        // ExtendsContentIntoTitleBar hace que esa franja pase a ser parte del
+        // contenido de la app: Shell dibuja su propio ☰/título ahí adentro,
+        // ya con los colores del tema actual, y sigue siendo arrastrable
+        // (Shell se encarga de marcar esa zona como región de arrastre). Solo
+        // quedan 100% nativos los botones de minimizar/maximizar/cerrar, así
+        // que sus colores se pintan aparte en TemaService, cada vez que
+        // cambia el tema.
+        // ------------------------------------------------------------------
+        builder.ConfigureMauiHandlers(handlers =>
+        {
+            Microsoft.Maui.Handlers.WindowHandler.Mapper.AppendToMapping("ExtenderBarraDeTitulo", (handler, view) =>
+            {
+                if (handler.PlatformView is not Microsoft.UI.Xaml.Window ventanaNativa)
+                {
+                    return;
+                }
+
+                var idVentana = Win32Interop.GetWindowIdFromWindow(WindowNative.GetWindowHandle(ventanaNativa));
+                var appWindow = AppWindow.GetFromWindowId(idVentana);
+                if (appWindow?.TitleBar is null)
+                {
+                    return;
+                }
+
+                appWindow.TitleBar.ExtendsContentIntoTitleBar = true;
+                TemaService.RegistrarBarraTitulo(appWindow.TitleBar);
+            });
+        });
+#endif
 
         // ------------------------------------------------------------------
         // BASE DE DATOS — SQLite local. Se registra como Transient: cada vez
