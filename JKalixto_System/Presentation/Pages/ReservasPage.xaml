@@ -291,7 +291,7 @@
                              columna a la derecha; el resto de la info ocupa la izquierda
                              completa, empezando arriba (donde antes estaba el número). -->
                         <Border BackgroundColor="{DynamicResource ColorTarjeta}"
-                                Stroke="{Binding BrushEstado}"
+                                Stroke="{Binding ClaveColorEstado, Converter={StaticResource ClaveColorABrushConverter}}"
                                 StrokeThickness="2"
                                 Padding="8"
                                 HeightRequest="98">
@@ -305,7 +305,7 @@
                                     <Label Grid.Row="0" Text="{Binding EtiquetaTipo}" FontSize="12"
                                            HorizontalOptions="Start" HorizontalTextAlignment="Start" TextColor="{DynamicResource ColorTextoSecundario}" />
 
-                                    <Border Grid.Row="1" BackgroundColor="{Binding ColorEstado}" Padding="5,1" Margin="0,1,0,1" HorizontalOptions="Start">
+                                    <Border Grid.Row="1" BackgroundColor="{Binding ClaveColorEstado, Converter={StaticResource ClaveColorAColorConverter}}" Padding="5,1" Margin="0,1,0,1" HorizontalOptions="Start">
                                         <Border.StrokeShape>
                                             <RoundRectangle CornerRadius="4" />
                                         </Border.StrokeShape>

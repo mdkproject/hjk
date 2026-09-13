@@ -72,4 +72,14 @@
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.10" />
 	</ItemGroup>
 
+	<!-- Domain/Application/Infrastructure ahora viven en librerías compartidas aparte
+	     (ver Migración a Web) — así el futuro proyecto Blazor Server las puede
+	     referenciar sin duplicar código. Esta app MAUI las sigue usando igual que
+	     antes, solo que ahora son ProjectReference en vez de carpetas locales. -->
+	<ItemGroup>
+		<ProjectReference Include="..\JKalixto_System.Domain\JKalixto_System.Domain.csproj" />
+		<ProjectReference Include="..\JKalixto_System.Application\JKalixto_System.Application.csproj" />
+		<ProjectReference Include="..\JKalixto_System.Infrastructure\JKalixto_System.Infrastructure.csproj" />
+	</ItemGroup>
+
 </Project>

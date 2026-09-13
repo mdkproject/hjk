@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!--
+		Acceso a datos (EF Core + SQLite) — AppDbContext, el sembrador de datos de
+		prueba y los repositorios. Sin dependencias de UI, para poder compartirse
+		entre la app de escritorio (MAUI) y el futuro proyecto web (Blazor Server).
+	-->
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<RootNamespace>JKalixto_System.Infrastructure</RootNamespace>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.10" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\JKalixto_System.Domain\JKalixto_System.Domain.csproj" />
+	</ItemGroup>
+
+</Project>

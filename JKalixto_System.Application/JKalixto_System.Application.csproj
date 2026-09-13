@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!--
+		Lógica de negocio (servicios + DTOs) — agnóstica de UI a propósito, para que
+		la comparta la app de escritorio (MAUI) y el futuro proyecto web (Blazor
+		Server). Por eso NO referencia Microsoft.Maui.Controls/Graphics: donde antes
+		un DTO exponía un Color de MAUI directo (ej. color de estado de habitación),
+		ahora expone solo la CLAVE de texto del color de tema (ej. "ColorDisponible")
+		— cada UI la traduce a su propio tipo de color (ver
+		Presentation/Converters/ClaveColorConverters.cs en el proyecto MAUI).
+	-->
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<RootNamespace>JKalixto_System.Application</RootNamespace>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.10" />
+		<PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\JKalixto_System.Domain\JKalixto_System.Domain.csproj" />
+		<ProjectReference Include="..\JKalixto_System.Infrastructure\JKalixto_System.Infrastructure.csproj" />
+	</ItemGroup>
+
+</Project>

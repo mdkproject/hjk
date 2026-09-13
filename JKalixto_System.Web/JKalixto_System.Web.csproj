@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <!-- Reutiliza tal cual el Domain/Application/Infrastructure que ya usa la app de
+       escritorio (MAUI) — mismo código de negocio, misma base de datos, dos UIs
+       distintas. Ver Migración a Web. -->
+  <ItemGroup>
+    <ProjectReference Include="..\JKalixto_System.Domain\JKalixto_System.Domain.csproj" />
+    <ProjectReference Include="..\JKalixto_System.Application\JKalixto_System.Application.csproj" />
+    <ProjectReference Include="..\JKalixto_System.Infrastructure\JKalixto_System.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

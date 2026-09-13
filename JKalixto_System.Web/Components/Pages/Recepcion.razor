@@ -1,0 +1,132 @@
+@page "/recepcion"
+@rendermode InteractiveServer
+@using JKalixto_System.Application.Services
+@using JKalixto_System.Domain.Models
+@using JKalixto_System.Web.Services
+@inject IHabitacionService HabitacionService
+@inject INotificadorCambios Notificador
+@implements IDisposable
+
+<PageTitle>Registro Hotel</PageTitle>
+
+<h1>Registro Hotel</h1>
+
+<p style="color:#666; font-size:0.9rem;">
+    Página de prueba de la migración a web: abrí esta misma URL desde otra
+    máquina de la red (laptop/PC) y hacé clic en "Finalizar limpieza" o
+    "Finalizar mantenimiento" en una tarjeta — la otra pantalla se actualiza
+    sola, sin recargar.
+</p>
+
+@if (_cargando)
+{
+    <p>Cargando habitaciones…</p>
+}
+else if (_error is not null)
+{
+    <p style="color:#b00020;">@_error</p>
+}
+else
+{
+    @foreach (var grupoPiso in _habitaciones.GroupBy(h => h.Piso).OrderBy(g => g.Key))
+    {
+        <h3>Piso @grupoPiso.Key</h3>
+        <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:24px;">
+            @foreach (var habitacion in grupoPiso.OrderBy(h => h.Numero))
+            {
+                <div style="border:2px solid @ColorParaClave(habitacion.ClaveColorEstado); border-radius:10px; padding:10px; width:220px;">
+                    <div style="display:flex; justify-content:space-between; align-items:start;">
+                        <div>
+                            <div>@habitacion.EtiquetaTipo</div>
+                            <span style="background:@ColorParaClave(habitacion.ClaveColorEstado); color:white; border-radius:6px; padding:2px 6px; font-size:0.85rem;">
+                                @habitacion.EtiquetaEstado
+                            </span>
+                            @if (habitacion.Estado == EstadoHabitacion.Ocupada)
+                            {
+                                <div style="font-size:0.85rem; margin-top:4px;">@habitacion.NombreHuesped</div>
+                                <div style="font-size:0.8rem; color:#666;">@habitacion.TotalAcumulado?.ToString("C")</div>
+                            }
+                        </div>
+                        <strong style="font-size:1.4rem;">@habitacion.Numero</strong>
+                    </div>
+
+                    @if (habitacion.Estado == EstadoHabitacion.LimpiezaSalida)
+                    {
+                        <button class="btn" @onclick="() => FinalizarLimpieza(habitacion.HabitacionId)">Finalizar limpieza</button>
+                    }
+                </div>
+            }
+        </div>
+    }
+}
+
+@code {
+    private List<HabitacionCardDto> _habitaciones = new();
+    private bool _cargando = true;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAsync();
+        Notificador.CambioDetectado += OnCambioDetectado;
+    }
+
+    private async Task CargarAsync()
+    {
+        try
+        {
+            _error = null;
+            _habitaciones = await HabitacionService.ObtenerTodasAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo cargar el tablero de habitaciones: {ex.Message}";
+        }
+        finally
+        {
+            _cargando = false;
+        }
+    }
+
+    private async void OnCambioDetectado(string area)
+    {
+        if (area != "habitaciones")
+        {
+            return;
+        }
+
+        // El evento llega desde el circuito de OTRA pestaña/máquina — hay que
+        // volver a pedir InvokeAsync para actualizar la UI en el hilo correcto
+        // de ESTE circuito antes de repintar.
+        await InvokeAsync(async () =>
+        {
+            await CargarAsync();
+            StateHasChanged();
+        });
+    }
+
+    private async Task FinalizarLimpieza(int habitacionId)
+    {
+        await HabitacionService.FinalizarLimpiezaAsync(habitacionId);
+        await CargarAsync();
+        StateHasChanged();
+
+        // Avisa a TODOS los demás circuitos conectados (otras pestañas/máquinas)
+        // que el tablero de habitaciones cambió, para que se refresquen solos.
+        Notificador.Avisar("habitaciones");
+    }
+
+    private static string ColorParaClave(string clave) => clave switch
+    {
+        "ColorDisponible" => "#16A34A",
+        "ColorOcupada" => "#2563EB",
+        "ColorLimpieza" => "#D97706",
+        "ColorMantenimiento" => "#DC2626",
+        _ => "#6B7280"
+    };
+
+    public void Dispose()
+    {
+        Notificador.CambioDetectado -= OnCambioDetectado;
+    }
+}
