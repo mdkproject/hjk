@@ -7,28 +7,17 @@
 <PageTitle>Calendario</PageTitle>
 
 <div class="page">
-    <div class="page-header"><h1>Calendario</h1></div>
+    <div class="page-header">
+        <div>
+            <h1>Calendario</h1>
+            <p class="page-subtitle">Vista mensual de ocupación, reservas y disponibilidad</p>
+        </div>
+    </div>
 
     @if (_error is not null)
     {
         <div class="caja-error"><p>@_error</p></div>
     }
-
-    <div class="filtros-fila">
-        <button class="btn btn-secundario" @onclick="MesAnteriorAsync">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6" /></svg>
-        </button>
-        <strong style="min-width:130px; text-align:center;">@(_calendario?.NombreMesTexto ?? "")</strong>
-        <button class="btn btn-secundario" @onclick="MesSiguienteAsync">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6" /></svg>
-        </button>
-        <button class="btn btn-secundario" @onclick="IrAHoyAsync">Hoy</button>
-
-        <div class="search-input" style="min-width:240px;">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
-            <input placeholder="Buscar habitación o huésped…" value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
-        </div>
-    </div>
 
     @{
         var columnasPorPisoYTipo = ColumnasPorPisoYTipo();
@@ -36,38 +25,83 @@
         var contOcupada = columnasPorPisoYTipo.Count(c => c.EstadoActual == EstadoHabitacion.Ocupada);
         var contLimpieza = columnasPorPisoYTipo.Count(c => c.EstadoActual == EstadoHabitacion.LimpiezaSalida);
         var contMantenimiento = columnasPorPisoYTipo.Count(c => c.EstadoActual == EstadoHabitacion.Mantenimiento);
+        var totalFiltrado = columnasPorPisoYTipo.Count;
+        var pctOcupacion = totalFiltrado == 0 ? 0 : (int)Math.Round(100m * contOcupada / totalFiltrado);
+        var reservasDelMes = columnasPorPisoYTipo.Sum(c => AgruparCeldas(c.Celdas).Count(b => b.Estado == EstadoCeldaCalendario.Reservada));
     }
 
-    <div class="filtro-grupo">
-        <span class="filtro-grupo-label">Piso</span>
-        <div class="filtro-chips">
-            <button type="button" class="filtro-chip @(_filtroPiso == 0 ? "activo" : "")" @onclick="() => _filtroPiso = 0">Todos</button>
-            <button type="button" class="filtro-chip @(_filtroPiso == 1 ? "activo" : "")" @onclick="() => _filtroPiso = 1">Piso 1</button>
-            <button type="button" class="filtro-chip @(_filtroPiso == 2 ? "activo" : "")" @onclick="() => _filtroPiso = 2">Piso 2</button>
-            <button type="button" class="filtro-chip @(_filtroPiso == 3 ? "activo" : "")" @onclick="() => _filtroPiso = 3">Piso 3</button>
-            <button type="button" class="filtro-chip @(_filtroPiso == 4 ? "activo" : "")" @onclick="() => _filtroPiso = 4">Piso 4</button>
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-label">Ocupación hoy</div>
+            <div class="kpi-value">@pctOcupacion%</div>
+            <div style="color:var(--text-muted); font-size:0.78rem; margin-top:2px;">@contOcupada de @totalFiltrado habitaciones</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Disponibles hoy</div>
+            <div class="kpi-value" style="color:var(--ok);">@contDisponible</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Reservas confirmadas (mes)</div>
+            <div class="kpi-value" style="color:#7C3AED;">@reservasDelMes</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">En mantenimiento</div>
+            <div class="kpi-value" style="color:var(--danger);">@contMantenimiento</div>
         </div>
     </div>
 
-    <div class="filtro-grupo">
-        <span class="filtro-grupo-label">Tipo</span>
-        <div class="filtro-chips">
-            <button type="button" class="filtro-chip @(_filtroTipo == "" ? "activo" : "")" @onclick='() => _filtroTipo = ""'>Todos</button>
-            @foreach (var tipo in Enum.GetValues<TipoHabitacion>())
-            {
-                <button type="button" class="filtro-chip @(_filtroTipo == tipo.ToString() ? "activo" : "")" @onclick="() => _filtroTipo = tipo.ToString()">@tipo</button>
-            }
-        </div>
-    </div>
+    <div class="card" style="margin-bottom:20px;">
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <div class="cal-nav-group">
+                <button class="cal-nav-btn" @onclick="MesAnteriorAsync" title="Mes anterior">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+                </button>
+                <strong style="min-width:150px; text-align:center; font-size:0.95rem;">@(_calendario?.NombreMesTexto ?? "")</strong>
+                <button class="cal-nav-btn" @onclick="MesSiguienteAsync" title="Mes siguiente">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+                </button>
+            </div>
+            <button class="btn btn-secundario" @onclick="IrAHoyAsync">Hoy</button>
 
-    <div class="filtro-grupo" style="margin-bottom:18px;">
-        <span class="filtro-grupo-label">Estado</span>
-        <div class="filtro-chips">
-            <button type="button" class="filtro-chip @(_filtroEstado == "" ? "activo" : "")" @onclick='() => _filtroEstado = ""'>Todos</button>
-            <button type="button" class="filtro-chip filtro-chip-estado filtro-chip-disponible @(_filtroEstado == "Disponible" ? "activo" : "")" @onclick='() => _filtroEstado = "Disponible"'>Disponible (@contDisponible)</button>
-            <button type="button" class="filtro-chip filtro-chip-estado filtro-chip-ocupada @(_filtroEstado == "Ocupada" ? "activo" : "")" @onclick='() => _filtroEstado = "Ocupada"'>Ocupada (@contOcupada)</button>
-            <button type="button" class="filtro-chip filtro-chip-estado filtro-chip-limpieza @(_filtroEstado == "LimpiezaSalida" ? "activo" : "")" @onclick='() => _filtroEstado = "LimpiezaSalida"'>Limpieza (@contLimpieza)</button>
-            <button type="button" class="filtro-chip filtro-chip-estado filtro-chip-mantenimiento @(_filtroEstado == "Mantenimiento" ? "activo" : "")" @onclick='() => _filtroEstado = "Mantenimiento"'>Mantenimiento (@contMantenimiento)</button>
+            <div class="search-input" style="min-width:240px; margin-left:auto;">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+                <input placeholder="Buscar habitación o huésped…" value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+            </div>
+        </div>
+
+        <div style="height:1px; background:var(--border); margin:14px 0;"></div>
+
+        <div class="filtro-grupo">
+            <span class="filtro-grupo-label">Piso</span>
+            <div class="filtro-chips">
+                <button type="button" class="filtro-chip @(_filtroPiso == 0 ? "activo" : "")" @onclick="() => _filtroPiso = 0">Todos</button>
+                <button type="button" class="filtro-chip @(_filtroPiso == 1 ? "activo" : "")" @onclick="() => _filtroPiso = 1">Piso 1</button>
+                <button type="button" class="filtro-chip @(_filtroPiso == 2 ? "activo" : "")" @onclick="() => _filtroPiso = 2">Piso 2</button>
+                <button type="button" class="filtro-chip @(_filtroPiso == 3 ? "activo" : "")" @onclick="() => _filtroPiso = 3">Piso 3</button>
+                <button type="button" class="filtro-chip @(_filtroPiso == 4 ? "activo" : "")" @onclick="() => _filtroPiso = 4">Piso 4</button>
+            </div>
+        </div>
+
+        <div class="filtro-grupo">
+            <span class="filtro-grupo-label">Tipo</span>
+            <div class="filtro-chips">
+                <button type="button" class="filtro-chip @(_filtroTipo == "" ? "activo" : "")" @onclick='() => _filtroTipo = ""'>Todos</button>
+                @foreach (var tipo in Enum.GetValues<TipoHabitacion>())
+                {
+                    <button type="button" class="filtro-chip @(_filtroTipo == tipo.ToString() ? "activo" : "")" @onclick="() => _filtroTipo = tipo.ToString()">@tipo</button>
+                }
+            </div>
+        </div>
+
+        <div class="filtro-grupo" style="margin-bottom:0;">
+            <span class="filtro-grupo-label">Estado</span>
+            <div class="filtro-chips">
+                <button type="button" class="filtro-chip @(_filtroEstado == "" ? "activo" : "")" @onclick='() => _filtroEstado = ""'>Todos</button>
+                <button type="button" class="filtro-chip filtro-chip-estado filtro-chip-disponible @(_filtroEstado == "Disponible" ? "activo" : "")" @onclick='() => _filtroEstado = "Disponible"'>Disponible (@contDisponible)</button>
+                <button type="button" class="filtro-chip filtro-chip-estado filtro-chip-ocupada @(_filtroEstado == "Ocupada" ? "activo" : "")" @onclick='() => _filtroEstado = "Ocupada"'>Ocupada (@contOcupada)</button>
+                <button type="button" class="filtro-chip filtro-chip-estado filtro-chip-limpieza @(_filtroEstado == "LimpiezaSalida" ? "activo" : "")" @onclick='() => _filtroEstado = "LimpiezaSalida"'>Limpieza (@contLimpieza)</button>
+                <button type="button" class="filtro-chip filtro-chip-estado filtro-chip-mantenimiento @(_filtroEstado == "Mantenimiento" ? "activo" : "")" @onclick='() => _filtroEstado = "Mantenimiento"'>Mantenimiento (@contMantenimiento)</button>
+            </div>
         </div>
     </div>
 
@@ -84,7 +118,7 @@
         }
         else
         {
-            <div class="table-wrap" style="overflow-x:auto;">
+            <div class="table-wrap cal-table-wrap">
                 <table class="cal-tabla">
                     <thead>
                         <tr>
@@ -92,7 +126,7 @@
                             @foreach (var dia in _calendario.Dias)
                             {
                                 <th class="cal-dia-header @(EsFinDeSemana(dia) ? "cal-finde" : "") @(EsHoyDia(dia) ? "cal-dia-header-hoy" : "")">
-                                    <div style="font-size:0.6rem; text-transform:uppercase; opacity:0.8;">@EtiquetaDiaSemana(dia)</div>
+                                    <div style="font-size:0.6rem; text-transform:uppercase; opacity:0.85;">@(EsHoyDia(dia) ? "HOY" : EtiquetaDiaSemana(dia))</div>
                                     <div>@dia</div>
                                 </th>
                             }
@@ -101,41 +135,60 @@
                     <tbody>
                         @foreach (var grupoTipo in columnasVisibles.GroupBy(c => c.Tipo).OrderBy(g => (int)g.Key))
                         {
+                            var colapsado = _gruposColapsados.Contains(grupoTipo.Key);
                             <tr>
-                                <td colspan="@(_calendario.Dias.Count + 1)" class="cal-fila-grupo">Habitación @grupoTipo.Key</td>
+                                <td colspan="@(_calendario.Dias.Count + 1)" class="cal-fila-grupo" @onclick="() => ToggleGrupo(grupoTipo.Key)">
+                                    <div class="cal-fila-grupo-inner">
+                                        <span class="cal-fila-grupo-chevron @(colapsado ? "colapsado" : "")">
+                                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                                        </span>
+                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6" /><path d="M3 18v2M21 18v2" /><path d="M3 12V6a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v4" /></svg>
+                                        <span>Habitación @grupoTipo.Key</span>
+                                        <span class="cal-fila-grupo-count">@grupoTipo.Count() habitaciones</span>
+                                    </div>
+                                </td>
                             </tr>
-                            @foreach (var columna in grupoTipo.OrderBy(c => c.Numero))
+                            @if (!colapsado)
                             {
-                                <tr>
-                                    <td class="cal-col-sticky cal-col-habitacion">
-                                        <div class="cal-col-habitacion-numero">@columna.Numero</div>
-                                        <div class="cal-col-habitacion-tipo">@columna.EtiquetaTipo</div>
-                                        <div class="cal-col-habitacion-tarifa">@columna.TarifaNoche.ToString("C0")/noche</div>
-                                    </td>
-                                    @foreach (var bloque in AgruparCeldas(columna.Celdas))
-                                    {
-                                        @if (bloque.Estado == EstadoCeldaCalendario.Disponible)
+                                @foreach (var columna in grupoTipo.OrderBy(c => c.Numero))
+                                {
+                                    <tr>
+                                        <td class="cal-col-sticky cal-col-habitacion">
+                                            <div class="cal-col-habitacion-numero">@columna.Numero</div>
+                                            <div class="cal-col-habitacion-tipo">@columna.EtiquetaTipo</div>
+                                            <div class="cal-col-habitacion-tarifa">@columna.TarifaNoche.ToString("C0")/noche</div>
+                                        </td>
+                                        @foreach (var bloque in AgruparCeldas(columna.Celdas))
                                         {
-                                            <td colspan="@bloque.CantidadDias"
-                                                class="cal-celda-vacia @(bloque.ContieneHoy ? "cal-celda-hoy" : "")"
-                                                @onclick="() => AbrirBloque(columna, bloque)"></td>
+                                            @if (bloque.Estado == EstadoCeldaCalendario.Disponible)
+                                            {
+                                                <td colspan="@bloque.CantidadDias"
+                                                    class="cal-celda-vacia @(bloque.ContieneHoy ? "cal-celda-hoy" : "")"
+                                                    @onclick="() => AbrirBloque(columna, bloque)"></td>
+                                            }
+                                            else
+                                            {
+                                                <td colspan="@bloque.CantidadDias"
+                                                    class="cal-celda-bloque @(bloque.ContieneHoy ? "cal-celda-hoy" : "")"
+                                                    @onclick="() => AbrirBloque(columna, bloque)">
+                                                    <div class="cal-bloque @ClaseBloque(bloque.Estado)">
+                                                        @if (!string.IsNullOrWhiteSpace(bloque.NombreCliente) && bloque.CantidadDias > 1)
+                                                        {
+                                                            <span class="cal-bloque-avatar">@Iniciales(bloque.NombreCliente)</span>
+                                                        }
+                                                        <div class="cal-bloque-texto">
+                                                            <span class="cal-bloque-nombre">@(bloque.NombreCliente ?? EtiquetaEstadoBloque(bloque.Estado))</span>
+                                                            @if (bloque.CantidadDias > 1)
+                                                            {
+                                                                <span class="cal-bloque-noches">@bloque.CantidadDias noches</span>
+                                                            }
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            }
                                         }
-                                        else
-                                        {
-                                            <td colspan="@bloque.CantidadDias"
-                                                class="cal-celda-bloque @(bloque.ContieneHoy ? "cal-celda-hoy" : "")"
-                                                @onclick="() => AbrirBloque(columna, bloque)">
-                                                <div class="cal-bloque @ClaseBloque(bloque.Estado)">
-                                                    <span class="cal-bloque-nombre">@(bloque.NombreCliente ?? EtiquetaEstadoBloque(bloque.Estado))</span>
-                                                    @if (bloque.CantidadDias > 1)
-                                                    {
-                                                        <span class="cal-bloque-noches">@bloque.CantidadDias noches</span>
-                                                    }
-                                                </div>
-                                            </td>
-                                        }
-                                    }
-                                </tr>
+                                    </tr>
+                                }
                             }
                         }
                     </tbody>
@@ -192,6 +245,7 @@
     private string _filtroTipo = string.Empty;
     private string _filtroEstado = string.Empty;
     private string _textoBusqueda = string.Empty;
+    private readonly HashSet<TipoHabitacion> _gruposColapsados = new();
     private (ColumnaHabitacionCalendarioDto columna, BloqueCalendario bloque)? _bloqueSeleccionado;
 
     protected override async Task OnInitializedAsync() => await CargarAsync();
@@ -230,6 +284,14 @@
         _anio = DateTime.Today.Year;
         _mes = DateTime.Today.Month;
         await CargarAsync();
+    }
+
+    private void ToggleGrupo(TipoHabitacion tipo)
+    {
+        if (!_gruposColapsados.Add(tipo))
+        {
+            _gruposColapsados.Remove(tipo);
+        }
     }
 
     /// <summary>Columnas filtradas solo por piso+tipo — base para los contadores
@@ -310,6 +372,19 @@
     private bool EsHoyDia(int dia) => new DateTime(_anio, _mes, dia).Date == DateTime.Today;
 
     private string EtiquetaDiaSemana(int dia) => DiasSemana[(int)new DateTime(_anio, _mes, dia).DayOfWeek];
+
+    /// <summary>Iniciales para el avatar de la barra (ej. "Alberto Cárdenas" → "AC") —
+    /// solo decorativo, no es un dato del dominio.</summary>
+    private static string Iniciales(string nombre)
+    {
+        var partes = nombre.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return partes.Length switch
+        {
+            0 => "?",
+            1 => partes[0][..Math.Min(2, partes[0].Length)].ToUpperInvariant(),
+            _ => string.Concat(partes[0][0], partes[1][0]).ToUpperInvariant()
+        };
+    }
 
     private static string EtiquetaEstadoBloque(EstadoCeldaCalendario estado) => estado switch
     {
