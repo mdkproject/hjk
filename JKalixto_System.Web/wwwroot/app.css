@@ -287,6 +287,83 @@ h1, h2, h3, h4 {
     margin-bottom: 18px;
 }
 
+/* ---------- Filtros como botones de colores (chips) ----------
+   Reemplaza los <select> de piso/tipo/estado: mismo patrón que la app de
+   escritorio (botones con DataTrigger), donde el filtro activo se ve de un
+   vistazo sin tener que abrir una lista desplegable. Los chips de piso/tipo
+   son neutros (se iluminan con el acento al elegirlos); los chips de estado
+   llevan su propio color siempre —igual que el badge de estado de la
+   habitación— para reconocer Disponible/Ocupada/Limpieza/Mantenimiento sin
+   leer el texto. */
+
+.filtro-grupo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.filtro-grupo-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.filtro-chips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.filtro-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    border-radius: 999px;
+    padding: 6px 13px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1.3;
+    cursor: pointer;
+    transition: background var(--transition), color var(--transition), border-color var(--transition);
+    white-space: nowrap;
+}
+
+.filtro-chip:hover {
+    border-color: var(--border-strong);
+    color: var(--text-primary);
+}
+
+.filtro-chip.activo {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+.filtro-chip-estado {
+    border-color: transparent;
+}
+
+.filtro-chip-disponible { background: var(--ok-soft); color: var(--ok); }
+.filtro-chip-disponible.activo { background: var(--ok); color: white; }
+
+.filtro-chip-ocupada { background: var(--info-soft); color: var(--info); }
+.filtro-chip-ocupada.activo { background: var(--info); color: white; }
+
+.filtro-chip-limpieza { background: var(--warn-soft); color: var(--warn); }
+.filtro-chip-limpieza.activo { background: var(--warn); color: white; }
+
+.filtro-chip-mantenimiento { background: var(--danger-soft); color: var(--danger); }
+.filtro-chip-mantenimiento.activo { background: var(--danger); color: white; }
+
 /* ---------- Tabla ---------- */
 
 .table-wrap {

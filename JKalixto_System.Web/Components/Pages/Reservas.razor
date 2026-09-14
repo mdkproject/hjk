@@ -57,23 +57,48 @@
             }
         </div>
 
-        <div class="card" style="flex:1; min-width:280px; align-self:flex-start;">
+        <div class="card" style="flex:1; min-width:300px; align-self:flex-start;">
             <h3 style="margin-top:0;">Disponibilidad de hoy</h3>
-            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;">
-                <select class="filtro-select" @bind="_filtroPiso">
-                    <option value="0">Todos los pisos</option>
-                    <option value="1">Piso 1</option>
-                    <option value="2">Piso 2</option>
-                    <option value="3">Piso 3</option>
-                    <option value="4">Piso 4</option>
-                </select>
-                <select class="filtro-select" @bind="_filtroEstado">
-                    <option value="">Todos los estados</option>
-                    @foreach (var estado in Enum.GetValues<EstadoHabitacion>())
+
+            @{
+                var paraContar = HabitacionesPorPisoYTipo();
+                var contDisponible = paraContar.Count(h => h.Estado == EstadoHabitacion.Disponible);
+                var contOcupada = paraContar.Count(h => h.Estado == EstadoHabitacion.Ocupada);
+                var contLimpieza = paraContar.Count(h => h.Estado == EstadoHabitacion.LimpiezaSalida);
+                var contMantenimiento = paraContar.Count(h => h.Estado == EstadoHabitacion.Mantenimiento);
+            }
+
+            <div class="filtro-grupo">
+                <span class="filtro-grupo-label">Piso</span>
+                <div class="filtro-chips">
+                    <button type="button" class="filtro-chip @(_filtroPiso == 0 ? "activo" : "")" @onclick="() => _filtroPiso = 0">Todos</button>
+                    <button type="button" class="filtro-chip @(_filtroPiso == 1 ? "activo" : "")" @onclick="() => _filtroPiso = 1">Piso 1</button>
+                    <button type="button" class="filtro-chip @(_filtroPiso == 2 ? "activo" : "")" @onclick="() => _filtroPiso = 2">Piso 2</button>
+                    <button type="button" class="filtro-chip @(_filtroPiso == 3 ? "activo" : "")" @onclick="() => _filtroPiso = 3">Piso 3</button>
+                    <button type="button" class="filtro-chip @(_filtroPiso == 4 ? "activo" : "")" @onclick="() => _filtroPiso = 4">Piso 4</button>
+                </div>
+            </div>
+
+            <div class="filtro-grupo">
+                <span class="filtro-grupo-label">Tipo</span>
+                <div class="filtro-chips">
+                    <button type="button" class="filtro-chip @(_filtroTipo == "" ? "activo" : "")" @onclick='() => _filtroTipo = ""'>Todos</button>
+                    @foreach (var tipo in Enum.GetValues<TipoHabitacion>())
                     {
-                        <option value="@estado">@estado</option>
+                        <button type="button" class="filtro-chip @(_filtroTipo == tipo.ToString() ? "activo" : "")" @onclick="() => _filtroTipo = tipo.ToString()">@tipo</button>
                     }
-                </select>
+                </div>
+            </div>
+
+            <div class="filtro-grupo" style="margin-bottom:14px;">
+                <span class="filtro-grupo-label">Estado</span>
+                <div class="filtro-chips">
+                    <button type="button" class="filtro-chip @(_filtroEstado == "" ? "activo" : "")" @onclick='() => _filtroEstado = ""'>Todos</button>
+                    <button type="button" class="filtro-chip filtro-chip-estado filtro-chip-disponible @(_filtroEstado == "Disponible" ? "activo" : "")" @onclick='() => _filtroEstado = "Disponible"'>Disponible (@contDisponible)</button>
+                    <button type="button" class="filtro-chip filtro-chip-estado filtro-chip-ocupada @(_filtroEstado == "Ocupada" ? "activo" : "")" @onclick='() => _filtroEstado = "Ocupada"'>Ocupada (@contOcupada)</button>
+                    <button type="button" class="filtro-chip filtro-chip-estado filtro-chip-limpieza @(_filtroEstado == "LimpiezaSalida" ? "activo" : "")" @onclick='() => _filtroEstado = "LimpiezaSalida"'>Limpieza (@contLimpieza)</button>
+                    <button type="button" class="filtro-chip filtro-chip-estado filtro-chip-mantenimiento @(_filtroEstado == "Mantenimiento" ? "activo" : "")" @onclick='() => _filtroEstado = "Mantenimiento"'>Mantenimiento (@contMantenimiento)</button>
+                </div>
             </div>
 
             @if (_cargandoHabitaciones)
@@ -82,13 +107,25 @@
             }
             else
             {
-                @foreach (var h in HabitacionesFiltradas())
+                var habitacionesFiltradas = HabitacionesFiltradas().ToList();
+                @if (habitacionesFiltradas.Count == 0)
                 {
-                    <div style="border-bottom:1px solid var(--border); padding:7px 2px; display:flex; justify-content:space-between; font-size:0.9rem;">
-                        <span>Hab. @h.Numero</span>
-                        <span style="color:var(--text-secondary);">@h.EtiquetaEstado</span>
-                    </div>
+                    <p class="empty-state">No hay habitaciones con este filtro.</p>
                 }
+                <div class="card-grid" style="gap:8px;">
+                    @foreach (var h in habitacionesFiltradas)
+                    {
+                        <div class="card" style="width:132px; padding:10px 12px; border-left:3px solid @ColorParaEstadoHabitacion(h.Estado);">
+                            <div style="display:flex; justify-content:space-between; align-items:start;">
+                                <div>
+                                    <div style="font-size:0.72rem; color:var(--text-secondary);">@h.EtiquetaTipo</div>
+                                    <div style="font-size:0.78rem; margin-top:3px; color:var(--text-secondary);">@h.EtiquetaEstado</div>
+                                </div>
+                                <strong style="font-size:1.1rem;">@h.Numero</strong>
+                            </div>
+                        </div>
+                    }
+                </div>
             }
         </div>
     </div>
@@ -121,6 +158,7 @@
     private string? _error;
     private string _textoBusqueda = string.Empty;
     private int _filtroPiso;
+    private string _filtroTipo = string.Empty;
     private string _filtroEstado = string.Empty;
     private ReservaCardDto? _reservaSeleccionada;
 
@@ -173,13 +211,28 @@
             r.Celular.Contains(texto, StringComparison.OrdinalIgnoreCase));
     }
 
-    private IEnumerable<HabitacionCardDto> HabitacionesFiltradas()
+    /// <summary>Habitaciones filtradas solo por piso+tipo — sirve tanto para calcular
+    /// los contadores (que ignoran el filtro de estado, igual que en MAUI) como base
+    /// para HabitacionesFiltradas.</summary>
+    private List<HabitacionCardDto> HabitacionesPorPisoYTipo()
     {
         var query = _habitaciones.AsEnumerable();
         if (_filtroPiso != 0)
         {
             query = query.Where(h => h.Piso == _filtroPiso);
         }
+
+        if (!string.IsNullOrEmpty(_filtroTipo) && Enum.TryParse<TipoHabitacion>(_filtroTipo, out var tipo))
+        {
+            query = query.Where(h => h.Tipo == tipo);
+        }
+
+        return query.ToList();
+    }
+
+    private IEnumerable<HabitacionCardDto> HabitacionesFiltradas()
+    {
+        var query = HabitacionesPorPisoYTipo().AsEnumerable();
 
         if (!string.IsNullOrEmpty(_filtroEstado) && Enum.TryParse<EstadoHabitacion>(_filtroEstado, out var estado))
         {
@@ -188,6 +241,15 @@
 
         return query.OrderBy(h => h.Numero);
     }
+
+    private static string ColorParaEstadoHabitacion(EstadoHabitacion estado) => estado switch
+    {
+        EstadoHabitacion.Disponible => "#16A34A",
+        EstadoHabitacion.Ocupada => "#2563EB",
+        EstadoHabitacion.LimpiezaSalida => "#D97706",
+        EstadoHabitacion.Mantenimiento => "#DC2626",
+        _ => "#6B7280"
+    };
 
     private static string EtiquetaEstadoReserva(EstadoReserva estado) => estado switch
     {
