@@ -10,12 +10,17 @@
 
 <PageTitle>Registro Hotel</PageTitle>
 
-<div style="padding:1.5rem;">
-    <h1>Registro Hotel</h1>
+<div class="page">
+    <div class="page-header">
+        <div>
+            <h1>Registro Hotel</h1>
+            <p class="page-subtitle">Tablero de habitaciones en tiempo real</p>
+        </div>
+    </div>
 
     @if (_error is not null)
     {
-        <p style="color:#f28b82;">@_error</p>
+        <div class="caja-error"><p>@_error</p></div>
     }
 
     <!--
@@ -25,12 +30,13 @@
         compartida). El tablero se recalcula solo con cada tecla/selección,
         sin volver a pedir datos al servidor (ya los tenemos todos cargados).
     -->
-    <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px; align-items:center;">
-        <input class="filtro-texto" placeholder="Buscar por número, huésped, celular o documento…"
-               style="background:#292a2d; border:1px solid #3c4043; border-radius:6px; padding:8px; color:#e8eaed; min-width:280px;"
-               value="@_textoBusqueda" @oninput="OnBuscarInput" />
+    <div class="filtros-fila">
+        <div class="search-input" style="min-width:300px;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+            <input placeholder="Buscar por número, huésped, celular o documento…" value="@_textoBusqueda" @oninput="OnBuscarInput" />
+        </div>
 
-        <select style="background:#292a2d; border:1px solid #3c4043; border-radius:6px; padding:8px; color:#e8eaed;" @bind="_filtroPiso">
+        <select class="filtro-select" @bind="_filtroPiso">
             <option value="0">Todos los pisos</option>
             <option value="1">Piso 1</option>
             <option value="2">Piso 2</option>
@@ -38,7 +44,7 @@
             <option value="4">Piso 4</option>
         </select>
 
-        <select style="background:#292a2d; border:1px solid #3c4043; border-radius:6px; padding:8px; color:#e8eaed;" @bind="_filtroTipo">
+        <select class="filtro-select" @bind="_filtroTipo">
             <option value="">Todos los tipos</option>
             @foreach (var tipo in Enum.GetValues<TipoHabitacion>())
             {
@@ -46,7 +52,7 @@
             }
         </select>
 
-        <select style="background:#292a2d; border:1px solid #3c4043; border-radius:6px; padding:8px; color:#e8eaed;" @bind="_filtroEstado">
+        <select class="filtro-select" @bind="_filtroEstado">
             <option value="">Todos los estados</option>
             @foreach (var estado in Enum.GetValues<EstadoHabitacion>())
             {
@@ -57,41 +63,41 @@
 
     @if (_cargando)
     {
-        <p>Cargando habitaciones…</p>
+        <p class="empty-state">Cargando habitaciones…</p>
     }
     else
     {
         var filtradas = HabitacionesFiltradas().ToList();
         @if (filtradas.Count == 0)
         {
-            <p style="color:#9aa0a6;">Ninguna habitación coincide con el filtro/búsqueda actual.</p>
+            <p class="empty-state">Ninguna habitación coincide con el filtro/búsqueda actual.</p>
         }
         @foreach (var grupoPiso in filtradas.GroupBy(h => h.Piso).OrderBy(g => g.Key))
         {
-            <h3>Piso @grupoPiso.Key</h3>
-            <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:24px;">
+            <div class="section-title">Piso @grupoPiso.Key</div>
+            <div class="card-grid" style="margin-bottom:24px;">
                 @foreach (var habitacion in grupoPiso.OrderBy(h => h.Numero))
                 {
-                    <div style="border:2px solid @ColorParaClave(habitacion.ClaveColorEstado); border-radius:10px; padding:10px; width:220px; cursor:pointer;"
+                    <div class="card card-clickable" style="border-left:3px solid @ColorParaClave(habitacion.ClaveColorEstado); width:220px;"
                          @onclick="() => AbrirMenuHabitacion(habitacion)">
                         <div style="display:flex; justify-content:space-between; align-items:start;">
                             <div>
-                                <div style="color:#9aa0a6; font-size:0.85rem;">@habitacion.EtiquetaTipo</div>
-                                <span style="background:@ColorParaClave(habitacion.ClaveColorEstado); color:white; border-radius:6px; padding:2px 6px; font-size:0.85rem;">
+                                <div style="color:var(--text-secondary); font-size:0.82rem;">@habitacion.EtiquetaTipo</div>
+                                <span class="badge" style="background:@ColorParaClave(habitacion.ClaveColorEstado); color:white;">
                                     @habitacion.EtiquetaEstado
                                 </span>
                                 @if (habitacion.Estado == EstadoHabitacion.Ocupada)
                                 {
-                                    <div style="font-size:0.85rem; margin-top:4px;">@habitacion.NombreHuesped</div>
-                                    <div style="font-size:0.8rem; color:#9aa0a6;">@habitacion.TotalAcumulado?.ToString("C")</div>
+                                    <div style="font-size:0.85rem; margin-top:6px; font-weight:600;">@habitacion.NombreHuesped</div>
+                                    <div style="font-size:0.8rem; color:var(--text-secondary);">@habitacion.TotalAcumulado?.ToString("C")</div>
                                 }
                                 else if (habitacion.Estado == EstadoHabitacion.Mantenimiento && !string.IsNullOrWhiteSpace(habitacion.MotivoMantenimiento))
                                 {
-                                    <div style="font-size:0.8rem; color:#9aa0a6; margin-top:4px;">@habitacion.MotivoMantenimiento</div>
+                                    <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:6px;">@habitacion.MotivoMantenimiento</div>
                                 }
                                 else
                                 {
-                                    <div style="font-size:0.8rem; color:#9aa0a6; margin-top:4px;">@habitacion.TarifaTexto</div>
+                                    <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:6px;">@habitacion.TarifaTexto</div>
                                 }
                             </div>
                             <strong style="font-size:1.4rem;">@habitacion.Numero</strong>
@@ -121,9 +127,10 @@
 
         case VistaModal.PromptMantenimiento:
             <ModalBase Titulo="Motivo de mantenimiento" OnCerrar="CerrarModal">
-                <p style="color:#9aa0a6; font-size:0.85rem;">Es obligatorio indicar un motivo (regla anti-fraude: evita pasar una habitación a mantenimiento sin justificación).</p>
-                <textarea style="width:100%; min-height:70px; background:#292a2d; border:1px solid #3c4043; border-radius:6px; color:#e8eaed; padding:8px;"
-                          placeholder="Ej: Aire acondicionado no enfría" @bind="_motivoMantenimiento" @bind:event="oninput"></textarea>
+                <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:0;">Es obligatorio indicar un motivo (regla anti-fraude: evita pasar una habitación a mantenimiento sin justificación).</p>
+                <div class="form-grupo">
+                    <textarea style="min-height:70px;" placeholder="Ej: Aire acondicionado no enfría" @bind="_motivoMantenimiento" @bind:event="oninput"></textarea>
+                </div>
                 @if (_errorModal is not null)
                 {
                     <p class="mensaje-error">@_errorModal</p>
@@ -134,7 +141,7 @@
 
         case VistaModal.MenuOcupada:
             <ModalBase Titulo='@($"Hab. {h.Numero} — {h.NombreHuesped}")' OnCerrar="CerrarModal">
-                <p style="color:#9aa0a6;">Total acumulado: @h.TotalAcumulado?.ToString("C")</p>
+                <p style="color:var(--text-secondary); margin-top:0;">Total acumulado: @h.TotalAcumulado?.ToString("C")</p>
                 <button class="btn btn-secundario btn-bloque" @onclick="() => _vistaModal = VistaModal.DetalleHuesped">Ver detalles del huésped</button>
                 <button class="btn btn-bloque" @onclick="() => _vistaModal = VistaModal.ConfirmarCheckout">Hacer Check-out</button>
                 <button class="btn btn-secundario btn-bloque" @onclick="() => SolicitarLimpiezaIntermediaAsync(h)">Solicitar limpieza intermedia</button>

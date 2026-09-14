@@ -8,39 +8,48 @@
 
 <PageTitle>Libro de Reclamaciones</PageTitle>
 
-<div style="padding:1.5rem;">
-    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-        <h1>Libro de Reclamaciones</h1>
-        <button class="btn" @onclick='() => Navegacion.NavigateTo("/reclamos/nuevo")'>+ Nuevo Reclamo/Queja</button>
+<div class="page">
+    <div class="page-header">
+        <div>
+            <h1>Libro de Reclamaciones</h1>
+            <p class="page-subtitle">Registro de reclamos y quejas (Ley N° 29571 — INDECOPI)</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn" @onclick='() => Navegacion.NavigateTo("/reclamos/nuevo")'>
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                Nuevo Reclamo/Queja
+            </button>
+        </div>
     </div>
 
     @if (_error is not null)
     {
-        <p style="color:#f28b82;">@_error</p>
+        <div class="caja-error"><p>@_error</p></div>
     }
 
-    <input placeholder="Buscar por nombre, documento o bien contratado…"
-           style="background:#292a2d; border:1px solid #3c4043; border-radius:6px; padding:8px; color:#e8eaed; width:100%; max-width:400px; margin-bottom:16px;"
-           value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+    <div class="search-input" style="max-width:400px; margin-bottom:16px;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+        <input placeholder="Buscar por nombre, documento o bien contratado…" value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+    </div>
 
     @if (_cargando)
     {
-        <p>Cargando…</p>
+        <p class="empty-state">Cargando…</p>
     }
     else
     {
         @foreach (var r in Filtrados())
         {
-            <div style="border:1px solid #3c4043; border-radius:8px; padding:10px; margin-bottom:8px; cursor:pointer;" @onclick="() => _seleccionado = r">
-                <div style="display:flex; justify-content:space-between;">
-                    <span style="background:@(r.Tipo == TipoReclamoQueja.Reclamo ? "#DC2626" : "#D97706"); color:white; border-radius:6px; padding:2px 6px; font-size:0.8rem;">@r.EtiquetaTipo</span>
-                    <span style="color:@(r.Estado == EstadoReclamo.Respondido ? "#81c995" : "#f28b82");">@r.EtiquetaEstado</span>
+            <div class="card card-clickable" style="margin-bottom:8px;" @onclick="() => _seleccionado = r">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span class="badge" style="background:@(r.Tipo == TipoReclamoQueja.Reclamo ? "var(--danger)" : "var(--warn)"); color:white;">@r.EtiquetaTipo</span>
+                    <span class="badge" style="background:@(r.Estado == EstadoReclamo.Respondido ? "var(--ok-soft)" : "var(--danger-soft)"); color:@(r.Estado == EstadoReclamo.Respondido ? "var(--ok)" : "#fca5a5");">@r.EtiquetaEstado</span>
                 </div>
-                <strong>@r.NombreCompleto</strong>
-                <div style="color:#9aa0a6; font-size:0.85rem;">@r.BienContratado — Presentado: @r.Fecha.ToString("dd/MM/yyyy")</div>
+                <strong style="display:block; margin-top:6px;">@r.NombreCompleto</strong>
+                <div style="color:var(--text-secondary); font-size:0.85rem;">@r.BienContratado — Presentado: @r.Fecha.ToString("dd/MM/yyyy")</div>
                 @if (r.PlazoVencido && r.Estado != EstadoReclamo.Respondido)
                 {
-                    <div style="color:#f28b82; font-weight:600; font-size:0.85rem;">¡PLAZO VENCIDO!</div>
+                    <div style="color:var(--danger); font-weight:600; font-size:0.85rem; margin-top:2px;">¡PLAZO VENCIDO!</div>
                 }
             </div>
         }

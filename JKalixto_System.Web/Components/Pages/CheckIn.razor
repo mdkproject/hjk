@@ -9,123 +9,143 @@
 
 <PageTitle>Check-in</PageTitle>
 
-<div style="padding:1.5rem; max-width:640px;">
-    <p><a href="/recepcion">‹ Volver a Registro Hotel</a></p>
+<div class="page" style="max-width:640px;">
+    <a href="/recepcion" class="volver">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+        Volver a Registro Hotel
+    </a>
 
     @if (_habitacion is null)
     {
-        <p>Cargando…</p>
+        <p class="empty-state">Cargando…</p>
     }
     else
     {
-        <h1>Check-in — Habitación @_habitacion.Numero (@_habitacion.EtiquetaTipo, @_habitacion.TarifaTexto)</h1>
+        <div class="page-header">
+            <div>
+                <h1>Check-in — Habitación @_habitacion.Numero</h1>
+                <p class="page-subtitle">@_habitacion.EtiquetaTipo · @_habitacion.TarifaTexto</p>
+            </div>
+        </div>
 
         @if (_errores.Count > 0)
         {
-            <div style="background:#3c2020; border:1px solid #f28b82; border-radius:8px; padding:10px; margin-bottom:16px;">
+            <div class="caja-error">
                 @foreach (var error in _errores)
                 {
-                    <p class="mensaje-error" style="margin:2px 0;">@error</p>
+                    <p>@error</p>
                 }
             </div>
         }
 
-        <div class="form-grupo">
-            <label>Tipo de documento</label>
-            <select @bind="_tipoDocumento">
-                <option value="@TipoDocumento.DNI">DNI</option>
-                <option value="@TipoDocumento.Pasaporte">Pasaporte</option>
-                <option value="@TipoDocumento.CarneExtranjeria">Carné Ext.</option>
-            </select>
-        </div>
+        <div class="card" style="margin-bottom:16px;">
+            <div class="form-grid-2">
+                <div class="form-grupo">
+                    <label>Tipo de documento</label>
+                    <select @bind="_tipoDocumento">
+                        <option value="@TipoDocumento.DNI">DNI</option>
+                        <option value="@TipoDocumento.Pasaporte">Pasaporte</option>
+                        <option value="@TipoDocumento.CarneExtranjeria">Carné Ext.</option>
+                    </select>
+                </div>
 
-        <div class="form-grupo">
-            <label>Número de documento *</label>
-            <input type="text" @bind="_numeroDocumento" @bind:event="oninput" />
-        </div>
-
-        <div class="form-grupo">
-            <label>Nombre completo *</label>
-            <input type="text" @bind="_nombreCompleto" @bind:event="oninput" />
-        </div>
-
-        <div class="form-grupo">
-            <label>Celular *</label>
-            <input type="text" @bind="_celular" @bind:event="oninput" />
-        </div>
-
-        <div class="form-grupo">
-            <label>Fecha de nacimiento</label>
-            <input type="date" @bind="_fechaNacimiento" />
-        </div>
-
-        <div class="form-grupo">
-            <label>Sexo</label>
-            <select @bind="_sexo">
-                <option value="">— Sin especificar —</option>
-                <option value="@SexoHuesped.Masculino">Masculino</option>
-                <option value="@SexoHuesped.Femenino">Femenino</option>
-            </select>
-        </div>
-
-        <div class="form-grupo">
-            <label>Nacionalidad</label>
-            <input type="text" @bind="_nacionalidad" @bind:event="oninput" />
-        </div>
-
-        <div class="form-grupo">
-            <label>Lugar de residencia</label>
-            <input type="text" @bind="_lugarResidencia" @bind:event="oninput" />
-        </div>
-
-        <div class="form-grupo">
-            <label>Motivo de viaje</label>
-            <select @bind="_motivoViaje">
-                <option value="">— Sin especificar —</option>
-                <option value="@MotivoViaje.Turismo">Turismo</option>
-                <option value="@MotivoViaje.Negocios">Negocios</option>
-                <option value="@MotivoViaje.Otro">Otro</option>
-            </select>
-        </div>
-
-        <div class="form-grupo">
-            <label><input type="checkbox" @bind="_esFactura" /> Requiere factura (en vez de boleta)</label>
-        </div>
-
-        @if (_esFactura)
-        {
-            <div class="form-grupo">
-                <label>RUC (11 dígitos) *</label>
-                <input type="text" @bind="_ruc" @bind:event="oninput" maxlength="11" />
+                <div class="form-grupo">
+                    <label>Número de documento *</label>
+                    <input type="text" @bind="_numeroDocumento" @bind:event="oninput" />
+                </div>
             </div>
-            <div class="form-grupo">
-                <label>Razón social *</label>
-                <input type="text" @bind="_razonSocial" @bind:event="oninput" />
-            </div>
-            <div class="form-grupo">
-                <label>Correo de facturación *</label>
-                <input type="email" @bind="_correoFacturacion" @bind:event="oninput" />
-            </div>
-        }
 
-        <div class="form-grupo">
-            <label>Acompañantes</label>
-            @foreach (var acompanante in _acompanantes)
+            <div class="form-grupo">
+                <label>Nombre completo *</label>
+                <input type="text" @bind="_nombreCompleto" @bind:event="oninput" />
+            </div>
+
+            <div class="form-grid-2">
+                <div class="form-grupo">
+                    <label>Celular *</label>
+                    <input type="text" @bind="_celular" @bind:event="oninput" />
+                </div>
+
+                <div class="form-grupo">
+                    <label>Fecha de nacimiento</label>
+                    <input type="date" @bind="_fechaNacimiento" />
+                </div>
+            </div>
+
+            <div class="form-grid-2">
+                <div class="form-grupo">
+                    <label>Sexo</label>
+                    <select @bind="_sexo">
+                        <option value="">— Sin especificar —</option>
+                        <option value="@SexoHuesped.Masculino">Masculino</option>
+                        <option value="@SexoHuesped.Femenino">Femenino</option>
+                    </select>
+                </div>
+
+                <div class="form-grupo">
+                    <label>Nacionalidad</label>
+                    <input type="text" @bind="_nacionalidad" @bind:event="oninput" />
+                </div>
+            </div>
+
+            <div class="form-grid-2">
+                <div class="form-grupo">
+                    <label>Lugar de residencia</label>
+                    <input type="text" @bind="_lugarResidencia" @bind:event="oninput" />
+                </div>
+
+                <div class="form-grupo">
+                    <label>Motivo de viaje</label>
+                    <select @bind="_motivoViaje">
+                        <option value="">— Sin especificar —</option>
+                        <option value="@MotivoViaje.Turismo">Turismo</option>
+                        <option value="@MotivoViaje.Negocios">Negocios</option>
+                        <option value="@MotivoViaje.Otro">Otro</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-grupo">
+                <label style="display:flex; align-items:center; gap:6px; font-weight:400; color:var(--text-primary);"><input type="checkbox" @bind="_esFactura" /> Requiere factura (en vez de boleta)</label>
+            </div>
+
+            @if (_esFactura)
             {
-                <div style="display:flex; gap:6px; align-items:center;">
-                    <span>@acompanante</span>
-                    <button class="btn btn-secundario" style="padding:2px 8px;" @onclick="() => _acompanantes.Remove(acompanante)">Quitar</button>
+                <div class="form-grid-2">
+                    <div class="form-grupo">
+                        <label>RUC (11 dígitos) *</label>
+                        <input type="text" @bind="_ruc" @bind:event="oninput" maxlength="11" />
+                    </div>
+                    <div class="form-grupo">
+                        <label>Razón social *</label>
+                        <input type="text" @bind="_razonSocial" @bind:event="oninput" />
+                    </div>
+                </div>
+                <div class="form-grupo">
+                    <label>Correo de facturación *</label>
+                    <input type="email" @bind="_correoFacturacion" @bind:event="oninput" />
                 </div>
             }
-            <div style="display:flex; gap:6px;">
-                <input type="text" style="flex:1;" placeholder="Nombre del acompañante" @bind="_nuevoAcompanante" @bind:event="oninput" />
-                <button class="btn btn-secundario" @onclick="AgregarAcompanante">Agregar</button>
-            </div>
-        </div>
 
-        <div class="form-grupo">
-            <label>Observaciones</label>
-            <textarea style="min-height:60px;" @bind="_observaciones" @bind:event="oninput"></textarea>
+            <div class="form-grupo">
+                <label>Acompañantes</label>
+                @foreach (var acompanante in _acompanantes)
+                {
+                    <div style="display:flex; gap:6px; align-items:center;">
+                        <span>@acompanante</span>
+                        <button class="btn btn-secundario" style="padding:2px 8px;" @onclick="() => _acompanantes.Remove(acompanante)">Quitar</button>
+                    </div>
+                }
+                <div style="display:flex; gap:6px;">
+                    <input type="text" style="flex:1; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:9px 11px; color:var(--text-primary);" placeholder="Nombre del acompañante" @bind="_nuevoAcompanante" @bind:event="oninput" />
+                    <button class="btn btn-secundario" @onclick="AgregarAcompanante">Agregar</button>
+                </div>
+            </div>
+
+            <div class="form-grupo">
+                <label>Observaciones</label>
+                <textarea style="min-height:60px;" @bind="_observaciones" @bind:event="oninput"></textarea>
+            </div>
         </div>
 
         <button class="btn" @onclick="ConfirmarAsync">Confirmar Check-in</button>

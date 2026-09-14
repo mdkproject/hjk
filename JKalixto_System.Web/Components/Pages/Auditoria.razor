@@ -7,38 +7,39 @@
 
 <PageTitle>Ver Auditoría</PageTitle>
 
-<div style="padding:1.5rem;">
-    <h1>Ver Auditoría</h1>
+<div class="page">
+    <div class="page-header"><h1>Ver Auditoría</h1></div>
 
     @if (_sinPermiso)
     {
-        <p style="color:#f28b82;">No tenés permiso para ver el registro de auditoría (solo Gerencia/Desarrollador).</p>
+        <div class="caja-error"><p>No tenés permiso para ver el registro de auditoría (solo Gerencia/Desarrollador).</p></div>
     }
     else if (_error is not null)
     {
-        <p style="color:#f28b82;">@_error</p>
+        <div class="caja-error"><p>@_error</p></div>
     }
     else
     {
-        <input placeholder="Buscar por descripción, usuario o tipo de acción…"
-               style="background:#292a2d; border:1px solid #3c4043; border-radius:6px; padding:8px; color:#e8eaed; width:100%; max-width:400px; margin-bottom:16px;"
-               value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+        <div class="search-input" style="max-width:400px; margin-bottom:16px;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+            <input placeholder="Buscar por descripción, usuario o tipo de acción…" value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+        </div>
 
         @if (_cargando)
         {
-            <p>Cargando…</p>
+            <p class="empty-state">Cargando…</p>
         }
         else
         {
             @foreach (var log in Filtrados())
             {
-                <div style="border-bottom:1px solid #292a2d; padding:8px 0;">
-                    <div style="display:flex; justify-content:space-between;">
-                        <span style="background:#3c4043; border-radius:6px; padding:2px 6px; font-size:0.8rem;">@log.TipoAccion</span>
-                        <span style="color:#9aa0a6; font-size:0.85rem;">@log.Timestamp.ToString("dd/MM HH:mm")</span>
+                <div class="card" style="margin-bottom:8px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span class="badge" style="background:var(--surface-2); color:var(--text-secondary); border:1px solid var(--border);">@log.TipoAccion</span>
+                        <span style="color:var(--text-muted); font-size:0.82rem;">@log.Timestamp.ToString("dd/MM HH:mm")</span>
                     </div>
-                    <div>@log.Descripcion</div>
-                    <div style="color:#9aa0a6; font-size:0.85rem;">@log.UsuarioNombre</div>
+                    <div style="margin-top:6px;">@log.Descripcion</div>
+                    <div style="color:var(--text-secondary); font-size:0.85rem; margin-top:2px;">@log.UsuarioNombre</div>
                 </div>
             }
         }

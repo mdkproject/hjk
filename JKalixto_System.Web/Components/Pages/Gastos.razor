@@ -8,66 +8,79 @@
 
 <PageTitle>Gastos</PageTitle>
 
-<div style="padding:1.5rem;">
-    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-        <h1>Gastos</h1>
-        <button class="btn" @onclick='() => Navegacion.NavigateTo("/gastos/nuevo")'>+ Nuevo Movimiento</button>
+<div class="page">
+    <div class="page-header">
+        <div>
+            <h1>Gastos</h1>
+            <p class="page-subtitle">Movimientos de caja chica del día</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn" @onclick='() => Navegacion.NavigateTo("/gastos/nuevo")'>
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                Nuevo Movimiento
+            </button>
+        </div>
     </div>
 
     @if (_error is not null)
     {
-        <p style="color:#f28b82;">@_error</p>
+        <div class="caja-error"><p>@_error</p></div>
     }
 
     @if (_resumenCaja is not null)
     {
-        <div style="display:flex; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
-            <div style="border:1px solid #3c4043; border-radius:8px; padding:10px; flex:1; min-width:200px;">
-                Caja Chica Hotel — esperado (base @_resumenCaja.MontoBaseHotel.ToString("C")): <strong>@_resumenCaja.MontoEsperadoHotel.ToString("C")</strong>
+        <div class="kpi-grid" style="margin-bottom:18px;">
+            <div class="kpi-card">
+                <div class="kpi-label">Caja Chica Hotel (base @_resumenCaja.MontoBaseHotel.ToString("C"))</div>
+                <div class="kpi-value">@_resumenCaja.MontoEsperadoHotel.ToString("C")</div>
             </div>
-            <div style="border:1px solid #3c4043; border-radius:8px; padding:10px; flex:1; min-width:200px;">
-                Caja Chica Sauna — esperado (base @_resumenCaja.MontoBaseSauna.ToString("C")): <strong>@_resumenCaja.MontoEsperadoSauna.ToString("C")</strong>
+            <div class="kpi-card">
+                <div class="kpi-label">Caja Chica Sauna (base @_resumenCaja.MontoBaseSauna.ToString("C"))</div>
+                <div class="kpi-value">@_resumenCaja.MontoEsperadoSauna.ToString("C")</div>
             </div>
         </div>
     }
 
-    <input placeholder="Buscar por descripción o personal…"
-           style="background:#292a2d; border:1px solid #3c4043; border-radius:6px; padding:8px; color:#e8eaed; width:100%; max-width:400px; margin-bottom:16px;"
-           value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+    <div class="search-input" style="max-width:400px; margin-bottom:16px;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+        <input placeholder="Buscar por descripción o personal…" value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+    </div>
 
     @if (_cargando)
     {
-        <p>Cargando…</p>
+        <p class="empty-state">Cargando…</p>
     }
     else
     {
-        <table style="width:100%; border-collapse:collapse;">
-            <thead>
-                <tr style="text-align:left; border-bottom:1px solid #3c4043;">
-                    <th style="padding:6px;">Hora</th>
-                    <th style="padding:6px;">Tipo</th>
-                    <th style="padding:6px;">Descripción</th>
-                    <th style="padding:6px;">Cajero</th>
-                    <th style="padding:6px;">Método</th>
-                    <th style="padding:6px;">Monto</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var m in Filtrados())
-                {
-                    <tr style="border-bottom:1px solid #292a2d; cursor:pointer;" @onclick="() => ConfirmarEliminarAsync(m)">
-                        <td style="padding:6px;">@m.FechaHora.ToString("HH:mm")</td>
-                        <td style="padding:6px;">@m.OrigenCaja — @m.Categoria</td>
-                        <td style="padding:6px;">@m.Descripcion</td>
-                        <td style="padding:6px;">@m.UsuarioNombre</td>
-                        <td style="padding:6px;">@m.MetodoPago</td>
-                        <td style="padding:6px; color:@(m.Direccion == DireccionMovimiento.Ingreso ? "#81c995" : "#f28b82");">
-                            @(m.Direccion == DireccionMovimiento.Ingreso ? "+" : "-")@m.Monto.ToString("C")
-                        </td>
+        <div class="table-wrap">
+            <table class="table-pro">
+                <thead>
+                    <tr>
+                        <th>Hora</th>
+                        <th>Tipo</th>
+                        <th>Descripción</th>
+                        <th>Cajero</th>
+                        <th>Método</th>
+                        <th>Monto</th>
                     </tr>
-                }
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    @foreach (var m in Filtrados())
+                    {
+                        <tr class="row-clickable" @onclick="() => ConfirmarEliminarAsync(m)">
+                            <td>@m.FechaHora.ToString("HH:mm")</td>
+                            <td>@m.OrigenCaja — @m.Categoria</td>
+                            <td>@m.Descripcion</td>
+                            <td>@m.UsuarioNombre</td>
+                            <td>@m.MetodoPago</td>
+                            <td style="font-weight:600; color:@(m.Direccion == DireccionMovimiento.Ingreso ? "var(--ok)" : "var(--danger)");">
+                                @(m.Direccion == DireccionMovimiento.Ingreso ? "+" : "-")@m.Monto.ToString("C")
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
     }
 </div>
 

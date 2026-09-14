@@ -9,44 +9,54 @@
 
 <PageTitle>Registro Sauna</PageTitle>
 
-<div style="padding:1.5rem;">
-    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-        <h1>Registro Sauna</h1>
-        <button class="btn" @onclick='() => Navegacion.NavigateTo("/sauna/nuevo")'>+ Nuevo Cliente de Sauna</button>
+<div class="page">
+    <div class="page-header">
+        <div>
+            <h1>Registro Sauna</h1>
+            <p class="page-subtitle">Clientes activos en sesión de sauna</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn" @onclick='() => Navegacion.NavigateTo("/sauna/nuevo")'>
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                Nuevo Cliente de Sauna
+            </button>
+        </div>
     </div>
 
     @if (_error is not null)
     {
-        <p style="color:#f28b82;">@_error</p>
+        <div class="caja-error"><p>@_error</p></div>
     }
 
-    <input placeholder="Buscar por nombre o número de candado…"
-           style="background:#292a2d; border:1px solid #3c4043; border-radius:6px; padding:8px; color:#e8eaed; min-width:280px; margin-bottom:16px;"
-           value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+    <div class="filtros-fila">
+        <div class="search-input" style="min-width:300px;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+            <input placeholder="Buscar por nombre o número de candado…" value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+        </div>
+    </div>
 
     @if (_cargando)
     {
-        <p>Cargando…</p>
+        <p class="empty-state">Cargando…</p>
     }
     else
     {
         var filtrados = Filtrados().ToList();
         @if (filtrados.Count == 0)
         {
-            <p style="color:#9aa0a6;">No hay clientes de sauna activos que coincidan.</p>
+            <p class="empty-state">No hay clientes de sauna activos que coincidan.</p>
         }
-        <div style="display:flex; flex-wrap:wrap; gap:12px;">
+        <div class="card-grid">
             @foreach (var cliente in filtrados)
             {
-                <div style="border:2px solid #669df6; border-radius:10px; padding:10px; width:230px; cursor:pointer;"
-                     @onclick="() => AbrirMenu(cliente)">
+                <div class="card card-clickable" style="width:230px;" @onclick="() => AbrirMenu(cliente)">
                     <strong>@cliente.NombreCompleto</strong>
-                    <div style="color:#9aa0a6; font-size:0.85rem;">Candado @cliente.NumeroCandado • Sección @cliente.EtiquetaSeccion</div>
+                    <div style="color:var(--text-secondary); font-size:0.85rem; margin-top:2px;">Candado @cliente.NumeroCandado · Sección @cliente.EtiquetaSeccion</div>
                     @if (cliente.EsHuespedHotel)
                     {
-                        <div style="color:#81c995; font-size:0.8rem; margin-top:4px;">Huésped del Hotel (entrada gratis)</div>
+                        <span class="badge" style="background:var(--ok-soft); color:var(--ok); margin-top:6px;">Huésped del Hotel — entrada gratis</span>
                     }
-                    <div style="margin-top:6px; font-weight:600;">@cliente.TotalConsumo.ToString("C")</div>
+                    <div style="margin-top:8px; font-weight:700; font-size:1.05rem;">@cliente.TotalConsumo.ToString("C")</div>
                 </div>
             }
         </div>

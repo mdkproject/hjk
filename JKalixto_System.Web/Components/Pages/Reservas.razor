@@ -11,54 +11,63 @@
 
 <PageTitle>Reservas</PageTitle>
 
-<div style="padding:1.5rem;">
-    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-        <h1>Reservas</h1>
-        <button class="btn" @onclick='() => Navegacion.NavigateTo("/reservas/nuevo")'>+ Nueva Reserva</button>
+<div class="page">
+    <div class="page-header">
+        <div>
+            <h1>Reservas</h1>
+            <p class="page-subtitle">Próximas reservas y disponibilidad de hoy</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn" @onclick='() => Navegacion.NavigateTo("/reservas/nuevo")'>
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                Nueva Reserva
+            </button>
+        </div>
     </div>
 
     @if (_error is not null)
     {
-        <p style="color:#f28b82;">@_error</p>
+        <div class="caja-error"><p>@_error</p></div>
     }
 
     <div style="display:flex; gap:24px; flex-wrap:wrap;">
         <div style="flex:2; min-width:320px;">
-            <input placeholder="Buscar por huésped, habitación o celular…"
-                   style="background:#292a2d; border:1px solid #3c4043; border-radius:6px; padding:8px; color:#e8eaed; width:100%; margin-bottom:12px;"
-                   value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+            <div class="search-input" style="margin-bottom:14px;">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+                <input placeholder="Buscar por huésped, habitación o celular…" value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+            </div>
 
             @if (_cargandoReservas)
             {
-                <p>Cargando reservas…</p>
+                <p class="empty-state">Cargando reservas…</p>
             }
             else
             {
                 @foreach (var reserva in ReservasFiltradas())
                 {
-                    <div style="border:1px solid #3c4043; border-radius:8px; padding:10px; margin-bottom:8px; cursor:pointer;" @onclick="() => _reservaSeleccionada = reserva">
-                        <div style="display:flex; justify-content:space-between;">
+                    <div class="card card-clickable" style="margin-bottom:8px;" @onclick="() => _reservaSeleccionada = reserva">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
                             <strong>Hab. @reserva.NumeroHabitacion — @reserva.EtiquetaTipoHabitacion</strong>
-                            <span>@EtiquetaEstadoReserva(reserva.Estado)</span>
+                            <span class="badge" style="background:@ColorParaEstadoReserva(reserva.Estado); color:white;">@EtiquetaEstadoReserva(reserva.Estado)</span>
                         </div>
-                        <div>@reserva.NombreCliente — @reserva.Celular</div>
-                        <div style="color:#9aa0a6; font-size:0.85rem;">@reserva.FechaInicio.ToString("dd/MM/yyyy") → @reserva.FechaFin.ToString("dd/MM/yyyy")</div>
+                        <div style="margin-top:2px;">@reserva.NombreCliente — @reserva.Celular</div>
+                        <div style="color:var(--text-secondary); font-size:0.85rem;">@reserva.FechaInicio.ToString("dd/MM/yyyy") → @reserva.FechaFin.ToString("dd/MM/yyyy")</div>
                     </div>
                 }
             }
         </div>
 
-        <div style="flex:1; min-width:280px;">
-            <h3>Disponibilidad de hoy</h3>
-            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;">
-                <select style="background:#292a2d; border:1px solid #3c4043; border-radius:6px; padding:6px; color:#e8eaed;" @bind="_filtroPiso">
+        <div class="card" style="flex:1; min-width:280px; align-self:flex-start;">
+            <h3 style="margin-top:0;">Disponibilidad de hoy</h3>
+            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;">
+                <select class="filtro-select" @bind="_filtroPiso">
                     <option value="0">Todos los pisos</option>
                     <option value="1">Piso 1</option>
                     <option value="2">Piso 2</option>
                     <option value="3">Piso 3</option>
                     <option value="4">Piso 4</option>
                 </select>
-                <select style="background:#292a2d; border:1px solid #3c4043; border-radius:6px; padding:6px; color:#e8eaed;" @bind="_filtroEstado">
+                <select class="filtro-select" @bind="_filtroEstado">
                     <option value="">Todos los estados</option>
                     @foreach (var estado in Enum.GetValues<EstadoHabitacion>())
                     {
@@ -69,15 +78,15 @@
 
             @if (_cargandoHabitaciones)
             {
-                <p>Cargando…</p>
+                <p class="empty-state">Cargando…</p>
             }
             else
             {
                 @foreach (var h in HabitacionesFiltradas())
                 {
-                    <div style="border:1px solid #3c4043; border-radius:6px; padding:6px 8px; margin-bottom:6px; display:flex; justify-content:space-between;">
+                    <div style="border-bottom:1px solid var(--border); padding:7px 2px; display:flex; justify-content:space-between; font-size:0.9rem;">
                         <span>Hab. @h.Numero</span>
-                        <span>@h.EtiquetaEstado</span>
+                        <span style="color:var(--text-secondary);">@h.EtiquetaEstado</span>
                     </div>
                 }
             }
@@ -186,6 +195,14 @@
         EstadoReserva.CheckInRealizado => "Check-in realizado",
         EstadoReserva.Cancelada => "Cancelada",
         _ => estado.ToString()
+    };
+
+    private static string ColorParaEstadoReserva(EstadoReserva estado) => estado switch
+    {
+        EstadoReserva.Confirmada => "#7C3AED",
+        EstadoReserva.CheckInRealizado => "#2563EB",
+        EstadoReserva.Cancelada => "#6B7280",
+        _ => "#6B7280"
     };
 
     private async Task ConvertirEnCheckInAsync(ReservaCardDto r)

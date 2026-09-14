@@ -38,58 +38,316 @@ h1:focus {
 }
 
 /* ============================================================
-   Estilos compartidos de diálogo/formulario — pensados para reutilizarse en
-   TODAS las páginas de la versión web (no solo Registro Hotel): cualquier
-   pantalla que necesite confirmar una acción o pedir datos usa estas mismas
-   clases, en vez de repetir estilos sueltos página por página.
+   SISTEMA DE DISEÑO — JKalixto Web
+   Un único lugar con los "tokens" (colores, tipografía, espaciado, sombras)
+   y los componentes reutilizables (tarjeta, tabla, badge, botón, modal,
+   buscador, KPI) que usan TODAS las páginas. La idea: cambiar un color acá
+   cambia toda la app, y ninguna página vuelve a inventar su propio estilo
+   suelto.
    ============================================================ */
 
+:root {
+    /* Superficies — de más oscura (fondo) a más clara (tarjeta elevada) */
+    --bg: #0e0f13;
+    --bg-sidebar: #131519;
+    --surface: #181a20;
+    --surface-hover: #1e2129;
+    --surface-2: #21242c;
+    --border: #262a33;
+    --border-strong: #343945;
+
+    /* Texto */
+    --text-primary: #f3f4f7;
+    --text-secondary: #9aa2b1;
+    --text-muted: #6b7280;
+
+    /* Acento único de marca (acciones, foco, enlaces, estado activo) —
+       separado a propósito de los colores de estado de habitación
+       (Disponible/Ocupada/Limpieza/Mantenimiento), que son información,
+       no decoración. */
+    --accent: #6366f1;
+    --accent-hover: #7b7ef2;
+    --accent-soft: rgba(99, 102, 241, .14);
+    --accent-border: rgba(99, 102, 241, .4);
+
+    --ok: #22c55e;
+    --ok-soft: rgba(34, 197, 94, .14);
+    --info: #3b82f6;
+    --info-soft: rgba(59, 130, 246, .14);
+    --warn: #f59e0b;
+    --warn-soft: rgba(245, 158, 11, .14);
+    --danger: #ef4444;
+    --danger-soft: rgba(239, 68, 68, .14);
+    --violet: #a855f7;
+    --violet-soft: rgba(168, 85, 247, .14);
+
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, .35);
+    --shadow-md: 0 6px 20px rgba(0, 0, 0, .35);
+    --shadow-lg: 0 16px 40px rgba(0, 0, 0, .45);
+    --transition: 120ms ease;
+}
+
+* {
+    box-sizing: border-box;
+}
+
 body {
-    font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-    background: #121212;
-    color: #e8eaed;
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text-primary);
     margin: 0;
+    -webkit-font-smoothing: antialiased;
 }
 
 a {
-    color: #669df6;
+    color: var(--accent);
+    text-decoration: none;
 }
 
-.modal-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.55);
+a:hover {
+    color: var(--accent-hover);
+    text-decoration: underline;
+}
+
+h1, h2, h3, h4 {
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0 0 4px;
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 6px;
+}
+
+/* ---------- Estructura de página ---------- */
+
+.page {
+    padding: 28px 32px 48px;
+    max-width: 1400px;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 22px;
+}
+
+.page-header h1 {
+    font-size: 1.5rem;
+}
+
+.page-subtitle {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin: 2px 0 0;
+}
+
+.page-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.volver {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-bottom: 14px;
+}
+
+.volver:hover {
+    color: var(--text-primary);
+}
+
+.section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 28px 0 12px;
+    color: var(--text-primary);
+}
+
+/* ---------- Tarjetas ---------- */
+
+.card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+}
+
+.card-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.card-clickable {
+    cursor: pointer;
+    transition: border-color var(--transition), transform var(--transition), background var(--transition);
+}
+
+.card-clickable:hover {
+    border-color: var(--border-strong);
+    background: var(--surface-hover);
+}
+
+.card-clickable:active {
+    transform: scale(0.99);
+}
+
+.empty-state {
+    color: var(--text-muted);
+    padding: 24px 4px;
+    font-size: 0.9rem;
+}
+
+/* ---------- Badges (estado) ---------- */
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+
+/* ---------- Buscador ---------- */
+
+.search-input {
     display: flex;
     align-items: center;
-    justify-content: center;
-    z-index: 1000;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 8px 12px;
+    color: var(--text-primary);
+    transition: border-color var(--transition);
 }
 
-.modal-card {
-    background: #202124;
-    border: 1px solid #3c4043;
-    border-radius: 10px;
-    padding: 20px;
+.search-input:focus-within {
+    border-color: var(--accent-border);
+}
+
+.search-input svg {
+    flex-shrink: 0;
+    color: var(--text-muted);
+}
+
+.search-input input {
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    outline: none;
+    font-size: 0.9rem;
     width: 100%;
-    max-width: 420px;
-    max-height: 85vh;
-    overflow-y: auto;
+    min-width: 0;
 }
 
-.modal-card h3 {
-    margin-top: 0;
+.search-input input::placeholder {
+    color: var(--text-muted);
 }
+
+.filtro-select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 8px 10px;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+}
+
+.filtros-fila {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 18px;
+}
+
+/* ---------- Tabla ---------- */
+
+.table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    overflow-x: auto;
+}
+
+.table-pro {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+}
+
+.table-pro thead th {
+    text-align: left;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    font-weight: 600;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+.table-pro tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+}
+
+.table-pro tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.table-pro tbody tr.row-clickable {
+    cursor: pointer;
+    transition: background var(--transition);
+}
+
+.table-pro tbody tr.row-clickable:hover {
+    background: var(--surface-hover);
+}
+
+/* ---------- Formularios ---------- */
 
 .form-grupo {
-    margin-bottom: 12px;
+    margin-bottom: 14px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 5px;
 }
 
 .form-grupo label {
-    font-size: 0.85rem;
-    color: #9aa0a6;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--text-secondary);
 }
 
 .form-grupo input[type=text],
@@ -97,50 +355,329 @@ a {
 .form-grupo input[type=email],
 .form-grupo select,
 .form-grupo textarea {
-    background: #292a2d;
-    border: 1px solid #3c4043;
-    border-radius: 6px;
-    padding: 8px;
-    color: #e8eaed;
-    font-size: 1rem;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 9px 11px;
+    color: var(--text-primary);
+    font-size: 0.92rem;
+    font-family: inherit;
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.form-grupo input[type=text]:focus,
+.form-grupo input[type=date]:focus,
+.form-grupo input[type=email]:focus,
+.form-grupo select:focus,
+.form-grupo textarea:focus {
+    outline: none;
+    border-color: var(--accent-border);
+    box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .form-grupo .campo-invalido {
-    border-color: #f28b82 !important;
+    border-color: var(--danger) !important;
+}
+
+.form-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 14px;
+}
+
+@media (max-width: 640px) {
+    .form-grid-2 {
+        grid-template-columns: 1fr;
+    }
 }
 
 .mensaje-error {
-    color: #f28b82;
+    color: #fca5a5;
     font-size: 0.85rem;
-    margin: -6px 0 12px;
+    margin: -8px 0 12px;
 }
 
+.caja-error {
+    background: var(--danger-soft);
+    border: 1px solid rgba(239, 68, 68, .35);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    margin-bottom: 16px;
+}
+
+.caja-error p {
+    margin: 2px 0;
+    color: #fca5a5;
+    font-size: 0.88rem;
+}
+
+/* ---------- Botones ---------- */
+
 .btn {
-    border: none;
-    border-radius: 8px;
-    padding: 10px 16px;
-    font-size: 0.95rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    padding: 9px 16px;
+    font-size: 0.88rem;
     font-weight: 600;
     cursor: pointer;
     color: white;
-    background: #669df6;
+    background: var(--accent);
     margin: 4px 4px 4px 0;
+    transition: background var(--transition), border-color var(--transition), opacity var(--transition), transform var(--transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .btn:hover {
-    opacity: 0.9;
+    background: var(--accent-hover);
+}
+
+.btn:active {
+    transform: scale(0.98);
+}
+
+.btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
 }
 
 .btn-secundario {
-    background: #3c4043;
+    background: transparent;
+    border-color: var(--border-strong);
+    color: var(--text-primary);
+}
+
+.btn-secundario:hover {
+    background: var(--surface-hover);
 }
 
 .btn-peligro {
-    background: #dc2626;
+    background: var(--danger);
+}
+
+.btn-peligro:hover {
+    background: #f16464;
 }
 
 .btn-bloque {
-    display: block;
+    display: flex;
     width: 100%;
-    text-align: center;
+    justify-content: center;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+/* ---------- Modal ---------- */
+
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(6, 7, 10, 0.65);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+    animation: fade-in 140ms ease;
+}
+
+.modal-card {
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    padding: 20px 22px;
+    width: 100%;
+    max-width: 440px;
+    max-height: 85vh;
+    overflow-y: auto;
+    animation: modal-in 160ms ease;
+}
+
+.modal-card h3 {
+    margin: 0;
+    padding-right: 12px;
+    font-size: 1.1rem;
+}
+
+.modal-close {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 2px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    flex-shrink: 0;
+    transition: background var(--transition), color var(--transition);
+}
+
+.modal-close:hover {
+    background: var(--surface-hover);
+    color: var(--text-primary);
+}
+
+.modal-card > div:first-child {
+    margin-bottom: 14px;
+}
+
+@keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes modal-in {
+    from { opacity: 0; transform: translateY(6px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ---------- KPIs (Reportes) ---------- */
+
+.kpi-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 14px 18px;
+    min-width: 168px;
+    flex: 1;
+}
+
+.kpi-label {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 6px;
+}
+
+.kpi-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+/* ---------- Layout general (sidebar + contenido) ----------
+   Vive acá (global) y no en MainLayout.razor.css porque el CSS aislado de
+   Blazor no siempre llega al <a> que renderiza el componente NavLink — con
+   estas reglas en el CSS global no hay dudas de que aplican. */
+
+.app-shell {
+    display: flex;
+    min-height: 100vh;
+}
+
+.app-sidebar {
+    width: 246px;
+    flex-shrink: 0;
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+}
+
+.app-sidebar-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 22px 22px 18px;
+    border-bottom: 1px solid var(--border);
+}
+
+.app-logo {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: var(--accent-soft);
+    color: var(--accent-hover);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.app-sidebar-brand {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.app-sidebar-subtitle {
+    font-size: 10.5px;
+    color: var(--text-muted);
+    margin-top: 1px;
+}
+
+.app-sidebar-links {
+    display: flex;
+    flex-direction: column;
+    padding: 14px 12px;
+    gap: 1px;
+}
+
+.app-nav-group-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    padding: 14px 10px 6px;
+}
+
+.app-nav-group-label:first-child {
+    padding-top: 4px;
+}
+
+.app-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 9px 10px;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary) !important;
+    text-decoration: none;
+    font-size: 0.86rem;
+    transition: background var(--transition), color var(--transition);
+}
+
+.app-nav-link svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+.app-nav-link:hover {
+    background: var(--surface-hover);
+    color: var(--text-primary) !important;
+    text-decoration: none;
+}
+
+.app-nav-link.active {
+    background: var(--accent-soft);
+    color: var(--text-primary) !important;
+    font-weight: 600;
+}
+
+.app-nav-link.active svg {
+    color: var(--accent-hover);
+}
+
+.app-content {
+    flex: 1;
+    min-width: 0;
 }

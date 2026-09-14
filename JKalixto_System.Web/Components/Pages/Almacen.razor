@@ -6,45 +6,58 @@
 
 <PageTitle>Almacén</PageTitle>
 
-<div style="padding:1.5rem;">
-    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-        <h1>Almacén</h1>
-        <button class="btn" @onclick='() => Navegacion.NavigateTo("/almacen/nuevo")'>+ Registrar Movimiento</button>
+<div class="page">
+    <div class="page-header">
+        <div>
+            <h1>Almacén</h1>
+            <p class="page-subtitle">Stock de insumos de hotel y sauna</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn" @onclick='() => Navegacion.NavigateTo("/almacen/nuevo")'>
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                Registrar Movimiento
+            </button>
+        </div>
     </div>
 
     @if (_error is not null)
     {
-        <p style="color:#f28b82;">@_error</p>
+        <div class="caja-error"><p>@_error</p></div>
     }
 
-    <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
-        <select style="background:#292a2d; border:1px solid #3c4043; border-radius:6px; padding:8px; color:#e8eaed;" @bind="_filtroCategoria">
+    <div class="filtros-fila">
+        <select class="filtro-select" @bind="_filtroCategoria">
             <option value="">Todas las categorías</option>
             <option value="@CategoriaInsumo.HotelHabitaciones">Hotel — Habitaciones</option>
             <option value="@CategoriaInsumo.HotelCocina">Hotel — Cocina</option>
             <option value="@CategoriaInsumo.Sauna">Sauna</option>
         </select>
-        <input placeholder="Buscar insumo…"
-               style="background:#292a2d; border:1px solid #3c4043; border-radius:6px; padding:8px; color:#e8eaed; min-width:220px;"
-               value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+        <div class="search-input" style="min-width:240px;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+            <input placeholder="Buscar insumo…" value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+        </div>
     </div>
 
     @if (_cargando)
     {
-        <p>Cargando…</p>
+        <p class="empty-state">Cargando…</p>
     }
     else
     {
-        <div style="display:flex; flex-wrap:wrap; gap:12px;">
+        <div class="card-grid">
             @foreach (var insumo in Filtrados())
             {
-                <div style="border:1px solid @(insumo.StockBajo ? "#f28b82" : "#3c4043"); border-radius:8px; padding:10px; width:200px;">
+                <div class="card" style="width:200px; border-color:@(insumo.StockBajo ? "var(--danger)" : "var(--border)");">
                     <strong>@insumo.Nombre</strong>
-                    <div style="color:#9aa0a6; font-size:0.85rem;">@insumo.EtiquetaCategoria</div>
-                    <div style="margin-top:6px; color:@(insumo.StockBajo ? "#f28b82" : "#81c995");">
+                    <div style="color:var(--text-secondary); font-size:0.85rem;">@insumo.EtiquetaCategoria</div>
+                    @if (insumo.StockBajo)
+                    {
+                        <span class="badge" style="background:var(--danger-soft); color:#fca5a5; margin-top:6px;">Stock bajo</span>
+                    }
+                    <div style="margin-top:6px; font-weight:600; color:@(insumo.StockBajo ? "var(--danger)" : "var(--text-primary)");">
                         Stock: @insumo.StockActual @insumo.UnidadMedida
                     </div>
-                    <div style="color:#9aa0a6; font-size:0.8rem;">Mínimo: @insumo.StockMinimo @insumo.UnidadMedida</div>
+                    <div style="color:var(--text-secondary); font-size:0.8rem;">Mínimo: @insumo.StockMinimo @insumo.UnidadMedida</div>
                 </div>
             }
         </div>

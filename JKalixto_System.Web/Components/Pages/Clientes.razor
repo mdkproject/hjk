@@ -11,59 +11,67 @@
 
 <PageTitle>Clientes</PageTitle>
 
-<div style="padding:1.5rem;">
-    <h1>Clientes</h1>
+<div class="page">
+    <div class="page-header">
+        <div>
+            <h1>Clientes</h1>
+            <p class="page-subtitle">Vista unificada de huéspedes del hotel y clientes de sauna</p>
+        </div>
+    </div>
 
     @if (_error is not null)
     {
-        <p style="color:#f28b82;">@_error</p>
+        <div class="caja-error"><p>@_error</p></div>
     }
 
-    <div style="display:flex; gap:8px; margin-bottom:12px;">
+    <div style="display:flex; gap:8px; margin-bottom:14px;">
         <button class="btn @(_origen == "Hotel" ? "" : "btn-secundario")" @onclick="CambiarOrigenHotelAsync">Hotel</button>
         <button class="btn @(_origen == "Sauna" ? "" : "btn-secundario")" @onclick="CambiarOrigenSaunaAsync">Sauna</button>
     </div>
 
-    <input placeholder="Buscar por nombre o ubicación…"
-           style="background:#292a2d; border:1px solid #3c4043; border-radius:6px; padding:8px; color:#e8eaed; width:100%; max-width:400px; margin-bottom:16px;"
-           value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+    <div class="search-input" style="max-width:400px; margin-bottom:16px;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+        <input placeholder="Buscar por nombre o ubicación…" value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+    </div>
 
     @if (_cargando)
     {
-        <p>Cargando…</p>
+        <p class="empty-state">Cargando…</p>
     }
     else
     {
-        <table style="width:100%; border-collapse:collapse;">
-            <thead>
-                <tr style="text-align:left; border-bottom:1px solid #3c4043;">
-                    <th style="padding:6px;">Hora</th>
-                    <th style="padding:6px;">Cliente</th>
-                    <th style="padding:6px;">Ubicación</th>
-                    <th style="padding:6px;">Estado</th>
-                    <th style="padding:6px;">Total</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var c in Filtrados())
-                {
-                    <tr style="border-bottom:1px solid #292a2d; cursor:pointer;" @onclick="() => SeleccionarAsync(c)">
-                        <td style="padding:6px;">@c.HoraRegistro.ToString("HH:mm")</td>
-                        <td style="padding:6px;">@c.NombreCliente</td>
-                        <td style="padding:6px;">@c.UbicacionTexto</td>
-                        <td style="padding:6px;">@c.EstadoTexto</td>
-                        <td style="padding:6px;">@c.Total.ToString("C")</td>
+        <div class="table-wrap">
+            <table class="table-pro">
+                <thead>
+                    <tr>
+                        <th>Hora</th>
+                        <th>Cliente</th>
+                        <th>Ubicación</th>
+                        <th>Estado</th>
+                        <th>Total</th>
                     </tr>
-                }
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    @foreach (var c in Filtrados())
+                    {
+                        <tr class="row-clickable" @onclick="() => SeleccionarAsync(c)">
+                            <td>@c.HoraRegistro.ToString("HH:mm")</td>
+                            <td style="font-weight:600;">@c.NombreCliente</td>
+                            <td>@c.UbicacionTexto</td>
+                            <td>@c.EstadoTexto</td>
+                            <td>@c.Total.ToString("C")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
     }
 </div>
 
 @if (_detalle is { } d)
 {
     <ModalBase Titulo="@d.NombreCliente" OnCerrar="() => _detalle = null">
-        <p>@d.EtiquetaTipoDocumento: @d.NumeroDocumento</p>
+        <p style="color:var(--text-secondary); margin-top:0;">@d.EtiquetaTipoDocumento: @d.NumeroDocumento</p>
         <p>Celular: @d.Celular</p>
         <p>Ubicación: @d.UbicacionTexto</p>
         <p>Ingreso: @d.HoraRegistro.ToString("dd/MM/yyyy HH:mm")</p>
@@ -72,7 +80,7 @@
         <h4>Consumos</h4>
         @if (d.Consumos.Count == 0)
         {
-            <p style="color:#9aa0a6;">Sin consumos registrados.</p>
+            <p class="empty-state" style="padding:4px 0;">Sin consumos registrados.</p>
         }
         @foreach (var item in d.Consumos)
         {

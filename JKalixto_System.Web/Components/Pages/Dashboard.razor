@@ -4,73 +4,96 @@
 
 <PageTitle>Reportes</PageTitle>
 
-<div style="padding:1.5rem;">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h1>Reportes</h1>
-        <button class="btn btn-secundario" @onclick="CargarAsync">↻ Refrescar</button>
+<div class="page">
+    <div class="page-header">
+        <div>
+            <h1>Reportes</h1>
+            <p class="page-subtitle">Panel gerencial — datos de hoy</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-secundario" @onclick="CargarAsync">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.3M21 4v5h-5" /></svg>
+                Refrescar
+            </button>
+        </div>
     </div>
 
     @if (_error is not null)
     {
-        <p style="color:#f28b82;">@_error</p>
+        <div class="caja-error"><p>@_error</p></div>
     }
 
     @if (_resumen is null)
     {
-        <p>Cargando…</p>
+        <p class="empty-state">Cargando…</p>
     }
     else
     {
         @if (_resumen.AlertasActivas > 0)
         {
-            <div style="background:#3c2020; border:1px solid #f28b82; border-radius:8px; padding:10px; margin-bottom:16px;">
-                Hay @_resumen.AlertasActivas habitación(es) en mantenimiento hace más de 4 horas — revisar.
+            <div class="caja-error">
+                <p>Hay @_resumen.AlertasActivas habitación(es) en mantenimiento hace más de 4 horas — revisar.</p>
             </div>
         }
 
-        <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:20px;">
-            <div class="kpi">Ingresos Hotel<br /><strong>@_resumen.IngresosHotelHoy.ToString("C")</strong></div>
-            <div class="kpi">Ingresos Sauna<br /><strong>@_resumen.IngresosSaunaHoy.ToString("C")</strong></div>
-            <div class="kpi">Total Hoy<br /><strong>@_resumen.IngresosTotalHoy.ToString("C")</strong></div>
-            <div class="kpi">Ocupación<br /><strong>@_resumen.TasaOcupacion.ToString("0.0")%</strong></div>
-            <div class="kpi">Tarifa Promedio (ADR)<br /><strong>@_resumen.TarifaPromedioDiaria.ToString("C")</strong></div>
-            <div class="kpi">RevPAR<br /><strong>@_resumen.IngresoPorHabitacionDisponible.ToString("C")</strong></div>
-            <div class="kpi">Clientes Sauna Hoy<br /><strong>@_resumen.ClientesSaunaHoy</strong></div>
-        </div>
-
-        <h3>Estado de Habitaciones</h3>
-        <div style="display:flex; height:22px; border-radius:4px; overflow:hidden; margin-bottom:8px;">
-            @foreach (var e in _resumen.ResumenEstados)
-            {
-                <div style="width:@(e.AnchoBarra)px; background:@ColorParaClave(e.ClaveColorBarra);" title="@e.Etiqueta: @e.Cantidad"></div>
-            }
-        </div>
-        <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:20px;">
-            @foreach (var e in _resumen.ResumenEstados)
-            {
-                <span><span style="display:inline-block; width:10px; height:10px; background:@ColorParaClave(e.ClaveColorBarra); border-radius:5px;"></span> @e.Etiqueta: @e.Cantidad</span>
-            }
-        </div>
-
-        <h3>Últimos Eventos</h3>
-        @foreach (var log in _resumen.UltimosEventos)
-        {
-            <div style="border-bottom:1px solid #292a2d; padding:6px 0; font-size:0.9rem;">
-                <span style="color:#9aa0a6;">@log.Timestamp.ToString("dd/MM HH:mm")</span> — @log.Descripcion
+        <div class="kpi-grid" style="margin-bottom:24px;">
+            <div class="kpi-card" style="border-color:var(--accent-border); background:var(--accent-soft);">
+                <div class="kpi-label">Total Hoy</div>
+                <div class="kpi-value">@_resumen.IngresosTotalHoy.ToString("C")</div>
             </div>
-        }
+            <div class="kpi-card">
+                <div class="kpi-label">Ingresos Hotel</div>
+                <div class="kpi-value">@_resumen.IngresosHotelHoy.ToString("C")</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Ingresos Sauna</div>
+                <div class="kpi-value">@_resumen.IngresosSaunaHoy.ToString("C")</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Ocupación</div>
+                <div class="kpi-value">@_resumen.TasaOcupacion.ToString("0.0")%</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Tarifa Promedio (ADR)</div>
+                <div class="kpi-value">@_resumen.TarifaPromedioDiaria.ToString("C")</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">RevPAR</div>
+                <div class="kpi-value">@_resumen.IngresoPorHabitacionDisponible.ToString("C")</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Clientes Sauna Hoy</div>
+                <div class="kpi-value">@_resumen.ClientesSaunaHoy</div>
+            </div>
+        </div>
+
+        <div class="section-title" style="margin-top:0;">Estado de Habitaciones</div>
+        <div class="card" style="margin-bottom:24px;">
+            <div style="display:flex; height:20px; border-radius:5px; overflow:hidden; margin-bottom:14px;">
+                @foreach (var e in _resumen.ResumenEstados)
+                {
+                    <div style="width:@(e.AnchoBarra)px; background:@ColorParaClave(e.ClaveColorBarra);" title="@e.Etiqueta: @e.Cantidad"></div>
+                }
+            </div>
+            <div style="display:flex; gap:18px; flex-wrap:wrap;">
+                @foreach (var e in _resumen.ResumenEstados)
+                {
+                    <span style="font-size:0.88rem;"><span style="display:inline-block; width:10px; height:10px; background:@ColorParaClave(e.ClaveColorBarra); border-radius:3px; margin-right:6px; vertical-align:-1px;"></span>@e.Etiqueta: @e.Cantidad</span>
+                }
+            </div>
+        </div>
+
+        <div class="section-title">Últimos Eventos</div>
+        <div class="card">
+            @foreach (var log in _resumen.UltimosEventos)
+            {
+                <div style="border-bottom:1px solid var(--border); padding:8px 0; font-size:0.9rem;">
+                    <span style="color:var(--text-muted);">@log.Timestamp.ToString("dd/MM HH:mm")</span> — @log.Descripcion
+                </div>
+            }
+        </div>
     }
 </div>
-
-<style>
-    .kpi {
-        border: 1px solid #3c4043;
-        border-radius: 8px;
-        padding: 12px 16px;
-        min-width: 150px;
-        background: #17181a;
-    }
-</style>
 
 @code {
     private ResumenDashboardDto? _resumen;

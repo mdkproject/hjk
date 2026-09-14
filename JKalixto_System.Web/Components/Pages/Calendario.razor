@@ -6,21 +6,25 @@
 
 <PageTitle>Calendario</PageTitle>
 
-<div style="padding:1.5rem;">
-    <h1>Calendario</h1>
+<div class="page">
+    <div class="page-header"><h1>Calendario</h1></div>
 
     @if (_error is not null)
     {
-        <p style="color:#f28b82;">@_error</p>
+        <div class="caja-error"><p>@_error</p></div>
     }
 
-    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px;">
-        <button class="btn btn-secundario" @onclick="MesAnteriorAsync">‹ Mes anterior</button>
-        <strong>@(_calendario?.NombreMesTexto ?? "")</strong>
-        <button class="btn btn-secundario" @onclick="MesSiguienteAsync">Mes siguiente ›</button>
+    <div class="filtros-fila">
+        <button class="btn btn-secundario" @onclick="MesAnteriorAsync">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+        </button>
+        <strong style="min-width:130px; text-align:center;">@(_calendario?.NombreMesTexto ?? "")</strong>
+        <button class="btn btn-secundario" @onclick="MesSiguienteAsync">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+        </button>
         <button class="btn btn-secundario" @onclick="IrAHoyAsync">Hoy</button>
 
-        <select style="background:#292a2d; border:1px solid #3c4043; border-radius:6px; padding:6px; color:#e8eaed;" @bind="_filtroPiso">
+        <select class="filtro-select" @bind="_filtroPiso">
             <option value="0">Todos los pisos</option>
             <option value="1">Piso 1</option>
             <option value="2">Piso 2</option>
@@ -28,25 +32,26 @@
             <option value="4">Piso 4</option>
         </select>
 
-        <input placeholder="Buscar habitación o huésped…"
-               style="background:#292a2d; border:1px solid #3c4043; border-radius:6px; padding:6px; color:#e8eaed;"
-               value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+        <div class="search-input" style="min-width:240px;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+            <input placeholder="Buscar habitación o huésped…" value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+        </div>
     </div>
 
     @if (_calendario is null)
     {
-        <p>Cargando…</p>
+        <p class="empty-state">Cargando…</p>
     }
     else
     {
-        <div style="overflow-x:auto;">
+        <div class="table-wrap" style="overflow-x:auto;">
             <table style="border-collapse:collapse; font-size:0.8rem;">
                 <thead>
                     <tr>
-                        <th style="position:sticky; left:0; background:#121212; padding:4px 8px; border:1px solid #3c4043;">Hab.</th>
+                        <th style="position:sticky; left:0; background:var(--surface); padding:6px 10px; border-bottom:1px solid var(--border); border-right:1px solid var(--border); color:var(--text-muted); font-size:0.72rem; text-transform:uppercase;">Hab.</th>
                         @foreach (var dia in _calendario.Dias)
                         {
-                            <th style="padding:2px 4px; border:1px solid #3c4043; min-width:26px;">@dia</th>
+                            <th style="padding:4px 2px; border-bottom:1px solid var(--border); min-width:26px; color:var(--text-muted); font-weight:600;">@dia</th>
                         }
                     </tr>
                 </thead>
@@ -54,11 +59,11 @@
                     @foreach (var columna in ColumnasFiltradas())
                     {
                         <tr>
-                            <td style="position:sticky; left:0; background:#121212; padding:4px 8px; border:1px solid #3c4043; font-weight:600;">@columna.Numero</td>
+                            <td style="position:sticky; left:0; background:var(--surface); padding:4px 10px; border-right:1px solid var(--border); border-bottom:1px solid var(--border); font-weight:600;">@columna.Numero</td>
                             @foreach (var celda in columna.Celdas)
                             {
                                 <td title="@(celda.NombreCliente ?? "")"
-                                    style="padding:0; border:1px solid #3c4043; background:@ColorParaCelda(celda.Estado); width:26px; height:24px; cursor:pointer; @(celda.EsHoy ? "outline:2px solid white; outline-offset:-2px;" : "")"
+                                    style="padding:0; border-bottom:1px solid var(--border); background:@ColorParaCelda(celda.Estado); width:26px; height:24px; cursor:pointer; @(celda.EsHoy ? "outline:2px solid white; outline-offset:-2px;" : "")"
                                     @onclick="() => AbrirCelda(columna, celda)"></td>
                             }
                         </tr>
@@ -67,11 +72,11 @@
             </table>
         </div>
 
-        <div style="margin-top:10px; display:flex; gap:14px; font-size:0.85rem;">
-            <span><span style="display:inline-block; width:12px; height:12px; background:#16A34A;"></span> Disponible</span>
-            <span><span style="display:inline-block; width:12px; height:12px; background:#2563EB;"></span> Ocupada</span>
-            <span><span style="display:inline-block; width:12px; height:12px; background:#7C3AED;"></span> Reservada</span>
-            <span><span style="display:inline-block; width:12px; height:12px; background:#DC2626;"></span> Mantenimiento</span>
+        <div style="margin-top:14px; display:flex; gap:16px; font-size:0.85rem; color:var(--text-secondary);">
+            <span><span style="display:inline-block; width:11px; height:11px; border-radius:3px; background:#16A34A; margin-right:5px; vertical-align:-1px;"></span>Disponible</span>
+            <span><span style="display:inline-block; width:11px; height:11px; border-radius:3px; background:#2563EB; margin-right:5px; vertical-align:-1px;"></span>Ocupada</span>
+            <span><span style="display:inline-block; width:11px; height:11px; border-radius:3px; background:#7C3AED; margin-right:5px; vertical-align:-1px;"></span>Reservada</span>
+            <span><span style="display:inline-block; width:11px; height:11px; border-radius:3px; background:#DC2626; margin-right:5px; vertical-align:-1px;"></span>Mantenimiento</span>
         </div>
     }
 </div>
