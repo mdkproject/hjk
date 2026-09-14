@@ -1,0 +1,237 @@
+@page "/checkin/{HabitacionId:int}"
+@using JKalixto_System.Application.Services
+@using JKalixto_System.Domain.Models
+@using JKalixto_System.Web.Services
+@inject IHabitacionService HabitacionService
+@inject INotificadorCambios Notificador
+@inject SesionWebService Sesion
+@inject NavigationManager Navegacion
+
+<PageTitle>Check-in</PageTitle>
+
+<div style="padding:1.5rem; max-width:640px;">
+    <p><a href="/recepcion">‹ Volver a Registro Hotel</a></p>
+
+    @if (_habitacion is null)
+    {
+        <p>Cargando…</p>
+    }
+    else
+    {
+        <h1>Check-in — Habitación @_habitacion.Numero (@_habitacion.EtiquetaTipo, @_habitacion.TarifaTexto)</h1>
+
+        @if (_errores.Count > 0)
+        {
+            <div style="background:#3c2020; border:1px solid #f28b82; border-radius:8px; padding:10px; margin-bottom:16px;">
+                @foreach (var error in _errores)
+                {
+                    <p class="mensaje-error" style="margin:2px 0;">@error</p>
+                }
+            </div>
+        }
+
+        <div class="form-grupo">
+            <label>Tipo de documento</label>
+            <select @bind="_tipoDocumento">
+                <option value="@TipoDocumento.DNI">DNI</option>
+                <option value="@TipoDocumento.Pasaporte">Pasaporte</option>
+                <option value="@TipoDocumento.CarneExtranjeria">Carné Ext.</option>
+            </select>
+        </div>
+
+        <div class="form-grupo">
+            <label>Número de documento *</label>
+            <input type="text" @bind="_numeroDocumento" @bind:event="oninput" />
+        </div>
+
+        <div class="form-grupo">
+            <label>Nombre completo *</label>
+            <input type="text" @bind="_nombreCompleto" @bind:event="oninput" />
+        </div>
+
+        <div class="form-grupo">
+            <label>Celular *</label>
+            <input type="text" @bind="_celular" @bind:event="oninput" />
+        </div>
+
+        <div class="form-grupo">
+            <label>Fecha de nacimiento</label>
+            <input type="date" @bind="_fechaNacimiento" />
+        </div>
+
+        <div class="form-grupo">
+            <label>Sexo</label>
+            <select @bind="_sexo">
+                <option value="">— Sin especificar —</option>
+                <option value="@SexoHuesped.Masculino">Masculino</option>
+                <option value="@SexoHuesped.Femenino">Femenino</option>
+            </select>
+        </div>
+
+        <div class="form-grupo">
+            <label>Nacionalidad</label>
+            <input type="text" @bind="_nacionalidad" @bind:event="oninput" />
+        </div>
+
+        <div class="form-grupo">
+            <label>Lugar de residencia</label>
+            <input type="text" @bind="_lugarResidencia" @bind:event="oninput" />
+        </div>
+
+        <div class="form-grupo">
+            <label>Motivo de viaje</label>
+            <select @bind="_motivoViaje">
+                <option value="">— Sin especificar —</option>
+                <option value="@MotivoViaje.Turismo">Turismo</option>
+                <option value="@MotivoViaje.Negocios">Negocios</option>
+                <option value="@MotivoViaje.Otro">Otro</option>
+            </select>
+        </div>
+
+        <div class="form-grupo">
+            <label><input type="checkbox" @bind="_esFactura" /> Requiere factura (en vez de boleta)</label>
+        </div>
+
+        @if (_esFactura)
+        {
+            <div class="form-grupo">
+                <label>RUC (11 dígitos) *</label>
+                <input type="text" @bind="_ruc" @bind:event="oninput" maxlength="11" />
+            </div>
+            <div class="form-grupo">
+                <label>Razón social *</label>
+                <input type="text" @bind="_razonSocial" @bind:event="oninput" />
+            </div>
+            <div class="form-grupo">
+                <label>Correo de facturación *</label>
+                <input type="email" @bind="_correoFacturacion" @bind:event="oninput" />
+            </div>
+        }
+
+        <div class="form-grupo">
+            <label>Acompañantes</label>
+            @foreach (var acompanante in _acompanantes)
+            {
+                <div style="display:flex; gap:6px; align-items:center;">
+                    <span>@acompanante</span>
+                    <button class="btn btn-secundario" style="padding:2px 8px;" @onclick="() => _acompanantes.Remove(acompanante)">Quitar</button>
+                </div>
+            }
+            <div style="display:flex; gap:6px;">
+                <input type="text" style="flex:1;" placeholder="Nombre del acompañante" @bind="_nuevoAcompanante" @bind:event="oninput" />
+                <button class="btn btn-secundario" @onclick="AgregarAcompanante">Agregar</button>
+            </div>
+        </div>
+
+        <div class="form-grupo">
+            <label>Observaciones</label>
+            <textarea style="min-height:60px;" @bind="_observaciones" @bind:event="oninput"></textarea>
+        </div>
+
+        <button class="btn" @onclick="ConfirmarAsync">Confirmar Check-in</button>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int HabitacionId { get; set; }
+
+    private HabitacionCardDto? _habitacion;
+    private readonly List<string> _errores = new();
+
+    private TipoDocumento _tipoDocumento = TipoDocumento.DNI;
+    private string _numeroDocumento = string.Empty;
+    private string _nombreCompleto = string.Empty;
+    private string _celular = string.Empty;
+    private DateTime? _fechaNacimiento = DateTime.Now.AddYears(-30);
+    private SexoHuesped? _sexo;
+    private string _nacionalidad = "Peruana";
+    private string _lugarResidencia = string.Empty;
+    private MotivoViaje? _motivoViaje;
+    private bool _esFactura;
+    private string _ruc = string.Empty;
+    private string _razonSocial = string.Empty;
+    private string _correoFacturacion = string.Empty;
+    private readonly List<string> _acompanantes = new();
+    private string _nuevoAcompanante = string.Empty;
+    private string _observaciones = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var todas = await HabitacionService.ObtenerTodasAsync();
+        _habitacion = todas.FirstOrDefault(h => h.HabitacionId == HabitacionId);
+    }
+
+    private void AgregarAcompanante()
+    {
+        if (!string.IsNullOrWhiteSpace(_nuevoAcompanante))
+        {
+            _acompanantes.Add(_nuevoAcompanante.Trim());
+            _nuevoAcompanante = string.Empty;
+        }
+    }
+
+    /// <summary>Mismas reglas y mensajes que CheckInViewModel.ConfirmarAsync en MAUI —
+    /// no se inventó ninguna regla nueva.</summary>
+    private async Task ConfirmarAsync()
+    {
+        _errores.Clear();
+
+        if (string.IsNullOrWhiteSpace(_numeroDocumento) || string.IsNullOrWhiteSpace(_nombreCompleto) || string.IsNullOrWhiteSpace(_celular))
+        {
+            _errores.Add("El número de documento, nombre completo y celular son obligatorios.");
+        }
+
+        if (_esFactura)
+        {
+            if (_ruc.Trim().Length != 11 || !_ruc.Trim().All(char.IsDigit))
+            {
+                _errores.Add("El RUC debe tener exactamente 11 dígitos.");
+            }
+
+            if (string.IsNullOrWhiteSpace(_razonSocial) || string.IsNullOrWhiteSpace(_correoFacturacion))
+            {
+                _errores.Add("Para Factura, la Razón Social y el Correo son obligatorios.");
+            }
+        }
+
+        if (_errores.Count > 0)
+        {
+            return;
+        }
+
+        var usuario = await Sesion.ObtenerUsuarioActualAsync();
+
+        var dto = new NuevoCheckInDto
+        {
+            HabitacionId = HabitacionId,
+            TipoDocumento = _tipoDocumento,
+            NumeroDocumento = _numeroDocumento.Trim(),
+            NombreCompleto = _nombreCompleto.Trim(),
+            Celular = _celular.Trim(),
+            FechaNacimiento = _fechaNacimiento,
+            Sexo = _sexo,
+            Nacionalidad = string.IsNullOrWhiteSpace(_nacionalidad) ? "Peruana" : _nacionalidad.Trim(),
+            LugarResidencia = string.IsNullOrWhiteSpace(_lugarResidencia) ? null : _lugarResidencia.Trim(),
+            MotivoViaje = _motivoViaje,
+            TipoComprobante = _esFactura ? TipoComprobante.Factura : TipoComprobante.Boleta,
+            RUC = _esFactura ? _ruc.Trim() : null,
+            RazonSocial = _esFactura ? _razonSocial.Trim() : null,
+            CorreoFacturacion = _esFactura ? _correoFacturacion.Trim() : null,
+            Acompanantes = _acompanantes,
+            Observaciones = string.IsNullOrWhiteSpace(_observaciones) ? null : _observaciones.Trim(),
+            UsuarioId = usuario.Id
+        };
+
+        try
+        {
+            await HabitacionService.CheckInAsync(dto);
+            Notificador.Avisar("habitaciones");
+            Navegacion.NavigateTo("/recepcion");
+        }
+        catch (Exception ex)
+        {
+            _errores.Add($"No se pudo registrar el Check-in: {ex.Message}");
+        }
+    }
+}

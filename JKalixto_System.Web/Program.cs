@@ -73,6 +73,11 @@ builder.Services.AddScoped<ISessionService, SessionService>();
 // Services/INotificadorCambios.cs.
 builder.Services.AddSingleton<INotificadorCambios, NotificadorCambios>();
 
+// Ver el comentario en SesionWebService.cs — parche temporal hasta que haya
+// login real en la web. Scoped porque, igual que ISessionService acá arriba,
+// tiene que ser "una sesión de negocio por circuito/pestaña".
+builder.Services.AddScoped<SesionWebService>();
+
 var app = builder.Build();
 
 InicializarBaseDeDatos(app.Services, dbPath);

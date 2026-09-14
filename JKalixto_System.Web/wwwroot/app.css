@@ -36,3 +36,111 @@ h1:focus {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+
+/* ============================================================
+   Estilos compartidos de diálogo/formulario — pensados para reutilizarse en
+   TODAS las páginas de la versión web (no solo Registro Hotel): cualquier
+   pantalla que necesite confirmar una acción o pedir datos usa estas mismas
+   clases, en vez de repetir estilos sueltos página por página.
+   ============================================================ */
+
+body {
+    font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    background: #121212;
+    color: #e8eaed;
+    margin: 0;
+}
+
+a {
+    color: #669df6;
+}
+
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-card {
+    background: #202124;
+    border: 1px solid #3c4043;
+    border-radius: 10px;
+    padding: 20px;
+    width: 100%;
+    max-width: 420px;
+    max-height: 85vh;
+    overflow-y: auto;
+}
+
+.modal-card h3 {
+    margin-top: 0;
+}
+
+.form-grupo {
+    margin-bottom: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.form-grupo label {
+    font-size: 0.85rem;
+    color: #9aa0a6;
+}
+
+.form-grupo input[type=text],
+.form-grupo input[type=date],
+.form-grupo input[type=email],
+.form-grupo select,
+.form-grupo textarea {
+    background: #292a2d;
+    border: 1px solid #3c4043;
+    border-radius: 6px;
+    padding: 8px;
+    color: #e8eaed;
+    font-size: 1rem;
+}
+
+.form-grupo .campo-invalido {
+    border-color: #f28b82 !important;
+}
+
+.mensaje-error {
+    color: #f28b82;
+    font-size: 0.85rem;
+    margin: -6px 0 12px;
+}
+
+.btn {
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    color: white;
+    background: #669df6;
+    margin: 4px 4px 4px 0;
+}
+
+.btn:hover {
+    opacity: 0.9;
+}
+
+.btn-secundario {
+    background: #3c4043;
+}
+
+.btn-peligro {
+    background: #dc2626;
+}
+
+.btn-bloque {
+    display: block;
+    width: 100%;
+    text-align: center;
+}

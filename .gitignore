@@ -3,6 +3,10 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+# Lock de sesión de Claude Code (runtime, no config) — .claude/launch.json sí
+# se versiona (es el config del dev-server para el proyecto Web).
+.claude/scheduled_tasks.lock
+
 # User-specific files
 *.rsuser
 *.suo

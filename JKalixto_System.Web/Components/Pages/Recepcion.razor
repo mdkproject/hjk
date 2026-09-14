@@ -1,69 +1,215 @@
 @page "/recepcion"
-@rendermode InteractiveServer
 @using JKalixto_System.Application.Services
 @using JKalixto_System.Domain.Models
 @using JKalixto_System.Web.Services
 @inject IHabitacionService HabitacionService
 @inject INotificadorCambios Notificador
+@inject SesionWebService Sesion
+@inject NavigationManager Navegacion
 @implements IDisposable
 
 <PageTitle>Registro Hotel</PageTitle>
 
-<h1>Registro Hotel</h1>
+<div style="padding:1.5rem;">
+    <h1>Registro Hotel</h1>
 
-<p style="color:#666; font-size:0.9rem;">
-    Página de prueba de la migración a web: abrí esta misma URL desde otra
-    máquina de la red (laptop/PC) y hacé clic en "Finalizar limpieza" o
-    "Finalizar mantenimiento" en una tarjeta — la otra pantalla se actualiza
-    sola, sin recargar.
-</p>
-
-@if (_cargando)
-{
-    <p>Cargando habitaciones…</p>
-}
-else if (_error is not null)
-{
-    <p style="color:#b00020;">@_error</p>
-}
-else
-{
-    @foreach (var grupoPiso in _habitaciones.GroupBy(h => h.Piso).OrderBy(g => g.Key))
+    @if (_error is not null)
     {
-        <h3>Piso @grupoPiso.Key</h3>
-        <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:24px;">
-            @foreach (var habitacion in grupoPiso.OrderBy(h => h.Numero))
-            {
-                <div style="border:2px solid @ColorParaClave(habitacion.ClaveColorEstado); border-radius:10px; padding:10px; width:220px;">
-                    <div style="display:flex; justify-content:space-between; align-items:start;">
-                        <div>
-                            <div>@habitacion.EtiquetaTipo</div>
-                            <span style="background:@ColorParaClave(habitacion.ClaveColorEstado); color:white; border-radius:6px; padding:2px 6px; font-size:0.85rem;">
-                                @habitacion.EtiquetaEstado
-                            </span>
-                            @if (habitacion.Estado == EstadoHabitacion.Ocupada)
-                            {
-                                <div style="font-size:0.85rem; margin-top:4px;">@habitacion.NombreHuesped</div>
-                                <div style="font-size:0.8rem; color:#666;">@habitacion.TotalAcumulado?.ToString("C")</div>
-                            }
-                        </div>
-                        <strong style="font-size:1.4rem;">@habitacion.Numero</strong>
-                    </div>
+        <p style="color:#f28b82;">@_error</p>
+    }
 
-                    @if (habitacion.Estado == EstadoHabitacion.LimpiezaSalida)
-                    {
-                        <button class="btn" @onclick="() => FinalizarLimpieza(habitacion.HabitacionId)">Finalizar limpieza</button>
-                    }
-                </div>
+    <!--
+        Filtros — mismo criterio que RecepcionViewModel.TextoBusqueda /
+        FiltroPiso / FiltroTipo / FiltroEstado en MAUI, reimplementado acá
+        porque esa ViewModel es específica de MAUI (capa de presentación, no
+        compartida). El tablero se recalcula solo con cada tecla/selección,
+        sin volver a pedir datos al servidor (ya los tenemos todos cargados).
+    -->
+    <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px; align-items:center;">
+        <input class="filtro-texto" placeholder="Buscar por número, huésped, celular o documento…"
+               style="background:#292a2d; border:1px solid #3c4043; border-radius:6px; padding:8px; color:#e8eaed; min-width:280px;"
+               value="@_textoBusqueda" @oninput="OnBuscarInput" />
+
+        <select style="background:#292a2d; border:1px solid #3c4043; border-radius:6px; padding:8px; color:#e8eaed;" @bind="_filtroPiso">
+            <option value="0">Todos los pisos</option>
+            <option value="1">Piso 1</option>
+            <option value="2">Piso 2</option>
+            <option value="3">Piso 3</option>
+            <option value="4">Piso 4</option>
+        </select>
+
+        <select style="background:#292a2d; border:1px solid #3c4043; border-radius:6px; padding:8px; color:#e8eaed;" @bind="_filtroTipo">
+            <option value="">Todos los tipos</option>
+            @foreach (var tipo in Enum.GetValues<TipoHabitacion>())
+            {
+                <option value="@tipo">@tipo</option>
             }
-        </div>
+        </select>
+
+        <select style="background:#292a2d; border:1px solid #3c4043; border-radius:6px; padding:8px; color:#e8eaed;" @bind="_filtroEstado">
+            <option value="">Todos los estados</option>
+            @foreach (var estado in Enum.GetValues<EstadoHabitacion>())
+            {
+                <option value="@estado">@EtiquetaEstado(estado)</option>
+            }
+        </select>
+    </div>
+
+    @if (_cargando)
+    {
+        <p>Cargando habitaciones…</p>
+    }
+    else
+    {
+        var filtradas = HabitacionesFiltradas().ToList();
+        @if (filtradas.Count == 0)
+        {
+            <p style="color:#9aa0a6;">Ninguna habitación coincide con el filtro/búsqueda actual.</p>
+        }
+        @foreach (var grupoPiso in filtradas.GroupBy(h => h.Piso).OrderBy(g => g.Key))
+        {
+            <h3>Piso @grupoPiso.Key</h3>
+            <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:24px;">
+                @foreach (var habitacion in grupoPiso.OrderBy(h => h.Numero))
+                {
+                    <div style="border:2px solid @ColorParaClave(habitacion.ClaveColorEstado); border-radius:10px; padding:10px; width:220px; cursor:pointer;"
+                         @onclick="() => AbrirMenuHabitacion(habitacion)">
+                        <div style="display:flex; justify-content:space-between; align-items:start;">
+                            <div>
+                                <div style="color:#9aa0a6; font-size:0.85rem;">@habitacion.EtiquetaTipo</div>
+                                <span style="background:@ColorParaClave(habitacion.ClaveColorEstado); color:white; border-radius:6px; padding:2px 6px; font-size:0.85rem;">
+                                    @habitacion.EtiquetaEstado
+                                </span>
+                                @if (habitacion.Estado == EstadoHabitacion.Ocupada)
+                                {
+                                    <div style="font-size:0.85rem; margin-top:4px;">@habitacion.NombreHuesped</div>
+                                    <div style="font-size:0.8rem; color:#9aa0a6;">@habitacion.TotalAcumulado?.ToString("C")</div>
+                                }
+                                else if (habitacion.Estado == EstadoHabitacion.Mantenimiento && !string.IsNullOrWhiteSpace(habitacion.MotivoMantenimiento))
+                                {
+                                    <div style="font-size:0.8rem; color:#9aa0a6; margin-top:4px;">@habitacion.MotivoMantenimiento</div>
+                                }
+                                else
+                                {
+                                    <div style="font-size:0.8rem; color:#9aa0a6; margin-top:4px;">@habitacion.TarifaTexto</div>
+                                }
+                            </div>
+                            <strong style="font-size:1.4rem;">@habitacion.Numero</strong>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>
+
+@* ============================================================
+   Modales de acción — un único "estado de diálogo" controla cuál se
+   muestra. Mismos flujos que RecepcionPage/RecepcionViewModel en MAUI
+   (ActionSheet/DisplayAlert/DisplayPrompt allá, modal simple acá). *@
+
+@if (_habitacionSeleccionada is { } h)
+{
+    @switch (_vistaModal)
+    {
+        case VistaModal.MenuDisponible:
+            <ModalBase Titulo='@($"Habitación {h.Numero} — {h.EtiquetaTipo} ({h.TarifaTexto})")' OnCerrar="CerrarModal">
+                <button class="btn btn-bloque" @onclick='() => Navegacion.NavigateTo($"/checkin/{h.HabitacionId}")'>Hacer Check-in</button>
+                <button class="btn btn-secundario btn-bloque" @onclick="() => _vistaModal = VistaModal.PromptMantenimiento">Enviar a Mantenimiento</button>
+            </ModalBase>
+            break;
+
+        case VistaModal.PromptMantenimiento:
+            <ModalBase Titulo="Motivo de mantenimiento" OnCerrar="CerrarModal">
+                <p style="color:#9aa0a6; font-size:0.85rem;">Es obligatorio indicar un motivo (regla anti-fraude: evita pasar una habitación a mantenimiento sin justificación).</p>
+                <textarea style="width:100%; min-height:70px; background:#292a2d; border:1px solid #3c4043; border-radius:6px; color:#e8eaed; padding:8px;"
+                          placeholder="Ej: Aire acondicionado no enfría" @bind="_motivoMantenimiento" @bind:event="oninput"></textarea>
+                @if (_errorModal is not null)
+                {
+                    <p class="mensaje-error">@_errorModal</p>
+                }
+                <button class="btn btn-bloque" @onclick="() => ConfirmarIniciarMantenimientoAsync(h)">Confirmar</button>
+            </ModalBase>
+            break;
+
+        case VistaModal.MenuOcupada:
+            <ModalBase Titulo='@($"Hab. {h.Numero} — {h.NombreHuesped}")' OnCerrar="CerrarModal">
+                <p style="color:#9aa0a6;">Total acumulado: @h.TotalAcumulado?.ToString("C")</p>
+                <button class="btn btn-secundario btn-bloque" @onclick="() => _vistaModal = VistaModal.DetalleHuesped">Ver detalles del huésped</button>
+                <button class="btn btn-bloque" @onclick="() => _vistaModal = VistaModal.ConfirmarCheckout">Hacer Check-out</button>
+                <button class="btn btn-secundario btn-bloque" @onclick="() => SolicitarLimpiezaIntermediaAsync(h)">Solicitar limpieza intermedia</button>
+            </ModalBase>
+            break;
+
+        case VistaModal.DetalleHuesped:
+            <ModalBase Titulo="Detalles del huésped" OnCerrar="CerrarModal">
+                <p><strong>Nombre:</strong> @h.NombreHuesped</p>
+                <p><strong>@h.EtiquetaTipoDocumentoHuesped:</strong> @h.NumeroDocumentoHuesped</p>
+                <p><strong>Celular:</strong> @h.CelularHuesped</p>
+                <p><strong>Check-in:</strong> @h.FechaCheckInHuesped?.ToString("dd/MM/yyyy HH:mm")</p>
+                <p><strong>Acompañantes:</strong> @h.AcompanantesTexto</p>
+                <p><strong>Total acumulado:</strong> @h.TotalAcumulado?.ToString("C")</p>
+            </ModalBase>
+            break;
+
+        case VistaModal.ConfirmarCheckout:
+            <ModalBase Titulo="Confirmar Check-out" OnCerrar="CerrarModal">
+                <p>¿Cerrar la estadía de <strong>@h.NombreHuesped</strong>?</p>
+                <p>Total a cobrar: <strong>@h.TotalAcumulado?.ToString("C")</strong></p>
+                <button class="btn btn-bloque" @onclick="() => _vistaModal = VistaModal.ElegirMetodoPago">Sí, hacer Check-out</button>
+            </ModalBase>
+            break;
+
+        case VistaModal.ElegirMetodoPago:
+            <ModalBase Titulo='@($"Método de pago — {h.TotalAcumulado:C}")' OnCerrar="CerrarModal">
+                @if (_errorModal is not null)
+                {
+                    <p class="mensaje-error">@_errorModal</p>
+                }
+                @foreach (var metodo in Enum.GetValues<MetodoPago>())
+                {
+                    <button class="btn btn-secundario btn-bloque" @onclick="() => ConfirmarCheckoutAsync(h, metodo)">@metodo</button>
+                }
+            </ModalBase>
+            break;
+
+        case VistaModal.ConfirmarLimpieza:
+            <ModalBase Titulo="Marcar como limpia" OnCerrar="CerrarModal">
+                <p>¿La habitación @h.Numero ya está lista para un nuevo huésped?</p>
+                <button class="btn btn-bloque" @onclick="() => ConfirmarFinalizarLimpiezaAsync(h)">Sí, está limpia</button>
+            </ModalBase>
+            break;
+
+        case VistaModal.ConfirmarFinMantenimiento:
+            <ModalBase Titulo="Finalizar mantenimiento" OnCerrar="CerrarModal">
+                <p>Motivo registrado: @h.MotivoMantenimiento</p>
+                <p>¿Marcar la habitación @h.Numero como Disponible?</p>
+                <button class="btn btn-bloque" @onclick="() => ConfirmarFinalizarMantenimientoAsync(h)">Sí, finalizar</button>
+            </ModalBase>
+            break;
     }
 }
 
 @code {
+    private enum VistaModal
+    {
+        MenuDisponible, PromptMantenimiento, MenuOcupada, DetalleHuesped,
+        ConfirmarCheckout, ElegirMetodoPago, ConfirmarLimpieza, ConfirmarFinMantenimiento
+    }
+
     private List<HabitacionCardDto> _habitaciones = new();
     private bool _cargando = true;
     private string? _error;
+    private string? _errorModal;
+
+    private string _textoBusqueda = string.Empty;
+    private int _filtroPiso;
+    private string _filtroTipo = string.Empty;
+    private string _filtroEstado = string.Empty;
+
+    private HabitacionCardDto? _habitacionSeleccionada;
+    private VistaModal _vistaModal;
+    private string _motivoMantenimiento = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -88,6 +234,125 @@ else
         }
     }
 
+    private IEnumerable<HabitacionCardDto> HabitacionesFiltradas()
+    {
+        var query = _habitaciones.AsEnumerable();
+
+        if (_filtroPiso != 0)
+        {
+            query = query.Where(h => h.Piso == _filtroPiso);
+        }
+
+        if (!string.IsNullOrEmpty(_filtroTipo) && Enum.TryParse<TipoHabitacion>(_filtroTipo, out var tipo))
+        {
+            query = query.Where(h => h.Tipo == tipo);
+        }
+
+        if (!string.IsNullOrEmpty(_filtroEstado) && Enum.TryParse<EstadoHabitacion>(_filtroEstado, out var estado))
+        {
+            query = query.Where(h => h.Estado == estado);
+        }
+
+        if (!string.IsNullOrWhiteSpace(_textoBusqueda))
+        {
+            var texto = _textoBusqueda.Trim();
+            query = query.Where(h =>
+                h.Numero.ToString().Contains(texto, StringComparison.OrdinalIgnoreCase) ||
+                (h.NombreHuesped?.Contains(texto, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (h.CelularHuesped?.Contains(texto, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (h.NumeroDocumentoHuesped?.Contains(texto, StringComparison.OrdinalIgnoreCase) ?? false));
+        }
+
+        return query;
+    }
+
+    private void OnBuscarInput(ChangeEventArgs e)
+    {
+        _textoBusqueda = e.Value?.ToString() ?? string.Empty;
+    }
+
+    private void AbrirMenuHabitacion(HabitacionCardDto habitacion)
+    {
+        _habitacionSeleccionada = habitacion;
+        _errorModal = null;
+        _motivoMantenimiento = string.Empty;
+        _vistaModal = habitacion.Estado switch
+        {
+            EstadoHabitacion.Disponible => VistaModal.MenuDisponible,
+            EstadoHabitacion.Ocupada => VistaModal.MenuOcupada,
+            EstadoHabitacion.LimpiezaSalida => VistaModal.ConfirmarLimpieza,
+            EstadoHabitacion.Mantenimiento => VistaModal.ConfirmarFinMantenimiento,
+            _ => VistaModal.MenuDisponible
+        };
+    }
+
+    private void CerrarModal()
+    {
+        _habitacionSeleccionada = null;
+        _errorModal = null;
+    }
+
+    private async Task ConfirmarIniciarMantenimientoAsync(HabitacionCardDto h)
+    {
+        if (string.IsNullOrWhiteSpace(_motivoMantenimiento))
+        {
+            _errorModal = "El motivo es obligatorio para pasar a Mantenimiento.";
+            return;
+        }
+
+        await EjecutarAccionAsync(async () =>
+        {
+            var usuario = await Sesion.ObtenerUsuarioActualAsync();
+            await HabitacionService.IniciarMantenimientoAsync(h.HabitacionId, _motivoMantenimiento.Trim(), usuario.Id);
+        });
+    }
+
+    private Task SolicitarLimpiezaIntermediaAsync(HabitacionCardDto h) => EjecutarAccionAsync(async () =>
+    {
+        var usuario = await Sesion.ObtenerUsuarioActualAsync();
+        await HabitacionService.RegistrarLimpiezaIntermediaAsync(h.HabitacionId, usuario.Id);
+    });
+
+    private Task ConfirmarCheckoutAsync(HabitacionCardDto h, MetodoPago metodo) => EjecutarAccionAsync(async () =>
+    {
+        if (h.EstadiaId is not { } estadiaId)
+        {
+            throw new InvalidOperationException("Esta habitación no tiene una estadía activa.");
+        }
+
+        var usuario = await Sesion.ObtenerUsuarioActualAsync();
+        await HabitacionService.CheckOutAsync(estadiaId, usuario.Id, metodo);
+    });
+
+    private Task ConfirmarFinalizarLimpiezaAsync(HabitacionCardDto h) => EjecutarAccionAsync(async () =>
+    {
+        await HabitacionService.FinalizarLimpiezaAsync(h.HabitacionId);
+    });
+
+    private Task ConfirmarFinalizarMantenimientoAsync(HabitacionCardDto h) => EjecutarAccionAsync(async () =>
+    {
+        var usuario = await Sesion.ObtenerUsuarioActualAsync();
+        await HabitacionService.FinalizarMantenimientoAsync(h.HabitacionId, usuario.Id);
+    });
+
+    /// <summary>Envoltorio común para toda acción que muta una habitación: ejecuta,
+    /// recarga el tablero, cierra el modal, y avisa a los demás circuitos
+    /// conectados — igual que ya hacía "Finalizar limpieza" en la versión mínima.</summary>
+    private async Task EjecutarAccionAsync(Func<Task> accion)
+    {
+        try
+        {
+            await accion();
+            await CargarAsync();
+            CerrarModal();
+            Notificador.Avisar("habitaciones");
+        }
+        catch (Exception ex)
+        {
+            _errorModal = ex.Message;
+        }
+    }
+
     private async void OnCambioDetectado(string area)
     {
         if (area != "habitaciones")
@@ -95,9 +360,6 @@ else
             return;
         }
 
-        // El evento llega desde el circuito de OTRA pestaña/máquina — hay que
-        // volver a pedir InvokeAsync para actualizar la UI en el hilo correcto
-        // de ESTE circuito antes de repintar.
         await InvokeAsync(async () =>
         {
             await CargarAsync();
@@ -105,16 +367,14 @@ else
         });
     }
 
-    private async Task FinalizarLimpieza(int habitacionId)
+    private static string EtiquetaEstado(EstadoHabitacion estado) => estado switch
     {
-        await HabitacionService.FinalizarLimpiezaAsync(habitacionId);
-        await CargarAsync();
-        StateHasChanged();
-
-        // Avisa a TODOS los demás circuitos conectados (otras pestañas/máquinas)
-        // que el tablero de habitaciones cambió, para que se refresquen solos.
-        Notificador.Avisar("habitaciones");
-    }
+        EstadoHabitacion.Disponible => "Disponible",
+        EstadoHabitacion.Ocupada => "Ocupada",
+        EstadoHabitacion.LimpiezaSalida => "Limpieza",
+        EstadoHabitacion.Mantenimiento => "Mantenimiento",
+        _ => estado.ToString()
+    };
 
     private static string ColorParaClave(string clave) => clave switch
     {
