@@ -77,53 +77,99 @@
     }
     else
     {
-        <div class="table-wrap" style="overflow-x:auto;">
-            <table style="border-collapse:collapse; font-size:0.8rem;">
-                <thead>
-                    <tr>
-                        <th style="position:sticky; left:0; background:var(--surface); padding:6px 10px; border-bottom:1px solid var(--border); border-right:1px solid var(--border); color:var(--text-muted); font-size:0.72rem; text-transform:uppercase;">Hab.</th>
-                        @foreach (var dia in _calendario.Dias)
-                        {
-                            <th style="padding:4px 2px; border-bottom:1px solid var(--border); min-width:26px; color:var(--text-muted); font-weight:600;">@dia</th>
-                        }
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var columna in ColumnasFiltradas())
-                    {
+        var columnasVisibles = ColumnasFiltradas().ToList();
+        @if (columnasVisibles.Count == 0)
+        {
+            <p class="empty-state">No hay habitaciones con este filtro.</p>
+        }
+        else
+        {
+            <div class="table-wrap" style="overflow-x:auto;">
+                <table class="cal-tabla">
+                    <thead>
                         <tr>
-                            <td style="position:sticky; left:0; background:var(--surface); padding:4px 10px; border-right:1px solid var(--border); border-bottom:1px solid var(--border); font-weight:600;">@columna.Numero</td>
-                            @foreach (var celda in columna.Celdas)
+                            <th class="cal-col-sticky" style="padding:6px 12px; color:var(--text-muted); font-size:0.7rem; text-transform:uppercase;">Habitación</th>
+                            @foreach (var dia in _calendario.Dias)
                             {
-                                <td title="@(celda.NombreCliente ?? "")"
-                                    style="padding:0; border-bottom:1px solid var(--border); background:@ColorParaCelda(celda.Estado); width:26px; height:24px; cursor:pointer; @(celda.EsHoy ? "outline:2px solid white; outline-offset:-2px;" : "")"
-                                    @onclick="() => AbrirCelda(columna, celda)"></td>
+                                <th class="cal-dia-header @(EsFinDeSemana(dia) ? "cal-finde" : "") @(EsHoyDia(dia) ? "cal-dia-header-hoy" : "")">
+                                    <div style="font-size:0.6rem; text-transform:uppercase; opacity:0.8;">@EtiquetaDiaSemana(dia)</div>
+                                    <div>@dia</div>
+                                </th>
                             }
                         </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody>
+                        @foreach (var grupoTipo in columnasVisibles.GroupBy(c => c.Tipo).OrderBy(g => (int)g.Key))
+                        {
+                            <tr>
+                                <td colspan="@(_calendario.Dias.Count + 1)" class="cal-fila-grupo">Habitación @grupoTipo.Key</td>
+                            </tr>
+                            @foreach (var columna in grupoTipo.OrderBy(c => c.Numero))
+                            {
+                                <tr>
+                                    <td class="cal-col-sticky cal-col-habitacion">
+                                        <div class="cal-col-habitacion-numero">@columna.Numero</div>
+                                        <div class="cal-col-habitacion-tipo">@columna.EtiquetaTipo</div>
+                                        <div class="cal-col-habitacion-tarifa">@columna.TarifaNoche.ToString("C0")/noche</div>
+                                    </td>
+                                    @foreach (var bloque in AgruparCeldas(columna.Celdas))
+                                    {
+                                        @if (bloque.Estado == EstadoCeldaCalendario.Disponible)
+                                        {
+                                            <td colspan="@bloque.CantidadDias"
+                                                class="cal-celda-vacia @(bloque.ContieneHoy ? "cal-celda-hoy" : "")"
+                                                @onclick="() => AbrirBloque(columna, bloque)"></td>
+                                        }
+                                        else
+                                        {
+                                            <td colspan="@bloque.CantidadDias"
+                                                class="cal-celda-bloque @(bloque.ContieneHoy ? "cal-celda-hoy" : "")"
+                                                @onclick="() => AbrirBloque(columna, bloque)">
+                                                <div class="cal-bloque @ClaseBloque(bloque.Estado)">
+                                                    <span class="cal-bloque-nombre">@(bloque.NombreCliente ?? EtiquetaEstadoBloque(bloque.Estado))</span>
+                                                    @if (bloque.CantidadDias > 1)
+                                                    {
+                                                        <span class="cal-bloque-noches">@bloque.CantidadDias noches</span>
+                                                    }
+                                                </div>
+                                            </td>
+                                        }
+                                    }
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
 
-        <div style="margin-top:14px; display:flex; gap:16px; font-size:0.85rem; color:var(--text-secondary);">
-            <span><span style="display:inline-block; width:11px; height:11px; border-radius:3px; background:#16A34A; margin-right:5px; vertical-align:-1px;"></span>Disponible</span>
-            <span><span style="display:inline-block; width:11px; height:11px; border-radius:3px; background:#2563EB; margin-right:5px; vertical-align:-1px;"></span>Ocupada</span>
-            <span><span style="display:inline-block; width:11px; height:11px; border-radius:3px; background:#7C3AED; margin-right:5px; vertical-align:-1px;"></span>Reservada</span>
-            <span><span style="display:inline-block; width:11px; height:11px; border-radius:3px; background:#DC2626; margin-right:5px; vertical-align:-1px;"></span>Mantenimiento</span>
-        </div>
+            <div style="margin-top:14px; display:flex; gap:16px; flex-wrap:wrap; font-size:0.85rem; color:var(--text-secondary);">
+                <span><span style="display:inline-block; width:11px; height:11px; border-radius:3px; background:#2563EB; margin-right:5px; vertical-align:-1px;"></span>Ocupada</span>
+                <span><span style="display:inline-block; width:11px; height:11px; border-radius:3px; background:#7C3AED; margin-right:5px; vertical-align:-1px;"></span>Reservada</span>
+                <span><span style="display:inline-block; width:11px; height:11px; border-radius:3px; background:#DC2626; margin-right:5px; vertical-align:-1px;"></span>Mantenimiento</span>
+                <span><span style="display:inline-block; width:11px; height:11px; border-radius:3px; border:1px solid var(--border-strong); margin-right:5px; vertical-align:-1px;"></span>Casilla en blanco = Disponible</span>
+            </div>
+        }
     }
 </div>
 
-@if (_celdaSeleccionada is { } info)
+@if (_bloqueSeleccionado is { } info)
 {
-    <ModalBase Titulo="@($"Habitación {info.columna.Numero} — día {info.celda.Dia}")" OnCerrar="() => _celdaSeleccionada = null">
-        <p>Estado: @info.celda.Estado</p>
-        @if (!string.IsNullOrWhiteSpace(info.celda.NombreCliente))
+    var rango = info.bloque.CantidadDias == 1
+        ? $"día {info.bloque.DiaInicio}"
+        : $"días {info.bloque.DiaInicio}–{info.bloque.DiaInicio + info.bloque.CantidadDias - 1}";
+
+    <ModalBase Titulo="@($"Habitación {info.columna.Numero} — {rango}")" OnCerrar="() => _bloqueSeleccionado = null">
+        <p>Estado: @EtiquetaEstadoBloque(info.bloque.Estado)</p>
+        @if (!string.IsNullOrWhiteSpace(info.bloque.NombreCliente))
         {
-            <p>Cliente: @info.celda.NombreCliente</p>
+            <p>Cliente: @info.bloque.NombreCliente</p>
+        }
+        @if (info.bloque.CantidadDias > 1)
+        {
+            <p>@info.bloque.CantidadDias noches</p>
         }
 
-        @if (info.celda.Estado == EstadoCeldaCalendario.Disponible)
+        @if (info.bloque.Estado == EstadoCeldaCalendario.Disponible)
         {
             <button class="btn btn-bloque" @onclick='() => Navegacion.NavigateTo("/reservas/nuevo")'>Reservar esta habitación</button>
         }
@@ -131,6 +177,13 @@
 }
 
 @code {
+    /// <summary>Un tramo de días consecutivos con el mismo estado+cliente dentro de la
+    /// fila de una habitación — se dibuja como una sola barra que abarca esos días
+    /// (igual que Little Hotelier/Hotelerian), en vez de una celda de color por día.</summary>
+    private sealed record BloqueCalendario(int DiaInicio, int CantidadDias, EstadoCeldaCalendario Estado, string? NombreCliente, bool ContieneHoy);
+
+    private static readonly string[] DiasSemana = { "Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb" };
+
     private CalendarioMensualDto? _calendario;
     private string? _error;
     private int _anio = DateTime.Today.Year;
@@ -139,7 +192,7 @@
     private string _filtroTipo = string.Empty;
     private string _filtroEstado = string.Empty;
     private string _textoBusqueda = string.Empty;
-    private (ColumnaHabitacionCalendarioDto columna, CeldaCalendarioDto celda)? _celdaSeleccionada;
+    private (ColumnaHabitacionCalendarioDto columna, BloqueCalendario bloque)? _bloqueSeleccionado;
 
     protected override async Task OnInitializedAsync() => await CargarAsync();
 
@@ -222,14 +275,56 @@
         return query.OrderBy(c => c.Numero);
     }
 
-    private void AbrirCelda(ColumnaHabitacionCalendarioDto columna, CeldaCalendarioDto celda) => _celdaSeleccionada = (columna, celda);
-
-    private static string ColorParaCelda(EstadoCeldaCalendario estado) => estado switch
+    /// <summary>Agrupa los días consecutivos de una fila que comparten estado+cliente en
+    /// un solo bloque (colspan), para dibujar una barra continua en vez de 28-31 celdas
+    /// sueltas — el mismo dato de siempre (Celdas), solo una forma distinta de dibujarlo.</summary>
+    private static List<BloqueCalendario> AgruparCeldas(List<CeldaCalendarioDto> celdas)
     {
-        EstadoCeldaCalendario.Disponible => "#16A34A",
-        EstadoCeldaCalendario.Ocupada => "#2563EB",
-        EstadoCeldaCalendario.Reservada => "#7C3AED",
-        EstadoCeldaCalendario.Mantenimiento => "#DC2626",
-        _ => "#6B7280"
+        var ordenadas = celdas.OrderBy(c => c.Dia).ToList();
+        var bloques = new List<BloqueCalendario>();
+
+        var i = 0;
+        while (i < ordenadas.Count)
+        {
+            var inicio = ordenadas[i];
+            var j = i;
+            while (j + 1 < ordenadas.Count &&
+                   ordenadas[j + 1].Estado == inicio.Estado &&
+                   ordenadas[j + 1].NombreCliente == inicio.NombreCliente)
+            {
+                j++;
+            }
+
+            var contieneHoy = ordenadas.Skip(i).Take(j - i + 1).Any(c => c.EsHoy);
+            bloques.Add(new BloqueCalendario(inicio.Dia, j - i + 1, inicio.Estado, inicio.NombreCliente, contieneHoy));
+            i = j + 1;
+        }
+
+        return bloques;
+    }
+
+    private void AbrirBloque(ColumnaHabitacionCalendarioDto columna, BloqueCalendario bloque) => _bloqueSeleccionado = (columna, bloque);
+
+    private bool EsFinDeSemana(int dia) => new DateTime(_anio, _mes, dia).DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
+
+    private bool EsHoyDia(int dia) => new DateTime(_anio, _mes, dia).Date == DateTime.Today;
+
+    private string EtiquetaDiaSemana(int dia) => DiasSemana[(int)new DateTime(_anio, _mes, dia).DayOfWeek];
+
+    private static string EtiquetaEstadoBloque(EstadoCeldaCalendario estado) => estado switch
+    {
+        EstadoCeldaCalendario.Disponible => "Disponible",
+        EstadoCeldaCalendario.Ocupada => "Ocupada",
+        EstadoCeldaCalendario.Reservada => "Reservada",
+        EstadoCeldaCalendario.Mantenimiento => "Mantenimiento",
+        _ => estado.ToString()
+    };
+
+    private static string ClaseBloque(EstadoCeldaCalendario estado) => estado switch
+    {
+        EstadoCeldaCalendario.Ocupada => "cal-bloque-ocupada",
+        EstadoCeldaCalendario.Reservada => "cal-bloque-reservada",
+        EstadoCeldaCalendario.Mantenimiento => "cal-bloque-mantenimiento",
+        _ => ""
     };
 }

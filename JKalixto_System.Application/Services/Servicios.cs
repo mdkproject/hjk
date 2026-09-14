@@ -1629,6 +1629,7 @@ public class ColumnaHabitacionCalendarioDto
     public int Numero { get; set; }
     public int Piso { get; set; }
     public TipoHabitacion Tipo { get; set; }
+    public decimal TarifaNoche { get; set; }
 
     /// <summary>Estado actual (de hoy) de la habitación — no es por día, es el mismo
     /// dato que usa Registro Hotel. Sirve para el filtro de estado del Calendario.</summary>
@@ -1713,6 +1714,7 @@ public class CalendarioService : ICalendarioService
                 Numero = habitacion.Numero,
                 Piso = habitacion.Piso,
                 Tipo = habitacion.Tipo,
+                TarifaNoche = habitacion.TarifaNoche,
                 EstadoActual = habitacion.Estado
             };
 
