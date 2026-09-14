@@ -1,0 +1,176 @@
+@page "/calendario"
+@using JKalixto_System.Application.Services
+@using JKalixto_System.Domain.Models
+@inject ICalendarioService CalendarioService
+@inject NavigationManager Navegacion
+
+<PageTitle>Calendario</PageTitle>
+
+<div style="padding:1.5rem;">
+    <h1>Calendario</h1>
+
+    @if (_error is not null)
+    {
+        <p style="color:#f28b82;">@_error</p>
+    }
+
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px;">
+        <button class="btn btn-secundario" @onclick="MesAnteriorAsync">‹ Mes anterior</button>
+        <strong>@(_calendario?.NombreMesTexto ?? "")</strong>
+        <button class="btn btn-secundario" @onclick="MesSiguienteAsync">Mes siguiente ›</button>
+        <button class="btn btn-secundario" @onclick="IrAHoyAsync">Hoy</button>
+
+        <select style="background:#292a2d; border:1px solid #3c4043; border-radius:6px; padding:6px; color:#e8eaed;" @bind="_filtroPiso">
+            <option value="0">Todos los pisos</option>
+            <option value="1">Piso 1</option>
+            <option value="2">Piso 2</option>
+            <option value="3">Piso 3</option>
+            <option value="4">Piso 4</option>
+        </select>
+
+        <input placeholder="Buscar habitación o huésped…"
+               style="background:#292a2d; border:1px solid #3c4043; border-radius:6px; padding:6px; color:#e8eaed;"
+               value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+    </div>
+
+    @if (_calendario is null)
+    {
+        <p>Cargando…</p>
+    }
+    else
+    {
+        <div style="overflow-x:auto;">
+            <table style="border-collapse:collapse; font-size:0.8rem;">
+                <thead>
+                    <tr>
+                        <th style="position:sticky; left:0; background:#121212; padding:4px 8px; border:1px solid #3c4043;">Hab.</th>
+                        @foreach (var dia in _calendario.Dias)
+                        {
+                            <th style="padding:2px 4px; border:1px solid #3c4043; min-width:26px;">@dia</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var columna in ColumnasFiltradas())
+                    {
+                        <tr>
+                            <td style="position:sticky; left:0; background:#121212; padding:4px 8px; border:1px solid #3c4043; font-weight:600;">@columna.Numero</td>
+                            @foreach (var celda in columna.Celdas)
+                            {
+                                <td title="@(celda.NombreCliente ?? "")"
+                                    style="padding:0; border:1px solid #3c4043; background:@ColorParaCelda(celda.Estado); width:26px; height:24px; cursor:pointer; @(celda.EsHoy ? "outline:2px solid white; outline-offset:-2px;" : "")"
+                                    @onclick="() => AbrirCelda(columna, celda)"></td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div style="margin-top:10px; display:flex; gap:14px; font-size:0.85rem;">
+            <span><span style="display:inline-block; width:12px; height:12px; background:#16A34A;"></span> Disponible</span>
+            <span><span style="display:inline-block; width:12px; height:12px; background:#2563EB;"></span> Ocupada</span>
+            <span><span style="display:inline-block; width:12px; height:12px; background:#7C3AED;"></span> Reservada</span>
+            <span><span style="display:inline-block; width:12px; height:12px; background:#DC2626;"></span> Mantenimiento</span>
+        </div>
+    }
+</div>
+
+@if (_celdaSeleccionada is { } info)
+{
+    <ModalBase Titulo="@($"Habitación {info.columna.Numero} — día {info.celda.Dia}")" OnCerrar="() => _celdaSeleccionada = null">
+        <p>Estado: @info.celda.Estado</p>
+        @if (!string.IsNullOrWhiteSpace(info.celda.NombreCliente))
+        {
+            <p>Cliente: @info.celda.NombreCliente</p>
+        }
+
+        @if (info.celda.Estado == EstadoCeldaCalendario.Disponible)
+        {
+            <button class="btn btn-bloque" @onclick='() => Navegacion.NavigateTo("/reservas/nuevo")'>Reservar esta habitación</button>
+        }
+    </ModalBase>
+}
+
+@code {
+    private CalendarioMensualDto? _calendario;
+    private string? _error;
+    private int _anio = DateTime.Today.Year;
+    private int _mes = DateTime.Today.Month;
+    private int _filtroPiso;
+    private string _textoBusqueda = string.Empty;
+    private (ColumnaHabitacionCalendarioDto columna, CeldaCalendarioDto celda)? _celdaSeleccionada;
+
+    protected override async Task OnInitializedAsync() => await CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        try
+        {
+            _error = null;
+            _calendario = await CalendarioService.ObtenerCalendarioMensualAsync(_anio, _mes);
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo cargar el calendario: {ex.Message}";
+        }
+    }
+
+    private async Task MesAnteriorAsync()
+    {
+        var fecha = new DateTime(_anio, _mes, 1).AddMonths(-1);
+        _anio = fecha.Year;
+        _mes = fecha.Month;
+        await CargarAsync();
+    }
+
+    private async Task MesSiguienteAsync()
+    {
+        var fecha = new DateTime(_anio, _mes, 1).AddMonths(1);
+        _anio = fecha.Year;
+        _mes = fecha.Month;
+        await CargarAsync();
+    }
+
+    private async Task IrAHoyAsync()
+    {
+        _anio = DateTime.Today.Year;
+        _mes = DateTime.Today.Month;
+        await CargarAsync();
+    }
+
+    private IEnumerable<ColumnaHabitacionCalendarioDto> ColumnasFiltradas()
+    {
+        if (_calendario is null)
+        {
+            return Enumerable.Empty<ColumnaHabitacionCalendarioDto>();
+        }
+
+        var query = _calendario.Columnas.AsEnumerable();
+        if (_filtroPiso != 0)
+        {
+            query = query.Where(c => c.Piso == _filtroPiso);
+        }
+
+        if (!string.IsNullOrWhiteSpace(_textoBusqueda))
+        {
+            var texto = _textoBusqueda.Trim();
+            query = query.Where(c =>
+                c.Numero.ToString().Contains(texto) ||
+                c.Celdas.Any(cel => (cel.NombreCliente ?? string.Empty).Contains(texto, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        return query.OrderBy(c => c.Numero);
+    }
+
+    private void AbrirCelda(ColumnaHabitacionCalendarioDto columna, CeldaCalendarioDto celda) => _celdaSeleccionada = (columna, celda);
+
+    private static string ColorParaCelda(EstadoCeldaCalendario estado) => estado switch
+    {
+        EstadoCeldaCalendario.Disponible => "#16A34A",
+        EstadoCeldaCalendario.Ocupada => "#2563EB",
+        EstadoCeldaCalendario.Reservada => "#7C3AED",
+        EstadoCeldaCalendario.Mantenimiento => "#DC2626",
+        _ => "#6B7280"
+    };
+}

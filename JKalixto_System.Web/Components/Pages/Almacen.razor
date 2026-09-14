@@ -1,0 +1,92 @@
+@page "/almacen"
+@using JKalixto_System.Application.Services
+@using JKalixto_System.Domain.Models
+@inject IInventarioService InventarioService
+@inject NavigationManager Navegacion
+
+<PageTitle>Almacén</PageTitle>
+
+<div style="padding:1.5rem;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <h1>Almacén</h1>
+        <button class="btn" @onclick='() => Navegacion.NavigateTo("/almacen/nuevo")'>+ Registrar Movimiento</button>
+    </div>
+
+    @if (_error is not null)
+    {
+        <p style="color:#f28b82;">@_error</p>
+    }
+
+    <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
+        <select style="background:#292a2d; border:1px solid #3c4043; border-radius:6px; padding:8px; color:#e8eaed;" @bind="_filtroCategoria">
+            <option value="">Todas las categorías</option>
+            <option value="@CategoriaInsumo.HotelHabitaciones">Hotel — Habitaciones</option>
+            <option value="@CategoriaInsumo.HotelCocina">Hotel — Cocina</option>
+            <option value="@CategoriaInsumo.Sauna">Sauna</option>
+        </select>
+        <input placeholder="Buscar insumo…"
+               style="background:#292a2d; border:1px solid #3c4043; border-radius:6px; padding:8px; color:#e8eaed; min-width:220px;"
+               value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+    </div>
+
+    @if (_cargando)
+    {
+        <p>Cargando…</p>
+    }
+    else
+    {
+        <div style="display:flex; flex-wrap:wrap; gap:12px;">
+            @foreach (var insumo in Filtrados())
+            {
+                <div style="border:1px solid @(insumo.StockBajo ? "#f28b82" : "#3c4043"); border-radius:8px; padding:10px; width:200px;">
+                    <strong>@insumo.Nombre</strong>
+                    <div style="color:#9aa0a6; font-size:0.85rem;">@insumo.EtiquetaCategoria</div>
+                    <div style="margin-top:6px; color:@(insumo.StockBajo ? "#f28b82" : "#81c995");">
+                        Stock: @insumo.StockActual @insumo.UnidadMedida
+                    </div>
+                    <div style="color:#9aa0a6; font-size:0.8rem;">Mínimo: @insumo.StockMinimo @insumo.UnidadMedida</div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<InsumoCardDto> _insumos = new();
+    private bool _cargando = true;
+    private string? _error;
+    private string _filtroCategoria = string.Empty;
+    private string _textoBusqueda = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _insumos = await InventarioService.ObtenerInsumosAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo cargar el almacén: {ex.Message}";
+        }
+        finally
+        {
+            _cargando = false;
+        }
+    }
+
+    private IEnumerable<InsumoCardDto> Filtrados()
+    {
+        var query = _insumos.AsEnumerable();
+        if (!string.IsNullOrEmpty(_filtroCategoria) && Enum.TryParse<CategoriaInsumo>(_filtroCategoria, out var categoria))
+        {
+            query = query.Where(i => i.Categoria == categoria);
+        }
+
+        if (!string.IsNullOrWhiteSpace(_textoBusqueda))
+        {
+            query = query.Where(i => i.Nombre.Contains(_textoBusqueda, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return query;
+    }
+}

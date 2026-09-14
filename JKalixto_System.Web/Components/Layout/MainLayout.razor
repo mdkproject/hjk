@@ -1,6 +1,39 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 
-@Body
+@* Menú lateral fijo — mismo orden y mismos nombres que el FlyoutItem de
+   AppShell.xaml en MAUI (Registro Hotel primero = el módulo que más se usa
+   en el día a día, hasta Reportes al final = uso puntual/gerencial). Los
+   módulos marcados "(próximamente)" todavía no están portados a la web —
+   se muestran igual para que se vea el alcance completo del sistema, pero
+   no son clickeables hasta que existan. *@
+
+<div class="app-shell">
+    <nav class="app-sidebar">
+        <div class="app-sidebar-header">
+            <div class="app-sidebar-brand">HKX</div>
+            <div class="app-sidebar-subtitle">Hotel &amp; Sauna System</div>
+        </div>
+        <div class="app-sidebar-links">
+            <NavLink class="app-nav-link" href="/recepcion" Match="NavLinkMatch.Prefix">Registro Hotel</NavLink>
+            <NavLink class="app-nav-link" href="/sauna" Match="NavLinkMatch.Prefix">Registro Sauna</NavLink>
+            <NavLink class="app-nav-link" href="/cafeteria" Match="NavLinkMatch.Prefix">Cafetería</NavLink>
+            <NavLink class="app-nav-link" href="/reservas" Match="NavLinkMatch.Prefix">Reservas</NavLink>
+            <NavLink class="app-nav-link" href="/clientes" Match="NavLinkMatch.Prefix">Clientes</NavLink>
+            <NavLink class="app-nav-link" href="/cierre-caja" Match="NavLinkMatch.Prefix">Cierre de Caja</NavLink>
+            <NavLink class="app-nav-link" href="/gastos" Match="NavLinkMatch.Prefix">Gastos</NavLink>
+            <NavLink class="app-nav-link" href="/calendario" Match="NavLinkMatch.Prefix">Calendario</NavLink>
+            <NavLink class="app-nav-link" href="/almacen" Match="NavLinkMatch.Prefix">Almacén</NavLink>
+            <NavLink class="app-nav-link" href="/registro-huespedes" Match="NavLinkMatch.Prefix">Registro de Huéspedes</NavLink>
+            <NavLink class="app-nav-link" href="/reclamos" Match="NavLinkMatch.Prefix">Libro de Reclamaciones</NavLink>
+            <NavLink class="app-nav-link" href="/auditoria" Match="NavLinkMatch.Prefix">Ver Auditoría</NavLink>
+            <NavLink class="app-nav-link" href="/reportes" Match="NavLinkMatch.Prefix">Reportes</NavLink>
+        </div>
+    </nav>
+
+    <main class="app-content">
+        @Body
+    </main>
+</div>
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.

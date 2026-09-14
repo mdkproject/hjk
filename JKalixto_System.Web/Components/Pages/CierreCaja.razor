@@ -1,0 +1,101 @@
+@page "/cierre-caja"
+@using JKalixto_System.Application.Services
+@using JKalixto_System.Domain.Models
+@using JKalixto_System.Web.Services
+@inject ICierreCajaService CierreCajaService
+@inject SesionWebService Sesion
+
+<PageTitle>Cierre de Caja</PageTitle>
+
+<div style="padding:1.5rem; max-width:560px;">
+    <h1>Cierre de Caja</h1>
+
+    @if (_error is not null)
+    {
+        <p style="color:#f28b82;">@_error</p>
+    }
+    @if (_mensajeExito is not null)
+    {
+        <p style="color:#81c995;">@_mensajeExito</p>
+    }
+
+    @if (_resumen is null)
+    {
+        <p>Cargando…</p>
+    }
+    else
+    {
+        <div style="border:1px solid #3c4043; border-radius:8px; padding:14px; margin-bottom:16px;">
+            <h3 style="margin-top:0;">Resumen del día</h3>
+            <p>Total Hotel: @_resumen.TotalHotel.ToString("C")</p>
+            <p>Total Sauna: @_resumen.TotalSauna.ToString("C")</p>
+            <p style="font-weight:700;">Total General: @_resumen.TotalGeneral.ToString("C")</p>
+        </div>
+
+        <div style="border:1px solid #3c4043; border-radius:8px; padding:14px; margin-bottom:16px;">
+            <h3 style="margin-top:0;">Caja Chica</h3>
+            <p>Hotel — esperado (base @_resumen.MontoBaseCajaChicaHotel.ToString("C")): @_resumen.MontoEsperadoCajaChicaHotel.ToString("C")</p>
+            <p>Sauna — esperado (base @_resumen.MontoBaseCajaChicaSauna.ToString("C")): @_resumen.MontoEsperadoCajaChicaSauna.ToString("C")</p>
+        </div>
+
+        @if (!_resumen.PuedeCerrar)
+        {
+            <div style="background:#3c2020; border:1px solid #f28b82; border-radius:8px; padding:10px; margin-bottom:16px;">
+                <p style="margin:0;">No se puede cerrar caja: hay @_resumen.ClientesSaunaAbiertos cliente(s) de Sauna todavía activos.</p>
+                <p style="margin:4px 0 0; color:#9aa0a6;">@string.Join(", ", _resumen.NombresClientesAbiertos)</p>
+            </div>
+        }
+
+        <div class="form-grupo">
+            <label>Turno</label>
+            <select @bind="_turno">
+                <option value="@TurnoCaja.Manana">Mañana</option>
+                <option value="@TurnoCaja.Tarde">Tarde</option>
+                <option value="@TurnoCaja.Noche">Noche</option>
+            </select>
+        </div>
+
+        <button class="btn" disabled="@(!_resumen.PuedeCerrar)" @onclick="CerrarAsync">Cerrar Caja</button>
+    }
+</div>
+
+@code {
+    private ResumenCierreCajaDto? _resumen;
+    private TurnoCaja _turno = TurnoCaja.Manana;
+    private string? _error;
+    private string? _mensajeExito;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        try
+        {
+            _resumen = await CierreCajaService.ObtenerResumenDelDiaAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo cargar el resumen: {ex.Message}";
+        }
+    }
+
+    private async Task CerrarAsync()
+    {
+        _error = null;
+        _mensajeExito = null;
+        try
+        {
+            var usuario = await Sesion.ObtenerUsuarioActualAsync();
+            await CierreCajaService.CerrarCajaAsync(_turno, usuario.Id);
+            _mensajeExito = $"Caja cerrada correctamente — {DateTime.Now:dd/MM/yyyy HH:mm}.";
+            await CargarAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo cerrar la caja: {ex.Message}";
+        }
+    }
+}

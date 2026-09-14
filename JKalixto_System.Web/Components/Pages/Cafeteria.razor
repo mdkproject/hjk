@@ -1,0 +1,90 @@
+@page "/cafeteria"
+@using JKalixto_System.Application.Services
+@using JKalixto_System.Domain.Models
+@inject ISaunaService SaunaService
+@inject NavigationManager Navegacion
+
+<PageTitle>Cafetería</PageTitle>
+
+<div style="padding:1.5rem;">
+    <h1>Cafetería</h1>
+    <p style="color:#9aa0a6;">Elegí a quién se le va a cobrar el consumo — un huésped del hotel o un cliente de sauna.</p>
+
+    <div style="display:flex; gap:8px; margin-bottom:16px;">
+        <button class="btn @(_origen == "Hotel" ? "" : "btn-secundario")" @onclick='() => _origen = "Hotel"'>Hotel</button>
+        <button class="btn @(_origen == "Sauna" ? "" : "btn-secundario")" @onclick='() => _origen = "Sauna"'>Sauna</button>
+    </div>
+
+    @if (_error is not null)
+    {
+        <p style="color:#f28b82;">@_error</p>
+    }
+
+    @if (_cargando)
+    {
+        <p>Cargando…</p>
+    }
+    else if (_origen == "Hotel")
+    {
+        <div style="display:flex; flex-wrap:wrap; gap:12px;">
+            @foreach (var h in _huespedes)
+            {
+                <div style="border:1px solid #3c4043; border-radius:8px; padding:10px; width:200px; cursor:pointer;"
+                     @onclick="() => IrAVentaHotel(h)">
+                    <strong>Hab. @h.Numero</strong>
+                    <div>@h.NombreHuesped</div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div style="display:flex; flex-wrap:wrap; gap:12px;">
+            @foreach (var c in _clientesSauna)
+            {
+                <div style="border:1px solid #3c4043; border-radius:8px; padding:10px; width:200px; cursor:pointer;"
+                     @onclick="() => IrAVentaSauna(c)">
+                    <strong>@c.NombreCompleto</strong>
+                    <div style="color:#9aa0a6; font-size:0.85rem;">Candado @c.NumeroCandado</div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private string _origen = "Hotel";
+    private bool _cargando = true;
+    private string? _error;
+    private List<HabitacionCardDto> _huespedes = new();
+    private List<ClienteSaunaCardDto> _clientesSauna = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _huespedes = await SaunaService.BuscarHuespedesActivosAsync();
+            _clientesSauna = await SaunaService.ObtenerClientesActivosAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo cargar la lista: {ex.Message}";
+        }
+        finally
+        {
+            _cargando = false;
+        }
+    }
+
+    private void IrAVentaHotel(HabitacionCardDto h)
+    {
+        var nombre = Uri.EscapeDataString(h.NombreHuesped ?? string.Empty);
+        Navegacion.NavigateTo($"/sauna/venta?estadiaId={h.EstadiaId}&numero={h.Numero}&nombre={nombre}");
+    }
+
+    private void IrAVentaSauna(ClienteSaunaCardDto c)
+    {
+        var nombre = Uri.EscapeDataString(c.NombreCompleto);
+        Navegacion.NavigateTo($"/sauna/venta?clienteSaunaId={c.ClienteSaunaId}&nombre={nombre}&esHuespedHotel={c.EsHuespedHotel}");
+    }
+}

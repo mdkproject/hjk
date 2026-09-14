@@ -1,0 +1,132 @@
+@page "/gastos/nuevo"
+@using JKalixto_System.Application.Services
+@using JKalixto_System.Domain.Models
+@using JKalixto_System.Web.Services
+@inject IGastosService GastosService
+@inject SesionWebService Sesion
+@inject NavigationManager Navegacion
+
+<PageTitle>Nuevo movimiento</PageTitle>
+
+<div style="padding:1.5rem; max-width:480px;">
+    <p><a href="/gastos">‹ Volver a Gastos</a></p>
+    <h1>Nuevo movimiento de caja</h1>
+
+    @if (_errores.Count > 0)
+    {
+        <div style="background:#3c2020; border:1px solid #f28b82; border-radius:8px; padding:10px; margin-bottom:16px;">
+            @foreach (var error in _errores)
+            {
+                <p class="mensaje-error" style="margin:2px 0;">@error</p>
+            }
+        </div>
+    }
+
+    <div class="form-grupo">
+        <label>Dirección</label>
+        <select @bind="_direccion">
+            <option value="@DireccionMovimiento.Salida">Salida</option>
+            <option value="@DireccionMovimiento.Ingreso">Ingreso</option>
+        </select>
+    </div>
+
+    <div class="form-grupo">
+        <label>Categoría</label>
+        <select @bind="_categoria">
+            <option value="@CategoriaMovimientoCaja.GastosDiarios">Gastos diarios</option>
+            <option value="@CategoriaMovimientoCaja.PagoPersonal">Pago del Personal</option>
+            <option value="@CategoriaMovimientoCaja.ConsumoPersonal">Consumo de Personal</option>
+            <option value="@CategoriaMovimientoCaja.AjusteCaja">Ajuste de Caja</option>
+        </select>
+    </div>
+
+    <div class="form-grupo">
+        <label>Afecta la Caja Chica de</label>
+        <select @bind="_origenCaja">
+            <option value="@OrigenCajaChica.Hotel">Hotel</option>
+            <option value="@OrigenCajaChica.Sauna">Sauna</option>
+        </select>
+    </div>
+
+    <div class="form-grupo">
+        <label>Método de pago</label>
+        <select @bind="_metodoPago">
+            @foreach (var metodo in Enum.GetValues<MetodoPago>())
+            {
+                <option value="@metodo">@metodo</option>
+            }
+        </select>
+    </div>
+
+    <div class="form-grupo">
+        <label>Descripción *</label>
+        <input type="text" @bind="_descripcion" @bind:event="oninput" />
+    </div>
+
+    <div class="form-grupo">
+        <label>Personal relacionado</label>
+        <input type="text" @bind="_personalRelacionado" @bind:event="oninput" />
+    </div>
+
+    <div class="form-grupo">
+        <label>Monto *</label>
+        <input type="text" @bind="_montoTexto" @bind:event="oninput" />
+    </div>
+
+    <button class="btn" @onclick="ConfirmarAsync">Registrar movimiento</button>
+</div>
+
+@code {
+    private readonly List<string> _errores = new();
+    private DireccionMovimiento _direccion = DireccionMovimiento.Salida;
+    private CategoriaMovimientoCaja _categoria = CategoriaMovimientoCaja.GastosDiarios;
+    private OrigenCajaChica _origenCaja = OrigenCajaChica.Hotel;
+    private MetodoPago _metodoPago = MetodoPago.Efectivo;
+    private string _descripcion = string.Empty;
+    private string _personalRelacionado = string.Empty;
+    private string _montoTexto = string.Empty;
+
+    private async Task ConfirmarAsync()
+    {
+        _errores.Clear();
+
+        if (string.IsNullOrWhiteSpace(_descripcion))
+        {
+            _errores.Add("La descripción es obligatoria.");
+        }
+
+        if (!decimal.TryParse(_montoTexto, out var monto) || monto <= 0)
+        {
+            _errores.Add("El monto debe ser un número mayor a 0.");
+        }
+
+        if (_errores.Count > 0)
+        {
+            return;
+        }
+
+        var usuario = await Sesion.ObtenerUsuarioActualAsync();
+
+        var dto = new NuevoMovimientoCajaDto
+        {
+            Direccion = _direccion,
+            Categoria = _categoria,
+            Descripcion = _descripcion.Trim(),
+            PersonalRelacionado = string.IsNullOrWhiteSpace(_personalRelacionado) ? null : _personalRelacionado.Trim(),
+            Monto = decimal.Parse(_montoTexto),
+            OrigenCaja = _origenCaja,
+            MetodoPago = _metodoPago,
+            UsuarioId = usuario.Id
+        };
+
+        try
+        {
+            await GastosService.RegistrarMovimientoAsync(dto);
+            Navegacion.NavigateTo("/gastos");
+        }
+        catch (Exception ex)
+        {
+            _errores.Add($"No se pudo registrar el movimiento: {ex.Message}");
+        }
+    }
+}

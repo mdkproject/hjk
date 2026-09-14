@@ -1,0 +1,167 @@
+@page "/sauna/nuevo"
+@using JKalixto_System.Application.Services
+@using JKalixto_System.Domain.Models
+@using JKalixto_System.Web.Services
+@inject ISaunaService SaunaService
+@inject INotificadorCambios Notificador
+@inject SesionWebService Sesion
+@inject NavigationManager Navegacion
+
+<PageTitle>Nuevo cliente de Sauna</PageTitle>
+
+<div style="padding:1.5rem; max-width:560px;">
+    <p><a href="/sauna">‹ Volver a Registro Sauna</a></p>
+    <h1>Nuevo cliente de Sauna</h1>
+
+    @if (_errores.Count > 0)
+    {
+        <div style="background:#3c2020; border:1px solid #f28b82; border-radius:8px; padding:10px; margin-bottom:16px;">
+            @foreach (var error in _errores)
+            {
+                <p class="mensaje-error" style="margin:2px 0;">@error</p>
+            }
+        </div>
+    }
+
+    <div class="form-grupo">
+        <label>Tipo de documento</label>
+        <select @bind="_tipoDocumento">
+            <option value="@TipoDocumento.DNI">DNI</option>
+            <option value="@TipoDocumento.Pasaporte">Pasaporte</option>
+            <option value="@TipoDocumento.CarneExtranjeria">Carné Ext.</option>
+        </select>
+    </div>
+
+    <div class="form-grupo">
+        <label>Número de documento *</label>
+        <input type="text" @bind="_numeroDocumento" @bind:event="oninput" />
+    </div>
+
+    <div class="form-grupo">
+        <label>Nombre completo *</label>
+        <input type="text" @bind="_nombreCompleto" @bind:event="oninput" />
+    </div>
+
+    <div class="form-grupo">
+        <label>Número de candado *</label>
+        <input type="text" @bind="_numeroCandado" @bind:event="oninput" />
+    </div>
+
+    <div class="form-grupo">
+        <label>Sección</label>
+        <select @bind="_seccion">
+            <option value="@SeccionSauna.Damas">Damas</option>
+            <option value="@SeccionSauna.General">General</option>
+        </select>
+    </div>
+
+    <div class="form-grupo" style="position:relative;">
+        <label>¿Es huésped del hotel? Buscá su nombre para vincularlo (entrada gratis)</label>
+        <input type="text" placeholder="Buscar huésped activo…" value="@_busquedaHuesped" @oninput="OnBuscarHuesped" />
+        @if (_huespedSeleccionado is null && _sugerencias.Count > 0)
+        {
+            <div style="position:absolute; top:100%; left:0; right:0; background:#292a2d; border:1px solid #3c4043; border-radius:6px; z-index:10; max-height:220px; overflow-y:auto;">
+                @foreach (var huesped in _sugerencias)
+                {
+                    <div style="padding:8px; cursor:pointer;" @onclick="() => SeleccionarHuesped(huesped)">
+                        @huesped.NombreHuesped — Hab. @huesped.Numero
+                    </div>
+                }
+            </div>
+        }
+        @if (_huespedSeleccionado is not null)
+        {
+            <p style="color:#81c995; font-size:0.85rem;">
+                Vinculado a @_huespedSeleccionado.NombreHuesped (Hab. @_huespedSeleccionado.Numero) — entrada gratis.
+                <button class="btn btn-secundario" style="padding:2px 8px;" @onclick="QuitarHuesped">Quitar</button>
+            </p>
+        }
+    </div>
+
+    <div class="form-grupo">
+        <label>Observación</label>
+        <textarea style="min-height:60px;" @bind="_observacion" @bind:event="oninput"></textarea>
+    </div>
+
+    <button class="btn" @onclick="ConfirmarAsync">Registrar cliente</button>
+</div>
+
+@code {
+    private readonly List<string> _errores = new();
+    private TipoDocumento _tipoDocumento = TipoDocumento.DNI;
+    private string _numeroDocumento = string.Empty;
+    private string _nombreCompleto = string.Empty;
+    private string _numeroCandado = string.Empty;
+    private SeccionSauna _seccion = SeccionSauna.Damas;
+    private string _observacion = string.Empty;
+
+    private List<HabitacionCardDto> _huespedesActivos = new();
+    private List<HabitacionCardDto> _sugerencias = new();
+    private string _busquedaHuesped = string.Empty;
+    private HabitacionCardDto? _huespedSeleccionado;
+
+    private void OnBuscarHuesped(ChangeEventArgs e)
+    {
+        _busquedaHuesped = e.Value?.ToString() ?? string.Empty;
+        _sugerencias = string.IsNullOrWhiteSpace(_busquedaHuesped)
+            ? new()
+            : _huespedesActivos
+                .Where(h => (h.NombreHuesped ?? string.Empty).Contains(_busquedaHuesped, StringComparison.OrdinalIgnoreCase))
+                .Take(8)
+                .ToList();
+    }
+
+    private void SeleccionarHuesped(HabitacionCardDto h)
+    {
+        _huespedSeleccionado = h;
+        _busquedaHuesped = h.NombreHuesped ?? string.Empty;
+        _sugerencias.Clear();
+    }
+
+    private void QuitarHuesped()
+    {
+        _huespedSeleccionado = null;
+        _busquedaHuesped = string.Empty;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _huespedesActivos = await SaunaService.BuscarHuespedesActivosAsync();
+    }
+
+    private async Task ConfirmarAsync()
+    {
+        _errores.Clear();
+
+        if (string.IsNullOrWhiteSpace(_numeroDocumento) || string.IsNullOrWhiteSpace(_nombreCompleto) || string.IsNullOrWhiteSpace(_numeroCandado))
+        {
+            _errores.Add("El número de documento, nombre y número de candado son obligatorios.");
+            return;
+        }
+
+        var usuario = await Sesion.ObtenerUsuarioActualAsync();
+
+        var dto = new NuevoClienteSaunaDto
+        {
+            TipoDocumento = _tipoDocumento,
+            NumeroDocumento = _numeroDocumento.Trim(),
+            NombreCompleto = _nombreCompleto.Trim(),
+            NumeroCandado = _numeroCandado.Trim(),
+            Seccion = _seccion,
+            Observacion = string.IsNullOrWhiteSpace(_observacion) ? null : _observacion.Trim(),
+            EsHuespedHotel = _huespedSeleccionado is not null,
+            EstadiaHotelId = _huespedSeleccionado?.EstadiaId
+        };
+
+        try
+        {
+            await SaunaService.RegistrarClienteAsync(dto, usuario.Id);
+            Notificador.Avisar("sauna");
+            Navegacion.NavigateTo("/sauna");
+        }
+        catch (Exception ex)
+        {
+            _errores.Add($"No se pudo registrar el cliente: {ex.Message}");
+        }
+    }
+}

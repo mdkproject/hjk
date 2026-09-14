@@ -1,0 +1,102 @@
+@page "/reportes"
+@using JKalixto_System.Application.Services
+@inject IDashboardService DashboardService
+
+<PageTitle>Reportes</PageTitle>
+
+<div style="padding:1.5rem;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h1>Reportes</h1>
+        <button class="btn btn-secundario" @onclick="CargarAsync">↻ Refrescar</button>
+    </div>
+
+    @if (_error is not null)
+    {
+        <p style="color:#f28b82;">@_error</p>
+    }
+
+    @if (_resumen is null)
+    {
+        <p>Cargando…</p>
+    }
+    else
+    {
+        @if (_resumen.AlertasActivas > 0)
+        {
+            <div style="background:#3c2020; border:1px solid #f28b82; border-radius:8px; padding:10px; margin-bottom:16px;">
+                Hay @_resumen.AlertasActivas habitación(es) en mantenimiento hace más de 4 horas — revisar.
+            </div>
+        }
+
+        <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:20px;">
+            <div class="kpi">Ingresos Hotel<br /><strong>@_resumen.IngresosHotelHoy.ToString("C")</strong></div>
+            <div class="kpi">Ingresos Sauna<br /><strong>@_resumen.IngresosSaunaHoy.ToString("C")</strong></div>
+            <div class="kpi">Total Hoy<br /><strong>@_resumen.IngresosTotalHoy.ToString("C")</strong></div>
+            <div class="kpi">Ocupación<br /><strong>@_resumen.TasaOcupacion.ToString("0.0")%</strong></div>
+            <div class="kpi">Tarifa Promedio (ADR)<br /><strong>@_resumen.TarifaPromedioDiaria.ToString("C")</strong></div>
+            <div class="kpi">RevPAR<br /><strong>@_resumen.IngresoPorHabitacionDisponible.ToString("C")</strong></div>
+            <div class="kpi">Clientes Sauna Hoy<br /><strong>@_resumen.ClientesSaunaHoy</strong></div>
+        </div>
+
+        <h3>Estado de Habitaciones</h3>
+        <div style="display:flex; height:22px; border-radius:4px; overflow:hidden; margin-bottom:8px;">
+            @foreach (var e in _resumen.ResumenEstados)
+            {
+                <div style="width:@(e.AnchoBarra)px; background:@ColorParaClave(e.ClaveColorBarra);" title="@e.Etiqueta: @e.Cantidad"></div>
+            }
+        </div>
+        <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:20px;">
+            @foreach (var e in _resumen.ResumenEstados)
+            {
+                <span><span style="display:inline-block; width:10px; height:10px; background:@ColorParaClave(e.ClaveColorBarra); border-radius:5px;"></span> @e.Etiqueta: @e.Cantidad</span>
+            }
+        </div>
+
+        <h3>Últimos Eventos</h3>
+        @foreach (var log in _resumen.UltimosEventos)
+        {
+            <div style="border-bottom:1px solid #292a2d; padding:6px 0; font-size:0.9rem;">
+                <span style="color:#9aa0a6;">@log.Timestamp.ToString("dd/MM HH:mm")</span> — @log.Descripcion
+            </div>
+        }
+    }
+</div>
+
+<style>
+    .kpi {
+        border: 1px solid #3c4043;
+        border-radius: 8px;
+        padding: 12px 16px;
+        min-width: 150px;
+        background: #17181a;
+    }
+</style>
+
+@code {
+    private ResumenDashboardDto? _resumen;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync() => await CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        try
+        {
+            _error = null;
+            _resumen = await DashboardService.ObtenerResumenAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo cargar el resumen: {ex.Message}";
+        }
+    }
+
+    private static string ColorParaClave(string clave) => clave switch
+    {
+        "ColorDisponible" => "#16A34A",
+        "ColorOcupada" => "#2563EB",
+        "ColorLimpieza" => "#D97706",
+        "ColorMantenimiento" => "#DC2626",
+        _ => "#6B7280"
+    };
+}

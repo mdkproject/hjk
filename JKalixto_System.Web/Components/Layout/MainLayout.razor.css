@@ -1,3 +1,74 @@
+.app-shell {
+    display: flex;
+    min-height: 100vh;
+}
+
+.app-sidebar {
+    width: 230px;
+    flex-shrink: 0;
+    background: #17181a;
+    border-right: 1px solid #2a2b2e;
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+}
+
+.app-sidebar-header {
+    padding: 22px 22px 18px;
+    border-bottom: 1px solid #2a2b2e;
+}
+
+.app-sidebar-brand {
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: #c9a84c;
+}
+
+.app-sidebar-subtitle {
+    font-size: 11px;
+    color: #9aa0a6;
+    margin-top: 3px;
+}
+
+.app-sidebar-links {
+    display: flex;
+    flex-direction: column;
+    padding: 10px 0;
+}
+
+.app-nav-link {
+    padding: 11px 22px;
+    color: #c8ccd0;
+    text-decoration: none;
+    font-size: 0.95rem;
+    border-left: 3px solid transparent;
+}
+
+.app-nav-link:hover {
+    background: #202124;
+}
+
+.app-nav-link.active {
+    background: #202124;
+    border-left-color: #669df6;
+    color: white;
+    font-weight: 600;
+}
+
+.app-nav-link-disabled {
+    color: #55585c;
+    cursor: default;
+}
+
+.app-content {
+    flex: 1;
+    min-width: 0;
+}
+
 #blazor-error-ui {
     color-scheme: light only;
     background: lightyellow;

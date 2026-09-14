@@ -1,0 +1,241 @@
+@page "/reservas"
+@using JKalixto_System.Application.Services
+@using JKalixto_System.Domain.Models
+@using JKalixto_System.Web.Services
+@inject IReservaService ReservaService
+@inject IHabitacionService HabitacionService
+@inject INotificadorCambios Notificador
+@inject SesionWebService Sesion
+@inject NavigationManager Navegacion
+@implements IDisposable
+
+<PageTitle>Reservas</PageTitle>
+
+<div style="padding:1.5rem;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <h1>Reservas</h1>
+        <button class="btn" @onclick='() => Navegacion.NavigateTo("/reservas/nuevo")'>+ Nueva Reserva</button>
+    </div>
+
+    @if (_error is not null)
+    {
+        <p style="color:#f28b82;">@_error</p>
+    }
+
+    <div style="display:flex; gap:24px; flex-wrap:wrap;">
+        <div style="flex:2; min-width:320px;">
+            <input placeholder="Buscar por huésped, habitación o celular…"
+                   style="background:#292a2d; border:1px solid #3c4043; border-radius:6px; padding:8px; color:#e8eaed; width:100%; margin-bottom:12px;"
+                   value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+
+            @if (_cargandoReservas)
+            {
+                <p>Cargando reservas…</p>
+            }
+            else
+            {
+                @foreach (var reserva in ReservasFiltradas())
+                {
+                    <div style="border:1px solid #3c4043; border-radius:8px; padding:10px; margin-bottom:8px; cursor:pointer;" @onclick="() => _reservaSeleccionada = reserva">
+                        <div style="display:flex; justify-content:space-between;">
+                            <strong>Hab. @reserva.NumeroHabitacion — @reserva.EtiquetaTipoHabitacion</strong>
+                            <span>@EtiquetaEstadoReserva(reserva.Estado)</span>
+                        </div>
+                        <div>@reserva.NombreCliente — @reserva.Celular</div>
+                        <div style="color:#9aa0a6; font-size:0.85rem;">@reserva.FechaInicio.ToString("dd/MM/yyyy") → @reserva.FechaFin.ToString("dd/MM/yyyy")</div>
+                    </div>
+                }
+            }
+        </div>
+
+        <div style="flex:1; min-width:280px;">
+            <h3>Disponibilidad de hoy</h3>
+            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;">
+                <select style="background:#292a2d; border:1px solid #3c4043; border-radius:6px; padding:6px; color:#e8eaed;" @bind="_filtroPiso">
+                    <option value="0">Todos los pisos</option>
+                    <option value="1">Piso 1</option>
+                    <option value="2">Piso 2</option>
+                    <option value="3">Piso 3</option>
+                    <option value="4">Piso 4</option>
+                </select>
+                <select style="background:#292a2d; border:1px solid #3c4043; border-radius:6px; padding:6px; color:#e8eaed;" @bind="_filtroEstado">
+                    <option value="">Todos los estados</option>
+                    @foreach (var estado in Enum.GetValues<EstadoHabitacion>())
+                    {
+                        <option value="@estado">@estado</option>
+                    }
+                </select>
+            </div>
+
+            @if (_cargandoHabitaciones)
+            {
+                <p>Cargando…</p>
+            }
+            else
+            {
+                @foreach (var h in HabitacionesFiltradas())
+                {
+                    <div style="border:1px solid #3c4043; border-radius:6px; padding:6px 8px; margin-bottom:6px; display:flex; justify-content:space-between;">
+                        <span>Hab. @h.Numero</span>
+                        <span>@h.EtiquetaEstado</span>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+@if (_reservaSeleccionada is { } r)
+{
+    <ModalBase Titulo="@($"Hab. {r.NumeroHabitacion} — {r.NombreCliente}")" OnCerrar="() => _reservaSeleccionada = null">
+        <p>Documento: @r.NumeroDocumento</p>
+        <p>Celular: @r.Celular</p>
+        <p>@r.FechaInicio.ToString("dd/MM/yyyy") → @r.FechaFin.ToString("dd/MM/yyyy")</p>
+        @if (!string.IsNullOrWhiteSpace(r.Observaciones))
+        {
+            <p>Observaciones: @r.Observaciones</p>
+        }
+
+        @if (r.Estado == EstadoReserva.Confirmada)
+        {
+            <button class="btn btn-bloque" @onclick="() => ConvertirEnCheckInAsync(r)">Hacer Check-in ahora</button>
+            <button class="btn btn-peligro btn-bloque" @onclick="() => CancelarAsync(r)">Cancelar reserva</button>
+        }
+    </ModalBase>
+}
+
+@code {
+    private List<ReservaCardDto> _reservas = new();
+    private List<HabitacionCardDto> _habitaciones = new();
+    private bool _cargandoReservas = true;
+    private bool _cargandoHabitaciones = true;
+    private string? _error;
+    private string _textoBusqueda = string.Empty;
+    private int _filtroPiso;
+    private string _filtroEstado = string.Empty;
+    private ReservaCardDto? _reservaSeleccionada;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarReservasAsync();
+        await CargarHabitacionesAsync();
+        Notificador.CambioDetectado += OnCambioDetectado;
+    }
+
+    private async Task CargarReservasAsync()
+    {
+        try
+        {
+            _reservas = await ReservaService.ObtenerProximasAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo cargar las reservas: {ex.Message}";
+        }
+        finally
+        {
+            _cargandoReservas = false;
+        }
+    }
+
+    private async Task CargarHabitacionesAsync()
+    {
+        try
+        {
+            _habitaciones = await HabitacionService.ObtenerTodasAsync();
+        }
+        finally
+        {
+            _cargandoHabitaciones = false;
+        }
+    }
+
+    private IEnumerable<ReservaCardDto> ReservasFiltradas()
+    {
+        if (string.IsNullOrWhiteSpace(_textoBusqueda))
+        {
+            return _reservas;
+        }
+
+        var texto = _textoBusqueda.Trim();
+        return _reservas.Where(r =>
+            r.NombreCliente.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
+            r.NumeroHabitacion.ToString().Contains(texto) ||
+            r.Celular.Contains(texto, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private IEnumerable<HabitacionCardDto> HabitacionesFiltradas()
+    {
+        var query = _habitaciones.AsEnumerable();
+        if (_filtroPiso != 0)
+        {
+            query = query.Where(h => h.Piso == _filtroPiso);
+        }
+
+        if (!string.IsNullOrEmpty(_filtroEstado) && Enum.TryParse<EstadoHabitacion>(_filtroEstado, out var estado))
+        {
+            query = query.Where(h => h.Estado == estado);
+        }
+
+        return query.OrderBy(h => h.Numero);
+    }
+
+    private static string EtiquetaEstadoReserva(EstadoReserva estado) => estado switch
+    {
+        EstadoReserva.Confirmada => "Confirmada",
+        EstadoReserva.CheckInRealizado => "Check-in realizado",
+        EstadoReserva.Cancelada => "Cancelada",
+        _ => estado.ToString()
+    };
+
+    private async Task ConvertirEnCheckInAsync(ReservaCardDto r)
+    {
+        try
+        {
+            var usuario = await Sesion.ObtenerUsuarioActualAsync();
+            await ReservaService.ConvertirEnCheckInAsync(r.ReservaId, usuario.Id);
+            _reservaSeleccionada = null;
+            await CargarReservasAsync();
+            await CargarHabitacionesAsync();
+            Notificador.Avisar("habitaciones");
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo hacer el check-in: {ex.Message}";
+        }
+    }
+
+    private async Task CancelarAsync(ReservaCardDto r)
+    {
+        try
+        {
+            var usuario = await Sesion.ObtenerUsuarioActualAsync();
+            await ReservaService.CancelarReservaAsync(r.ReservaId, usuario.Id);
+            _reservaSeleccionada = null;
+            await CargarReservasAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo cancelar la reserva: {ex.Message}";
+        }
+    }
+
+    private async void OnCambioDetectado(string area)
+    {
+        if (area != "habitaciones")
+        {
+            return;
+        }
+
+        await InvokeAsync(async () =>
+        {
+            await CargarHabitacionesAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        Notificador.CambioDetectado -= OnCambioDetectado;
+    }
+}

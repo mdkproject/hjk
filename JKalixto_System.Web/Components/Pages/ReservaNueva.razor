@@ -1,0 +1,279 @@
+@page "/reservas/nuevo"
+@using JKalixto_System.Application.Services
+@using JKalixto_System.Domain.Models
+@using JKalixto_System.Web.Services
+@inject IReservaService ReservaService
+@inject INotificadorCambios Notificador
+@inject SesionWebService Sesion
+@inject NavigationManager Navegacion
+
+<PageTitle>Nueva reserva</PageTitle>
+
+<div style="padding:1.5rem; max-width:640px;">
+    <p><a href="/reservas">‹ Volver a Reservas</a></p>
+    <h1>Nueva reserva</h1>
+
+    @if (_errores.Count > 0)
+    {
+        <div style="background:#3c2020; border:1px solid #f28b82; border-radius:8px; padding:10px; margin-bottom:16px;">
+            @foreach (var error in _errores)
+            {
+                <p class="mensaje-error" style="margin:2px 0;">@error</p>
+            }
+        </div>
+    }
+
+    <div style="display:flex; gap:12px;">
+        <div class="form-grupo" style="flex:1;">
+            <label>Fecha de inicio</label>
+            <input type="date" value="@_fechaInicio.ToString("yyyy-MM-dd")" @onchange="OnCambioFechas" />
+        </div>
+        <div class="form-grupo" style="flex:1;">
+            <label>Fecha de fin</label>
+            <input type="date" value="@_fechaFin.ToString("yyyy-MM-dd")" @onchange="OnCambioFechaFin" />
+        </div>
+    </div>
+
+    <div class="form-grupo">
+        <label>Tipo de habitación</label>
+        <select @bind="_tipoFiltro" @bind:after="CargarDisponiblesAsync">
+            @foreach (var tipo in Enum.GetValues<TipoHabitacion>())
+            {
+                <option value="@tipo">@tipo</option>
+            }
+        </select>
+    </div>
+
+    <div class="form-grupo">
+        <label>Habitación disponible</label>
+        @if (_cargandoDisponibles)
+        {
+            <p>Buscando disponibilidad…</p>
+        }
+        else if (_disponibles.Count == 0)
+        {
+            <p style="color:#9aa0a6;">No hay habitaciones de este tipo disponibles en esas fechas.</p>
+        }
+        else
+        {
+            <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                @foreach (var h in _disponibles)
+                {
+                    <div style="border:2px solid @(_habitacionSeleccionada?.HabitacionId == h.HabitacionId ? "#669df6" : "#3c4043"); border-radius:6px; padding:8px; width:100px; text-align:center; cursor:pointer;"
+                         @onclick="() => _habitacionSeleccionada = h">
+                        <strong>@h.Numero</strong>
+                        <div style="font-size:0.8rem; color:#9aa0a6;">S/ @h.TarifaNoche.ToString("0.00")</div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <div class="form-grupo">
+        <label>Tipo de documento</label>
+        <select @bind="_tipoDocumento">
+            <option value="@TipoDocumento.DNI">DNI</option>
+            <option value="@TipoDocumento.Pasaporte">Pasaporte</option>
+            <option value="@TipoDocumento.CarneExtranjeria">Carné Ext.</option>
+        </select>
+    </div>
+
+    <div class="form-grupo">
+        <label>Número de documento *</label>
+        <input type="text" @bind="_numeroDocumento" @bind:event="oninput" />
+    </div>
+
+    <div class="form-grupo">
+        <label>Nombre completo *</label>
+        <input type="text" @bind="_nombreCompleto" @bind:event="oninput" />
+    </div>
+
+    <div class="form-grupo">
+        <label>Celular *</label>
+        <input type="text" @bind="_celular" @bind:event="oninput" />
+    </div>
+
+    <div class="form-grupo">
+        <label>Observaciones</label>
+        <textarea @bind="_observaciones" @bind:event="oninput"></textarea>
+    </div>
+
+    <div class="form-grupo">
+        <label><input type="checkbox" @bind="_esFactura" /> Requiere factura (en vez de boleta)</label>
+    </div>
+
+    @if (_esFactura)
+    {
+        <div class="form-grupo">
+            <label>RUC (11 dígitos) *</label>
+            <input type="text" @bind="_ruc" @bind:event="oninput" maxlength="11" />
+        </div>
+        <div class="form-grupo">
+            <label>Razón social *</label>
+            <input type="text" @bind="_razonSocial" @bind:event="oninput" />
+        </div>
+        <div class="form-grupo">
+            <label>Correo de facturación *</label>
+            <input type="email" @bind="_correoFacturacion" @bind:event="oninput" />
+        </div>
+    }
+
+    <div class="form-grupo">
+        <label>Acompañantes</label>
+        @foreach (var acompanante in _acompanantes)
+        {
+            <div style="display:flex; gap:6px; align-items:center;">
+                <span>@acompanante</span>
+                <button class="btn btn-secundario" style="padding:2px 8px;" @onclick="() => _acompanantes.Remove(acompanante)">Quitar</button>
+            </div>
+        }
+        <div style="display:flex; gap:6px;">
+            <input type="text" style="flex:1;" placeholder="Nombre del acompañante" @bind="_nuevoAcompanante" @bind:event="oninput" />
+            <button class="btn btn-secundario" @onclick="AgregarAcompanante">Agregar</button>
+        </div>
+    </div>
+
+    <button class="btn" @onclick="ConfirmarAsync">Confirmar reserva</button>
+</div>
+
+@code {
+    private DateTime _fechaInicio = DateTime.Today.AddDays(1);
+    private DateTime _fechaFin = DateTime.Today.AddDays(3);
+    private TipoHabitacion _tipoFiltro = TipoHabitacion.Simple;
+    private List<HabitacionDisponibleDto> _disponibles = new();
+    private HabitacionDisponibleDto? _habitacionSeleccionada;
+    private bool _cargandoDisponibles = true;
+    private readonly List<string> _errores = new();
+
+    private TipoDocumento _tipoDocumento = TipoDocumento.DNI;
+    private string _numeroDocumento = string.Empty;
+    private string _nombreCompleto = string.Empty;
+    private string _celular = string.Empty;
+    private string _observaciones = string.Empty;
+    private bool _esFactura;
+    private string _ruc = string.Empty;
+    private string _razonSocial = string.Empty;
+    private string _correoFacturacion = string.Empty;
+    private readonly List<string> _acompanantes = new();
+    private string _nuevoAcompanante = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDisponiblesAsync();
+    }
+
+    private async Task OnCambioFechas(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var fecha))
+        {
+            _fechaInicio = fecha;
+            await CargarDisponiblesAsync();
+        }
+    }
+
+    private async Task OnCambioFechaFin(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var fecha))
+        {
+            _fechaFin = fecha;
+            await CargarDisponiblesAsync();
+        }
+    }
+
+    private async Task CargarDisponiblesAsync()
+    {
+        _cargandoDisponibles = true;
+        _habitacionSeleccionada = null;
+        try
+        {
+            var todas = await ReservaService.ObtenerHabitacionesDisponiblesAsync(_fechaInicio, _fechaFin);
+            _disponibles = todas.Where(h => h.Tipo == _tipoFiltro).ToList();
+        }
+        catch (Exception ex)
+        {
+            _errores.Add($"No se pudo cargar la disponibilidad: {ex.Message}");
+        }
+        finally
+        {
+            _cargandoDisponibles = false;
+        }
+    }
+
+    private void AgregarAcompanante()
+    {
+        if (!string.IsNullOrWhiteSpace(_nuevoAcompanante))
+        {
+            _acompanantes.Add(_nuevoAcompanante.Trim());
+            _nuevoAcompanante = string.Empty;
+        }
+    }
+
+    private async Task ConfirmarAsync()
+    {
+        _errores.Clear();
+
+        if (_fechaFin <= _fechaInicio)
+        {
+            _errores.Add("La fecha de fin debe ser posterior a la fecha de inicio.");
+        }
+
+        if (_habitacionSeleccionada is null)
+        {
+            _errores.Add("Tenés que elegir una habitación disponible.");
+        }
+
+        if (string.IsNullOrWhiteSpace(_numeroDocumento) || string.IsNullOrWhiteSpace(_nombreCompleto) || string.IsNullOrWhiteSpace(_celular))
+        {
+            _errores.Add("El número de documento, nombre completo y celular son obligatorios.");
+        }
+
+        if (_esFactura)
+        {
+            if (_ruc.Trim().Length != 11 || !_ruc.Trim().All(char.IsDigit))
+            {
+                _errores.Add("El RUC debe tener exactamente 11 dígitos.");
+            }
+
+            if (string.IsNullOrWhiteSpace(_razonSocial) || string.IsNullOrWhiteSpace(_correoFacturacion))
+            {
+                _errores.Add("Para Factura, la Razón Social y el Correo son obligatorios.");
+            }
+        }
+
+        if (_errores.Count > 0)
+        {
+            return;
+        }
+
+        var usuario = await Sesion.ObtenerUsuarioActualAsync();
+
+        var dto = new NuevaReservaDto
+        {
+            HabitacionId = _habitacionSeleccionada!.HabitacionId,
+            TipoDocumento = _tipoDocumento,
+            NumeroDocumento = _numeroDocumento.Trim(),
+            NombreCompleto = _nombreCompleto.Trim(),
+            Celular = _celular.Trim(),
+            FechaInicio = _fechaInicio,
+            FechaFin = _fechaFin,
+            Observaciones = string.IsNullOrWhiteSpace(_observaciones) ? null : _observaciones.Trim(),
+            TipoComprobante = _esFactura ? TipoComprobante.Factura : TipoComprobante.Boleta,
+            RUC = _esFactura ? _ruc.Trim() : null,
+            RazonSocial = _esFactura ? _razonSocial.Trim() : null,
+            CorreoFacturacion = _esFactura ? _correoFacturacion.Trim() : null,
+            Acompanantes = _acompanantes,
+            UsuarioId = usuario.Id
+        };
+
+        try
+        {
+            await ReservaService.CrearReservaAsync(dto);
+            Notificador.Avisar("habitaciones");
+            Navegacion.NavigateTo("/reservas");
+        }
+        catch (Exception ex)
+        {
+            _errores.Add($"No se pudo crear la reserva: {ex.Message}");
+        }
+    }
+}
