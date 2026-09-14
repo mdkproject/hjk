@@ -1,4 +1,8 @@
 using System.IO;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using JKalixto_System.Application.Services;
 using JKalixto_System.Infrastructure.Data;
@@ -8,9 +12,49 @@ using JKalixto_System.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Corre como consola (dotnet run, como hasta ahora) o como servicio de Windows,
+// según cómo se lo inicie — ver JKalixto_System.Web/deploy/instalar-servicio.ps1.
+// No cambia nada cuando se corre por consola; permite que el hotel lo deje
+// arrancando solo con la PC, sin depender de dejar una terminal abierta.
+builder.Host.UseWindowsService(options =>
+{
+    options.ServiceName = "JKalixto Web";
+});
+
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+// ------------------------------------------------------------------
+// LOGIN — cookie de ASP.NET Core, reutilizando IAuthService.IniciarSesionAsync
+// (el mismo que ya usa la app de escritorio). A propósito NO se fuerza
+// CookieSecurePolicy.Always: el servidor sigue sirviendo HTTP plano dentro de
+// la LAN del hotel (sin certificado) — sería el mismo motivo que ya llevó a no
+// usar UseHttpsRedirection más abajo. Forzar "Always" haría que el navegador
+// nunca mande la cookie y el login quedaría roto sin excepción visible.
+// ------------------------------------------------------------------
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.Cookie.Name = "JKalixtoAuth";
+        options.LoginPath = "/login";
+        options.AccessDeniedPath = "/login";
+        options.ExpireTimeSpan = TimeSpan.FromHours(12);
+        options.SlidingExpiration = true;
+    });
+// FallbackPolicy en vez de un simple AddAuthorization(): sin esto,
+// AuthorizeRouteView (Routes.razor) NO exige sesión en ninguna página a menos
+// que cada una tenga su propio [Authorize] — habría que acordarse de
+// decorarlas una por una, y bastaría con olvidarse de UNA para dejarla
+// abierta sin querer. Con el fallback, TODA página exige sesión por defecto,
+// y Login.razor es la única excepción explícita vía [AllowAnonymous].
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
+builder.Services.AddCascadingAuthenticationState();
 
 // ------------------------------------------------------------------
 // BASE DE DATOS — mismo archivo SQLite que ya usa la app de escritorio (MAUI),
@@ -73,10 +117,13 @@ builder.Services.AddScoped<ISessionService, SessionService>();
 // Services/INotificadorCambios.cs.
 builder.Services.AddSingleton<INotificadorCambios, NotificadorCambios>();
 
-// Ver el comentario en SesionWebService.cs — parche temporal hasta que haya
-// login real en la web. Scoped porque, igual que ISessionService acá arriba,
+// Resuelve el Usuario real de la sesión a partir de la cookie de login (ver
+// SesionWebService.cs). Scoped porque, igual que ISessionService acá arriba,
 // tiene que ser "una sesión de negocio por circuito/pestaña".
 builder.Services.AddScoped<SesionWebService>();
+
+// Respaldo periódico de la base de datos — ver RespaldoBaseDeDatosService.cs.
+builder.Services.AddHostedService<RespaldoBaseDeDatosService>();
 
 var app = builder.Build();
 
@@ -95,11 +142,68 @@ if (!app.Environment.IsDevelopment())
 // aportar nada, porque el tráfico ya está dentro de la red del negocio.
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.UseAntiforgery();
 
-app.MapStaticAssets();
+// AllowAnonymous a propósito: el FallbackPolicy de arriba, si no, también
+// bloquearía el CSS/JS — y sin CSS la propia pantalla de /login se ve sin
+// estilos (un archivo de hojas de estilo no es información sensible).
+app.MapStaticAssets().AllowAnonymous();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+
+// ------------------------------------------------------------------
+// LOGIN / LOGOUT — endpoints mínimos, NO páginas Blazor: necesitan llamar
+// HttpContext.SignInAsync/SignOutAsync, que solo funciona si la respuesta
+// HTTP todavía no se empezó a enviar. Un componente Blazor interactivo ya
+// renderizado (sobre SignalR) no puede hacer eso — por eso Login.razor manda
+// un <form> HTML normal (no un EditForm de Blazor) que termina acá.
+//
+// A propósito NO se llaman "/login" ni "/logout" — esas rutas ya las usa la
+// propia página Blazor (@page "/login"), y el manejo de formularios de
+// Blazor (enhanced form handling) también reclama esa misma ruta para un
+// POST, chocando con este endpoint (AmbiguousMatchException en tiempo de
+// ejecución). "/account/..." las deja sin ambigüedad.
+// ------------------------------------------------------------------
+app.MapPost("/account/login", async (HttpContext http, IAuthService authService) =>
+{
+    var form = await http.Request.ReadFormAsync();
+    var username = form["username"].ToString();
+    var password = form["password"].ToString();
+
+    var resultado = await authService.IniciarSesionAsync(username, password);
+    if (!resultado.Exito || resultado.Usuario is null)
+    {
+        return Results.Redirect("/login?error=1");
+    }
+
+    var usuario = resultado.Usuario;
+    var claims = new List<Claim>
+    {
+        new(ClaimTypes.NameIdentifier, usuario.Id.ToString()),
+        new(ClaimTypes.Name, usuario.Username),
+        new(ClaimTypes.Role, usuario.Rol.ToString()),
+        new("NombreCompleto", usuario.NombreCompleto),
+    };
+    var identidad = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+
+    await http.SignInAsync(
+        CookieAuthenticationDefaults.AuthenticationScheme,
+        new ClaimsPrincipal(identidad),
+        new AuthenticationProperties { IsPersistent = true, ExpiresUtc = DateTimeOffset.UtcNow.AddHours(12) });
+
+    var returnUrl = form["returnUrl"].ToString();
+    var destino = !string.IsNullOrWhiteSpace(returnUrl) && returnUrl.StartsWith('/') ? returnUrl : "/recepcion";
+    return Results.Redirect(destino);
+}).AllowAnonymous(); // si no, el FallbackPolicy de arriba bloquearía el propio POST de login
+
+app.MapPost("/account/logout", async (HttpContext http) =>
+{
+    await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+    return Results.Redirect("/login");
+}).AllowAnonymous();
 
 app.Run();
 

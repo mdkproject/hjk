@@ -681,3 +681,29 @@ h1, h2, h3, h4 {
     flex: 1;
     min-width: 0;
 }
+
+.app-sidebar-footer {
+    margin-top: auto;
+    padding: 14px 16px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.app-logout-btn {
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    color: var(--text-secondary);
+    border-radius: var(--radius-sm);
+    padding: 7px;
+    cursor: pointer;
+    display: flex;
+    transition: background var(--transition), color var(--transition);
+}
+
+.app-logout-btn:hover {
+    background: var(--surface-hover);
+    color: var(--danger);
+}
