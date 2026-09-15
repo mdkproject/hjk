@@ -1005,3 +1005,64 @@ h1, h2, h3, h4 {
     background: var(--surface-hover);
     color: var(--danger);
 }
+
+/* ---------- Sidebar en mobile (menú tipo "drawer") ----------
+   Debajo de 860px el sidebar deja de ocupar espacio fijo (no entra junto
+   al contenido en una pantalla de celular) y pasa a ser un panel que se
+   desliza por encima, oculto por defecto. El botón hamburguesa y el fondo
+   oscuro solo existen visualmente acá — en desktop quedan con
+   display:none y no estorban. */
+
+.app-mobile-toggle {
+    display: none;
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    z-index: 220;
+    width: 38px;
+    height: 38px;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    cursor: pointer;
+    box-shadow: var(--shadow-md);
+}
+
+.app-sidebar-backdrop {
+    display: none;
+}
+
+@media (max-width: 860px) {
+    .app-mobile-toggle {
+        display: flex;
+    }
+
+    .app-sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        z-index: 210;
+        transform: translateX(-100%);
+        transition: transform 200ms ease;
+        box-shadow: var(--shadow-lg);
+    }
+
+    .app-sidebar.abierto {
+        transform: translateX(0);
+    }
+
+    .app-sidebar-backdrop.visible {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(6, 7, 10, .6);
+        z-index: 200;
+    }
+
+    .app-content {
+        padding-top: 54px;
+    }
+}

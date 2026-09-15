@@ -1,5 +1,7 @@
 @inherits LayoutComponentBase
+@implements IDisposable
 @inject AuthenticationStateProvider AuthProvider
+@inject NavigationManager Navegacion
 
 @* Menú lateral fijo — mismo orden que el FlyoutItem de AppShell.xaml en MAUI
    (de la pantalla que más se usa en el día a día, a la de uso puntual/
@@ -8,7 +10,23 @@
    que se mantiene visible incluso en estado activo/hover. *@
 
 <div class="app-shell">
-    <nav class="app-sidebar">
+    <button class="app-mobile-toggle" @onclick="ToggleSidebar" aria-label="Abrir menú" title="Menú">
+        @if (_sidebarAbierto)
+        {
+            <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+        }
+        else
+        {
+            <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
+        }
+    </button>
+
+    @if (_sidebarAbierto)
+    {
+        <div class="app-sidebar-backdrop visible" @onclick="CerrarSidebar"></div>
+    }
+
+    <nav class="app-sidebar @(_sidebarAbierto ? "abierto" : "")">
         <div class="app-sidebar-header">
             <div class="app-logo">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z" /></svg>
@@ -124,6 +142,31 @@
     private string? _nombreUsuario;
     private string? _rolUsuario;
     private bool _puedeVerAuditoria;
+    private bool _sidebarAbierto;
+
+    protected override void OnInitialized()
+    {
+        // La navegación de NavLink la maneja el JS de Blazor (enhanced navigation),
+        // que intercepta el clic antes de que llegue a un @onclick del contenedor
+        // padre — por eso el menú se cierra acá, escuchando el cambio de ruta en
+        // vez de depender de que el clic burbujee.
+        Navegacion.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        if (_sidebarAbierto)
+        {
+            _sidebarAbierto = false;
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void ToggleSidebar() => _sidebarAbierto = !_sidebarAbierto;
+
+    private void CerrarSidebar() => _sidebarAbierto = false;
+
+    public void Dispose() => Navegacion.LocationChanged -= OnLocationChanged;
 
     protected override async Task OnInitializedAsync()
     {
