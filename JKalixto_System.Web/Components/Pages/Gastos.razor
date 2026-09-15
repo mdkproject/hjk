@@ -91,7 +91,7 @@
     <ModalBase Titulo="Eliminar movimiento" OnCerrar="() => _paraEliminar = null">
         <p>@m2.Descripcion — @m2.Monto.ToString("C")</p>
         <p>¿Confirmás que querés eliminar este movimiento? Esta acción requiere rol de Gerencia/Desarrollador.</p>
-        <button class="btn btn-peligro btn-bloque" @onclick="EliminarAsync">Sí, eliminar</button>
+        <button class="btn btn-peligro btn-bloque" disabled="@_guardando" @onclick="EliminarAsync">@(_guardando ? "Eliminando…" : "Sí, eliminar")</button>
     </ModalBase>
 }
 
@@ -102,6 +102,7 @@
     private string? _error;
     private string _textoBusqueda = string.Empty;
     private MovimientoCajaCardDto? _paraEliminar;
+    private bool _guardando;
 
     protected override async Task OnInitializedAsync()
     {
@@ -160,11 +161,12 @@
 
     private async Task EliminarAsync()
     {
-        if (_paraEliminar is null)
+        if (_paraEliminar is null || _guardando)
         {
             return;
         }
 
+        _guardando = true;
         try
         {
             var usuario = await Sesion.ObtenerUsuarioActualAsync();
@@ -177,6 +179,10 @@
         {
             _error = $"No se pudo eliminar: {ex.Message}";
             _paraEliminar = null;
+        }
+        finally
+        {
+            _guardando = false;
         }
     }
 }

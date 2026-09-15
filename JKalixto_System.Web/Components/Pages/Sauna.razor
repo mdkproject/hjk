@@ -87,7 +87,7 @@
         @if (_confirmarFin)
         {
             <p style="margin-top:10px;">¿Confirmar que @c.NombreCompleto ya terminó su sesión?</p>
-            <button class="btn btn-peligro btn-bloque" @onclick="() => FinalizarAsync(c)">Sí, finalizar sesión</button>
+            <button class="btn btn-peligro btn-bloque" disabled="@_guardando" @onclick="() => FinalizarAsync(c)">@(_guardando ? "Guardando…" : "Sí, finalizar sesión")</button>
         }
     </ModalBase>
 }
@@ -99,6 +99,7 @@
     private string _textoBusqueda = string.Empty;
     private ClienteSaunaCardDto? _clienteSeleccionado;
     private bool _confirmarFin;
+    private bool _guardando;
 
     protected override async Task OnInitializedAsync()
     {
@@ -149,6 +150,12 @@
 
     private async Task FinalizarAsync(ClienteSaunaCardDto c)
     {
+        if (_guardando)
+        {
+            return;
+        }
+
+        _guardando = true;
         try
         {
             var usuario = await Sesion.ObtenerUsuarioActualAsync();
@@ -160,6 +167,10 @@
         catch (Exception ex)
         {
             _error = $"No se pudo finalizar la sesión: {ex.Message}";
+        }
+        finally
+        {
+            _guardando = false;
         }
     }
 

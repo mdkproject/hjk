@@ -81,7 +81,7 @@
         else
         {
             <textarea style="width:100%; min-height:70px;" placeholder="Escribí la respuesta del establecimiento…" @bind="_respuesta" @bind:event="oninput"></textarea>
-            <button class="btn btn-bloque" @onclick="() => ResponderAsync(sel)">Enviar respuesta</button>
+            <button class="btn btn-bloque" disabled="@_guardando" @onclick="() => ResponderAsync(sel)">@(_guardando ? "Enviando…" : "Enviar respuesta")</button>
         }
     </ModalBase>
 }
@@ -93,6 +93,7 @@
     private string _textoBusqueda = string.Empty;
     private ReclamoCardDto? _seleccionado;
     private string _respuesta = string.Empty;
+    private bool _guardando;
 
     protected override async Task OnInitializedAsync()
     {
@@ -148,12 +149,18 @@
 
     private async Task ResponderAsync(ReclamoCardDto r)
     {
+        if (_guardando)
+        {
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(_respuesta))
         {
             _error = "La respuesta no puede estar vacía.";
             return;
         }
 
+        _guardando = true;
         try
         {
             var usuario = await Sesion.ObtenerUsuarioActualAsync();
@@ -166,6 +173,10 @@
         catch (Exception ex)
         {
             _error = $"No se pudo enviar la respuesta: {ex.Message}";
+        }
+        finally
+        {
+            _guardando = false;
         }
     }
 }

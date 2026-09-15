@@ -108,13 +108,13 @@
                 <p style="margin-top:8px;">Método de pago:</p>
                 @foreach (var metodo in Enum.GetValues<MetodoPago>())
                 {
-                    <button class="btn btn-secundario btn-bloque" @onclick="() => FinalizarConCheckoutAsync(d, metodo)">@metodo</button>
+                    <button class="btn btn-secundario btn-bloque" disabled="@_guardando" @onclick="() => FinalizarConCheckoutAsync(d, metodo)">@(_guardando ? "Guardando…" : metodo.ToString())</button>
                 }
             }
             else
             {
                 <p style="margin-top:8px;">¿Confirmar el fin de la sesión de @d.NombreCliente?</p>
-                <button class="btn btn-peligro btn-bloque" @onclick="() => FinalizarSesionSaunaAsync(d)">Sí, finalizar</button>
+                <button class="btn btn-peligro btn-bloque" disabled="@_guardando" @onclick="() => FinalizarSesionSaunaAsync(d)">@(_guardando ? "Guardando…" : "Sí, finalizar")</button>
             }
         }
     </ModalBase>
@@ -128,6 +128,7 @@
     private List<ClienteUnificadoDto> _clientes = new();
     private DetalleClienteDto? _detalle;
     private bool _vistaPago;
+    private bool _guardando;
 
     protected override async Task OnInitializedAsync()
     {
@@ -225,6 +226,12 @@
 
     private async Task FinalizarConCheckoutAsync(DetalleClienteDto d, MetodoPago metodo)
     {
+        if (_guardando)
+        {
+            return;
+        }
+
+        _guardando = true;
         try
         {
             var usuario = await Sesion.ObtenerUsuarioActualAsync();
@@ -237,10 +244,20 @@
         {
             _error = $"No se pudo hacer el check-out: {ex.Message}";
         }
+        finally
+        {
+            _guardando = false;
+        }
     }
 
     private async Task FinalizarSesionSaunaAsync(DetalleClienteDto d)
     {
+        if (_guardando)
+        {
+            return;
+        }
+
+        _guardando = true;
         try
         {
             var usuario = await Sesion.ObtenerUsuarioActualAsync();
@@ -252,6 +269,10 @@
         catch (Exception ex)
         {
             _error = $"No se pudo finalizar la sesión: {ex.Message}";
+        }
+        finally
+        {
+            _guardando = false;
         }
     }
 }

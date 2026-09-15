@@ -72,7 +72,7 @@
             </select>
         </div>
 
-        <button class="btn" disabled="@(!_resumen.PuedeCerrar)" @onclick="CerrarAsync">Cerrar Caja</button>
+        <button class="btn" disabled="@(!_resumen.PuedeCerrar || _guardando)" @onclick="CerrarAsync">@(_guardando ? "Cerrando…" : "Cerrar Caja")</button>
     }
 </div>
 
@@ -81,6 +81,7 @@
     private TurnoCaja _turno = TurnoCaja.Manana;
     private string? _error;
     private string? _mensajeExito;
+    private bool _guardando;
 
     protected override async Task OnInitializedAsync()
     {
@@ -118,8 +119,14 @@
 
     private async Task CerrarAsync()
     {
+        if (_guardando)
+        {
+            return;
+        }
+
         _error = null;
         _mensajeExito = null;
+        _guardando = true;
         try
         {
             var usuario = await Sesion.ObtenerUsuarioActualAsync();
@@ -131,6 +138,10 @@
         catch (Exception ex)
         {
             _error = $"No se pudo cerrar la caja: {ex.Message}";
+        }
+        finally
+        {
+            _guardando = false;
         }
     }
 }

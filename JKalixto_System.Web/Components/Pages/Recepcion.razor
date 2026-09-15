@@ -177,7 +177,7 @@
                 {
                     <p class="mensaje-error">@_errorModal</p>
                 }
-                <button class="btn btn-bloque" @onclick="() => ConfirmarIniciarMantenimientoAsync(h)">Confirmar</button>
+                <button class="btn btn-bloque" disabled="@_guardando" @onclick="() => ConfirmarIniciarMantenimientoAsync(h)">@(_guardando ? "Guardando…" : "Confirmar")</button>
             </ModalBase>
             break;
 
@@ -186,7 +186,7 @@
                 <p style="color:var(--text-secondary); margin-top:0;">Total acumulado: @h.TotalAcumulado?.ToString("C")</p>
                 <button class="btn btn-secundario btn-bloque" @onclick="() => _vistaModal = VistaModal.DetalleHuesped">Ver detalles del huésped</button>
                 <button class="btn btn-bloque" @onclick="() => _vistaModal = VistaModal.ConfirmarCheckout">Hacer Check-out</button>
-                <button class="btn btn-secundario btn-bloque" @onclick="() => SolicitarLimpiezaIntermediaAsync(h)">Solicitar limpieza intermedia</button>
+                <button class="btn btn-secundario btn-bloque" disabled="@_guardando" @onclick="() => SolicitarLimpiezaIntermediaAsync(h)">Solicitar limpieza intermedia</button>
             </ModalBase>
             break;
 
@@ -217,7 +217,7 @@
                 }
                 @foreach (var metodo in Enum.GetValues<MetodoPago>())
                 {
-                    <button class="btn btn-secundario btn-bloque" @onclick="() => ConfirmarCheckoutAsync(h, metodo)">@metodo</button>
+                    <button class="btn btn-secundario btn-bloque" disabled="@_guardando" @onclick="() => ConfirmarCheckoutAsync(h, metodo)">@(_guardando ? "Guardando…" : metodo.ToString())</button>
                 }
             </ModalBase>
             break;
@@ -225,7 +225,7 @@
         case VistaModal.ConfirmarLimpieza:
             <ModalBase Titulo="Marcar como limpia" OnCerrar="CerrarModal">
                 <p>¿La habitación @h.Numero ya está lista para un nuevo huésped?</p>
-                <button class="btn btn-bloque" @onclick="() => ConfirmarFinalizarLimpiezaAsync(h)">Sí, está limpia</button>
+                <button class="btn btn-bloque" disabled="@_guardando" @onclick="() => ConfirmarFinalizarLimpiezaAsync(h)">@(_guardando ? "Guardando…" : "Sí, está limpia")</button>
             </ModalBase>
             break;
 
@@ -233,7 +233,7 @@
             <ModalBase Titulo="Finalizar mantenimiento" OnCerrar="CerrarModal">
                 <p>Motivo registrado: @h.MotivoMantenimiento</p>
                 <p>¿Marcar la habitación @h.Numero como Disponible?</p>
-                <button class="btn btn-bloque" @onclick="() => ConfirmarFinalizarMantenimientoAsync(h)">Sí, finalizar</button>
+                <button class="btn btn-bloque" disabled="@_guardando" @onclick="() => ConfirmarFinalizarMantenimientoAsync(h)">@(_guardando ? "Guardando…" : "Sí, finalizar")</button>
             </ModalBase>
             break;
     }
@@ -259,6 +259,7 @@
     private HabitacionCardDto? _habitacionSeleccionada;
     private VistaModal _vistaModal;
     private string _motivoMantenimiento = string.Empty;
+    private bool _guardando;
 
     protected override async Task OnInitializedAsync()
     {
@@ -396,9 +397,18 @@
 
     /// <summary>Envoltorio común para toda acción que muta una habitación: ejecuta,
     /// recarga el tablero, cierra el modal, y avisa a los demás circuitos
-    /// conectados — igual que ya hacía "Finalizar limpieza" en la versión mínima.</summary>
+    /// conectados — igual que ya hacía "Finalizar limpieza" en la versión mínima.
+    /// El guard _guardando evita que un doble clic (ej. con WiFi lento) dispare la
+    /// misma acción dos veces — un check-out o un check-in duplicado sería un error
+    /// de caja real, no solo una molestia visual.</summary>
     private async Task EjecutarAccionAsync(Func<Task> accion)
     {
+        if (_guardando)
+        {
+            return;
+        }
+
+        _guardando = true;
         try
         {
             await accion();
@@ -409,6 +419,10 @@
         catch (Exception ex)
         {
             _errorModal = ex.Message;
+        }
+        finally
+        {
+            _guardando = false;
         }
     }
 

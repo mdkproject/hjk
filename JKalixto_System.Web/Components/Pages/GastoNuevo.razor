@@ -86,11 +86,12 @@
         </div>
     </div>
 
-    <button class="btn" @onclick="ConfirmarAsync">Registrar movimiento</button>
+    <button class="btn" disabled="@_guardando" @onclick="ConfirmarAsync">@(_guardando ? "Guardando…" : "Registrar movimiento")</button>
 </div>
 
 @code {
     private readonly List<string> _errores = new();
+    private bool _guardando;
     private DireccionMovimiento _direccion = DireccionMovimiento.Salida;
     private CategoriaMovimientoCaja _categoria = CategoriaMovimientoCaja.GastosDiarios;
     private OrigenCajaChica _origenCaja = OrigenCajaChica.Hotel;
@@ -101,6 +102,11 @@
 
     private async Task ConfirmarAsync()
     {
+        if (_guardando)
+        {
+            return;
+        }
+
         _errores.Clear();
 
         if (string.IsNullOrWhiteSpace(_descripcion))
@@ -139,6 +145,7 @@
             UsuarioId = usuario.Id
         };
 
+        _guardando = true;
         try
         {
             await GastosService.RegistrarMovimientoAsync(dto);
@@ -148,6 +155,10 @@
         catch (Exception ex)
         {
             _errores.Add($"No se pudo registrar el movimiento: {ex.Message}");
+        }
+        finally
+        {
+            _guardando = false;
         }
     }
 }

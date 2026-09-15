@@ -144,8 +144,8 @@
 
         @if (r.Estado == EstadoReserva.Confirmada)
         {
-            <button class="btn btn-bloque" @onclick="() => ConvertirEnCheckInAsync(r)">Hacer Check-in ahora</button>
-            <button class="btn btn-peligro btn-bloque" @onclick="() => CancelarAsync(r)">Cancelar reserva</button>
+            <button class="btn btn-bloque" disabled="@_guardando" @onclick="() => ConvertirEnCheckInAsync(r)">@(_guardando ? "Guardando…" : "Hacer Check-in ahora")</button>
+            <button class="btn btn-peligro btn-bloque" disabled="@_guardando" @onclick="() => CancelarAsync(r)">@(_guardando ? "Guardando…" : "Cancelar reserva")</button>
         }
     </ModalBase>
 }
@@ -161,6 +161,7 @@
     private string _filtroTipo = string.Empty;
     private string _filtroEstado = string.Empty;
     private ReservaCardDto? _reservaSeleccionada;
+    private bool _guardando;
 
     protected override async Task OnInitializedAsync()
     {
@@ -269,6 +270,12 @@
 
     private async Task ConvertirEnCheckInAsync(ReservaCardDto r)
     {
+        if (_guardando)
+        {
+            return;
+        }
+
+        _guardando = true;
         try
         {
             var usuario = await Sesion.ObtenerUsuarioActualAsync();
@@ -283,10 +290,20 @@
         {
             _error = $"No se pudo hacer el check-in: {ex.Message}";
         }
+        finally
+        {
+            _guardando = false;
+        }
     }
 
     private async Task CancelarAsync(ReservaCardDto r)
     {
+        if (_guardando)
+        {
+            return;
+        }
+
+        _guardando = true;
         try
         {
             var usuario = await Sesion.ObtenerUsuarioActualAsync();
@@ -298,6 +315,10 @@
         catch (Exception ex)
         {
             _error = $"No se pudo cancelar la reserva: {ex.Message}";
+        }
+        finally
+        {
+            _guardando = false;
         }
     }
 

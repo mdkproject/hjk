@@ -148,7 +148,7 @@
             </div>
         </div>
 
-        <button class="btn" @onclick="ConfirmarAsync">Confirmar Check-in</button>
+        <button class="btn" disabled="@_guardando" @onclick="ConfirmarAsync">@(_guardando ? "Guardando…" : "Confirmar Check-in")</button>
     }
 </div>
 
@@ -158,6 +158,7 @@
 
     private HabitacionCardDto? _habitacion;
     private readonly List<string> _errores = new();
+    private bool _guardando;
 
     private TipoDocumento _tipoDocumento = TipoDocumento.DNI;
     private string _numeroDocumento = string.Empty;
@@ -195,6 +196,11 @@
     /// no se inventó ninguna regla nueva.</summary>
     private async Task ConfirmarAsync()
     {
+        if (_guardando)
+        {
+            return;
+        }
+
         _errores.Clear();
 
         if (string.IsNullOrWhiteSpace(_numeroDocumento) || string.IsNullOrWhiteSpace(_nombreCompleto) || string.IsNullOrWhiteSpace(_celular))
@@ -243,6 +249,7 @@
             UsuarioId = usuario.Id
         };
 
+        _guardando = true;
         try
         {
             await HabitacionService.CheckInAsync(dto);
@@ -252,6 +259,10 @@
         catch (Exception ex)
         {
             _errores.Add($"No se pudo registrar el Check-in: {ex.Message}");
+        }
+        finally
+        {
+            _guardando = false;
         }
     }
 }

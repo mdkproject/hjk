@@ -109,11 +109,12 @@
         </div>
     </div>
 
-    <button class="btn" @onclick="ConfirmarAsync">Registrar</button>
+    <button class="btn" disabled="@_guardando" @onclick="ConfirmarAsync">@(_guardando ? "Guardando…" : "Registrar")</button>
 </div>
 
 @code {
     private readonly List<string> _errores = new();
+    private bool _guardando;
     private TipoReclamoQueja _tipo = TipoReclamoQueja.Reclamo;
     private string _nombreCompleto = string.Empty;
     private string _domicilio = string.Empty;
@@ -131,6 +132,11 @@
 
     private async Task ConfirmarAsync()
     {
+        if (_guardando)
+        {
+            return;
+        }
+
         _errores.Clear();
 
         if (string.IsNullOrWhiteSpace(_nombreCompleto) || string.IsNullOrWhiteSpace(_domicilio) || string.IsNullOrWhiteSpace(_numeroDocumento))
@@ -189,6 +195,7 @@
             PedidoConsumidor = string.IsNullOrWhiteSpace(_pedidoConsumidor) ? null : _pedidoConsumidor.Trim()
         };
 
+        _guardando = true;
         try
         {
             await ReclamosService.RegistrarAsync(dto, usuario.Id);
@@ -198,6 +205,10 @@
         catch (Exception ex)
         {
             _errores.Add($"No se pudo registrar: {ex.Message}");
+        }
+        finally
+        {
+            _guardando = false;
         }
     }
 }

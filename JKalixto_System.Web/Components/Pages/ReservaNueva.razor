@@ -142,7 +142,7 @@
         </div>
     </div>
 
-    <button class="btn" @onclick="ConfirmarAsync">Confirmar reserva</button>
+    <button class="btn" disabled="@_guardando" @onclick="ConfirmarAsync">@(_guardando ? "Guardando…" : "Confirmar reserva")</button>
 </div>
 
 @code {
@@ -153,6 +153,7 @@
     private HabitacionDisponibleDto? _habitacionSeleccionada;
     private bool _cargandoDisponibles = true;
     private readonly List<string> _errores = new();
+    private bool _guardando;
 
     private TipoDocumento _tipoDocumento = TipoDocumento.DNI;
     private string _numeroDocumento = string.Empty;
@@ -219,6 +220,11 @@
 
     private async Task ConfirmarAsync()
     {
+        if (_guardando)
+        {
+            return;
+        }
+
         _errores.Clear();
 
         if (_fechaFin <= _fechaInicio)
@@ -274,6 +280,7 @@
             UsuarioId = usuario.Id
         };
 
+        _guardando = true;
         try
         {
             await ReservaService.CrearReservaAsync(dto);
@@ -283,6 +290,10 @@
         catch (Exception ex)
         {
             _errores.Add($"No se pudo crear la reserva: {ex.Message}");
+        }
+        finally
+        {
+            _guardando = false;
         }
     }
 }

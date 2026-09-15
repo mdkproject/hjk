@@ -63,7 +63,7 @@
         </div>
     </div>
 
-    <button class="btn" @onclick="ConfirmarAsync">Registrar movimiento</button>
+    <button class="btn" disabled="@_guardando" @onclick="ConfirmarAsync">@(_guardando ? "Guardando…" : "Registrar movimiento")</button>
 </div>
 
 @code {
@@ -73,6 +73,7 @@
     private int _insumoId;
     private string _cantidadTexto = string.Empty;
     private string _motivo = string.Empty;
+    private bool _guardando;
 
     protected override async Task OnInitializedAsync()
     {
@@ -81,6 +82,11 @@
 
     private async Task ConfirmarAsync()
     {
+        if (_guardando)
+        {
+            return;
+        }
+
         _errores.Clear();
 
         if (_insumoId == 0)
@@ -105,6 +111,7 @@
 
         var usuario = await Sesion.ObtenerUsuarioActualAsync();
 
+        _guardando = true;
         try
         {
             await InventarioService.RegistrarMovimientoAsync(new NuevoMovimientoInventarioDto
@@ -121,6 +128,10 @@
         catch (Exception ex)
         {
             _errores.Add(ex.Message);
+        }
+        finally
+        {
+            _guardando = false;
         }
     }
 }

@@ -92,11 +92,12 @@
         </div>
     </div>
 
-    <button class="btn" @onclick="ConfirmarAsync">Registrar cliente</button>
+    <button class="btn" disabled="@_guardando" @onclick="ConfirmarAsync">@(_guardando ? "Guardando…" : "Registrar cliente")</button>
 </div>
 
 @code {
     private readonly List<string> _errores = new();
+    private bool _guardando;
     private TipoDocumento _tipoDocumento = TipoDocumento.DNI;
     private string _numeroDocumento = string.Empty;
     private string _nombreCompleto = string.Empty;
@@ -140,6 +141,11 @@
 
     private async Task ConfirmarAsync()
     {
+        if (_guardando)
+        {
+            return;
+        }
+
         _errores.Clear();
 
         if (string.IsNullOrWhiteSpace(_numeroDocumento) || string.IsNullOrWhiteSpace(_nombreCompleto) || string.IsNullOrWhiteSpace(_numeroCandado))
@@ -162,6 +168,7 @@
             EstadiaHotelId = _huespedSeleccionado?.EstadiaId
         };
 
+        _guardando = true;
         try
         {
             await SaunaService.RegistrarClienteAsync(dto, usuario.Id);
@@ -171,6 +178,10 @@
         catch (Exception ex)
         {
             _errores.Add($"No se pudo registrar el cliente: {ex.Message}");
+        }
+        finally
+        {
+            _guardando = false;
         }
     }
 }
