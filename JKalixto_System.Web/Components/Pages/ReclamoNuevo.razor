@@ -17,104 +17,120 @@
     </a>
     <div class="page-header"><h1>Nuevo Reclamo / Queja</h1></div>
 
-    @if (_errores.Count > 0)
+    @if (_registroExitoso)
     {
-        <div class="caja-error">
-            @foreach (var error in _errores)
-            {
-                <p>@error</p>
-            }
+        <div class="card" style="border-color:var(--ok); background:var(--ok-soft); text-align:center; padding:32px 24px;">
+            <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="var(--ok)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:8px;"><circle cx="12" cy="12" r="9" /><path d="m8.5 12.5 2.5 2.5 5-5" /></svg>
+            <h3 style="margin:0 0 6px;">Reclamo registrado correctamente</h3>
+            <p style="color:var(--text-secondary); max-width:400px; margin:0 auto 20px;">
+                Por ley (N° 29571), el establecimiento tiene <strong>15 días hábiles</strong> para responder este reclamo/queja.
+                Vas a poder verlo y responderlo desde el Libro de Reclamaciones.
+            </p>
+            <button class="btn" @onclick='() => Navegacion.NavigateTo("/reclamos")'>Volver al Libro de Reclamaciones</button>
         </div>
     }
-
-    <div class="card">
-        <div style="display:flex; gap:8px; margin-bottom:16px;">
-            <button class="btn @(_tipo == TipoReclamoQueja.Reclamo ? "" : "btn-secundario")" @onclick="() => _tipo = TipoReclamoQueja.Reclamo">Reclamo</button>
-            <button class="btn @(_tipo == TipoReclamoQueja.Queja ? "" : "btn-secundario")" @onclick="() => _tipo = TipoReclamoQueja.Queja">Queja</button>
-        </div>
-
-        <div class="form-grupo">
-            <label>Nombre completo *</label>
-            <input type="text" @bind="_nombreCompleto" @bind:event="oninput" />
-        </div>
-
-        <div class="form-grupo">
-            <label>Domicilio *</label>
-            <input type="text" @bind="_domicilio" @bind:event="oninput" />
-        </div>
-
-        <div class="form-grid-2">
-            <div class="form-grupo">
-                <label>Tipo de documento</label>
-                <select @bind="_tipoDocumento">
-                    <option value="@TipoDocumento.DNI">DNI</option>
-                    <option value="@TipoDocumento.Pasaporte">Pasaporte</option>
-                    <option value="@TipoDocumento.CarneExtranjeria">Carné Ext.</option>
-                </select>
-            </div>
-            <div class="form-grupo">
-                <label>Número de documento *</label>
-                <input type="text" @bind="_numeroDocumento" @bind:event="oninput" />
-            </div>
-        </div>
-
-        <div class="form-grid-2">
-            <div class="form-grupo">
-                <label>Teléfono</label>
-                <input type="text" @bind="_telefono" @bind:event="oninput" />
-            </div>
-            <div class="form-grupo">
-                <label>Email</label>
-                <input type="email" @bind="_email" @bind:event="oninput" />
-            </div>
-        </div>
-
-        <div class="form-grupo">
-            <label style="display:flex; align-items:center; gap:6px; font-weight:400; color:var(--text-primary);"><input type="checkbox" @bind="_esMenorDeEdad" /> Es menor de edad</label>
-        </div>
-
-        @if (_esMenorDeEdad)
+    else
+    {
+        @if (_errores.Count > 0)
         {
-            <div class="form-grid-2">
-                <div class="form-grupo">
-                    <label>Nombre del apoderado</label>
-                    <input type="text" @bind="_nombreApoderado" @bind:event="oninput" />
-                </div>
-                <div class="form-grupo">
-                    <label>Documento del apoderado</label>
-                    <input type="text" @bind="_documentoApoderado" @bind:event="oninput" />
-                </div>
+            <div class="caja-error">
+                @foreach (var error in _errores)
+                {
+                    <p>@error</p>
+                }
             </div>
         }
 
-        <div class="form-grid-2">
-            <div class="form-grupo">
-                <label>Bien contratado *</label>
-                <input type="text" @bind="_bienContratado" @bind:event="oninput" />
+        <div class="card">
+            <div style="display:flex; gap:8px; margin-bottom:16px;">
+                <button class="btn @(_tipo == TipoReclamoQueja.Reclamo ? "" : "btn-secundario")" @onclick="() => _tipo = TipoReclamoQueja.Reclamo">Reclamo</button>
+                <button class="btn @(_tipo == TipoReclamoQueja.Queja ? "" : "btn-secundario")" @onclick="() => _tipo = TipoReclamoQueja.Queja">Queja</button>
             </div>
+
             <div class="form-grupo">
-                <label>Monto reclamado (S/)</label>
-                <input type="text" @bind="_montoReclamadoTexto" @bind:event="oninput" />
+                <label>Nombre completo *</label>
+                <input type="text" @bind="_nombreCompleto" @bind:event="oninput" />
+            </div>
+
+            <div class="form-grupo">
+                <label>Domicilio *</label>
+                <input type="text" @bind="_domicilio" @bind:event="oninput" />
+            </div>
+
+            <div class="form-grid-2">
+                <div class="form-grupo">
+                    <label>Tipo de documento</label>
+                    <select @bind="_tipoDocumento">
+                        <option value="@TipoDocumento.DNI">DNI</option>
+                        <option value="@TipoDocumento.Pasaporte">Pasaporte</option>
+                        <option value="@TipoDocumento.CarneExtranjeria">Carné Ext.</option>
+                    </select>
+                </div>
+                <div class="form-grupo">
+                    <label>Número de documento *</label>
+                    <input type="text" @bind="_numeroDocumento" @bind:event="oninput" />
+                </div>
+            </div>
+
+            <div class="form-grid-2">
+                <div class="form-grupo">
+                    <label>Teléfono</label>
+                    <input type="text" @bind="_telefono" @bind:event="oninput" />
+                </div>
+                <div class="form-grupo">
+                    <label>Email</label>
+                    <input type="email" @bind="_email" @bind:event="oninput" />
+                </div>
+            </div>
+
+            <div class="form-grupo">
+                <label style="display:flex; align-items:center; gap:6px; font-weight:400; color:var(--text-primary);"><input type="checkbox" @bind="_esMenorDeEdad" /> Es menor de edad</label>
+            </div>
+
+            @if (_esMenorDeEdad)
+            {
+                <div class="form-grid-2">
+                    <div class="form-grupo">
+                        <label>Nombre del apoderado</label>
+                        <input type="text" @bind="_nombreApoderado" @bind:event="oninput" />
+                    </div>
+                    <div class="form-grupo">
+                        <label>Documento del apoderado</label>
+                        <input type="text" @bind="_documentoApoderado" @bind:event="oninput" />
+                    </div>
+                </div>
+            }
+
+            <div class="form-grid-2">
+                <div class="form-grupo">
+                    <label>Bien contratado *</label>
+                    <input type="text" @bind="_bienContratado" @bind:event="oninput" />
+                </div>
+                <div class="form-grupo">
+                    <label>Monto reclamado (S/)</label>
+                    <input type="text" @bind="_montoReclamadoTexto" @bind:event="oninput" />
+                </div>
+            </div>
+
+            <div class="form-grupo">
+                <label>Detalle del reclamo/queja *</label>
+                <textarea style="min-height:80px;" @bind="_detalleReclamo" @bind:event="oninput"></textarea>
+            </div>
+
+            <div class="form-grupo">
+                <label>Pedido del consumidor</label>
+                <textarea style="min-height:60px;" @bind="_pedidoConsumidor" @bind:event="oninput"></textarea>
             </div>
         </div>
 
-        <div class="form-grupo">
-            <label>Detalle del reclamo/queja *</label>
-            <textarea style="min-height:80px;" @bind="_detalleReclamo" @bind:event="oninput"></textarea>
-        </div>
-
-        <div class="form-grupo">
-            <label>Pedido del consumidor</label>
-            <textarea style="min-height:60px;" @bind="_pedidoConsumidor" @bind:event="oninput"></textarea>
-        </div>
-    </div>
-
-    <button class="btn" disabled="@_guardando" @onclick="ConfirmarAsync">@(_guardando ? "Guardando…" : "Registrar")</button>
+        <button class="btn" disabled="@_guardando" @onclick="ConfirmarAsync">@(_guardando ? "Guardando…" : "Registrar")</button>
+    }
 </div>
 
 @code {
     private readonly List<string> _errores = new();
     private bool _guardando;
+    private bool _registroExitoso;
     private TipoReclamoQueja _tipo = TipoReclamoQueja.Reclamo;
     private string _nombreCompleto = string.Empty;
     private string _domicilio = string.Empty;
@@ -200,7 +216,7 @@
         {
             await ReclamosService.RegistrarAsync(dto, usuario.Id);
             Notificador.Avisar("reclamos");
-            Navegacion.NavigateTo("/reclamos");
+            _registroExitoso = true;
         }
         catch (Exception ex)
         {

@@ -29,9 +29,56 @@
         <div class="caja-error"><p>@_error</p></div>
     }
 
-    <div class="search-input" style="max-width:400px; margin-bottom:16px;">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
-        <input placeholder="Buscar por nombre, documento o bien contratado…" value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+    @{
+        var total = _reclamos.Count;
+        var pendientes = _reclamos.Count(r => r.Estado == EstadoReclamo.Pendiente);
+        var vencidos = _reclamos.Count(r => r.PlazoVencido);
+        var respondidos = _reclamos.Count(r => r.Estado == EstadoReclamo.Respondido);
+    }
+
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-label">Total registrados</div>
+            <div class="kpi-value">@total</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Pendientes de respuesta</div>
+            <div class="kpi-value" style="color:var(--warn);">@pendientes</div>
+        </div>
+        <div class="kpi-card" style="@(vencidos > 0 ? "border-color:var(--danger); background:var(--danger-soft);" : "")">
+            <div class="kpi-label">Plazo vencido</div>
+            <div class="kpi-value" style="color:var(--danger);">@vencidos</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Respondidos</div>
+            <div class="kpi-value" style="color:var(--ok);">@respondidos</div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-bottom:20px;">
+        <div class="search-input" style="margin-bottom:14px;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+            <input placeholder="Buscar por nombre, documento o bien contratado…" value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+        </div>
+
+        <div class="filtro-grupo">
+            <span class="filtro-grupo-label">Tipo</span>
+            <div class="filtro-chips">
+                <button type="button" class="filtro-chip @(_filtroTipo == "" ? "activo" : "")" @onclick='() => _filtroTipo = ""'>Todos</button>
+                <button type="button" class="filtro-chip @(_filtroTipo == "Reclamo" ? "activo" : "")" @onclick='() => _filtroTipo = "Reclamo"'>Reclamo</button>
+                <button type="button" class="filtro-chip @(_filtroTipo == "Queja" ? "activo" : "")" @onclick='() => _filtroTipo = "Queja"'>Queja</button>
+            </div>
+        </div>
+
+        <div class="filtro-grupo" style="margin-bottom:0;">
+            <span class="filtro-grupo-label">Estado</span>
+            <div class="filtro-chips">
+                <button type="button" class="filtro-chip @(_filtroEstado == "" ? "activo" : "")" @onclick='() => _filtroEstado = ""'>Todos</button>
+                <button type="button" class="filtro-chip filtro-chip-estado filtro-chip-limpieza @(_filtroEstado == "Pendiente" ? "activo" : "")" @onclick='() => _filtroEstado = "Pendiente"'>Pendiente (@pendientes)</button>
+                <button type="button" class="filtro-chip filtro-chip-estado filtro-chip-mantenimiento @(_filtroEstado == "Vencido" ? "activo" : "")" @onclick='() => _filtroEstado = "Vencido"'>Plazo vencido (@vencidos)</button>
+                <button type="button" class="filtro-chip filtro-chip-estado filtro-chip-disponible @(_filtroEstado == "Respondido" ? "activo" : "")" @onclick='() => _filtroEstado = "Respondido"'>Respondido (@respondidos)</button>
+            </div>
+        </div>
     </div>
 
     @if (_cargando)
@@ -40,19 +87,21 @@
     }
     else
     {
-        @foreach (var r in Filtrados())
+        var filtrados = Filtrados().ToList();
+        @if (filtrados.Count == 0)
         {
-            <div class="card card-clickable" style="margin-bottom:8px;" @onclick="() => _seleccionado = r">
+            <p class="empty-state">No hay reclamos ni quejas que coincidan con este filtro.</p>
+        }
+        @foreach (var r in filtrados)
+        {
+            <div class="card card-clickable" style="margin-bottom:8px; border-left:3px solid @ColorBorde(r);" @onclick="() => _seleccionado = r">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <span class="badge" style="background:@(r.Tipo == TipoReclamoQueja.Reclamo ? "var(--danger)" : "var(--warn)"); color:white;">@r.EtiquetaTipo</span>
                     <span class="badge" style="background:@(r.Estado == EstadoReclamo.Respondido ? "var(--ok-soft)" : "var(--danger-soft)"); color:@(r.Estado == EstadoReclamo.Respondido ? "var(--ok)" : "#fca5a5");">@r.EtiquetaEstado</span>
                 </div>
                 <strong style="display:block; margin-top:6px;">@r.NombreCompleto</strong>
                 <div style="color:var(--text-secondary); font-size:0.85rem;">@r.BienContratado — Presentado: @r.Fecha.ToString("dd/MM/yyyy")</div>
-                @if (r.PlazoVencido && r.Estado != EstadoReclamo.Respondido)
-                {
-                    <div style="color:var(--danger); font-weight:600; font-size:0.85rem; margin-top:2px;">¡PLAZO VENCIDO!</div>
-                }
+                <div style="font-weight:600; font-size:0.85rem; margin-top:2px; color:@ColorBorde(r);">@PlazoTexto(r)</div>
             </div>
         }
     }
@@ -72,11 +121,11 @@
         {
             <p>Pedido del consumidor: @sel.PedidoConsumidor</p>
         }
-        <p>Plazo legal de respuesta: @sel.FechaLimiteRespuesta.ToString("dd/MM/yyyy") @(sel.PlazoVencido && sel.Estado != EstadoReclamo.Respondido ? "— ¡PLAZO VENCIDO!" : "")</p>
+        <p>Plazo legal de respuesta: @sel.FechaLimiteRespuesta.ToString("dd/MM/yyyy") — <span style="color:@ColorBorde(sel); font-weight:600;">@PlazoTexto(sel)</span></p>
 
         @if (sel.Estado == EstadoReclamo.Respondido)
         {
-            <p style="color:#81c995;">Respondido el @sel.FechaRespuesta?.ToString("dd/MM/yyyy"): @sel.RespuestaEstablecimiento</p>
+            <p style="color:var(--ok);">Respondido el @sel.FechaRespuesta?.ToString("dd/MM/yyyy"): @sel.RespuestaEstablecimiento</p>
         }
         else
         {
@@ -91,6 +140,8 @@
     private bool _cargando = true;
     private string? _error;
     private string _textoBusqueda = string.Empty;
+    private string _filtroTipo = string.Empty;
+    private string _filtroEstado = string.Empty;
     private ReclamoCardDto? _seleccionado;
     private string _respuesta = string.Empty;
     private bool _guardando;
@@ -133,18 +184,70 @@
 
     public void Dispose() => Notificador.CambioDetectado -= OnCambioDetectado;
 
+    /// <summary>Filtra por tipo/estado/búsqueda y ordena por urgencia: primero los
+    /// Pendientes (los más próximos a vencer arriba de todo), Respondidos al final
+    /// — para que un vistazo rápido a la pantalla muestre lo más urgente primero,
+    /// en vez de solo lo más reciente.</summary>
     private IEnumerable<ReclamoCardDto> Filtrados()
     {
-        if (string.IsNullOrWhiteSpace(_textoBusqueda))
+        var query = _reclamos.AsEnumerable();
+
+        if (!string.IsNullOrEmpty(_filtroTipo) && Enum.TryParse<TipoReclamoQueja>(_filtroTipo, out var tipo))
         {
-            return _reclamos;
+            query = query.Where(r => r.Tipo == tipo);
         }
 
-        var texto = _textoBusqueda.Trim();
-        return _reclamos.Where(r =>
-            r.NombreCompleto.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
-            r.NumeroDocumento.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
-            r.BienContratado.Contains(texto, StringComparison.OrdinalIgnoreCase));
+        if (_filtroEstado == "Vencido")
+        {
+            query = query.Where(r => r.PlazoVencido);
+        }
+        else if (!string.IsNullOrEmpty(_filtroEstado) && Enum.TryParse<EstadoReclamo>(_filtroEstado, out var estado))
+        {
+            query = query.Where(r => r.Estado == estado);
+        }
+
+        if (!string.IsNullOrWhiteSpace(_textoBusqueda))
+        {
+            var texto = _textoBusqueda.Trim();
+            query = query.Where(r =>
+                r.NombreCompleto.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
+                r.NumeroDocumento.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
+                r.BienContratado.Contains(texto, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return query
+            .OrderBy(r => r.Estado == EstadoReclamo.Respondido ? 1 : 0)
+            .ThenBy(r => r.Estado == EstadoReclamo.Pendiente ? r.FechaLimiteRespuesta : DateTime.MaxValue)
+            .ThenByDescending(r => r.Fecha);
+    }
+
+    /// <summary>Texto de urgencia: cuenta días en vez de solo un booleano
+    /// "vencido/no vencido" — más accionable para decidir a cuál responder primero.</summary>
+    private static string PlazoTexto(ReclamoCardDto r)
+    {
+        if (r.Estado == EstadoReclamo.Respondido)
+        {
+            return $"Respondido el {r.FechaRespuesta:dd/MM/yyyy}";
+        }
+
+        var dias = (r.FechaLimiteRespuesta.Date - DateTime.Now.Date).Days;
+        return dias switch
+        {
+            < 0 => $"¡Plazo vencido hace {-dias} día(s)!",
+            0 => "Vence hoy",
+            1 => "Vence mañana",
+            _ => $"Vence en {dias} días"
+        };
+    }
+
+    private static string ColorBorde(ReclamoCardDto r)
+    {
+        if (r.Estado == EstadoReclamo.Respondido)
+        {
+            return "var(--ok)";
+        }
+
+        return r.PlazoVencido ? "var(--danger)" : "var(--warn)";
     }
 
     private async Task ResponderAsync(ReclamoCardDto r)
