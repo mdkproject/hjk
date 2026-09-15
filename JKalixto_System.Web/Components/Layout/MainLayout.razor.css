@@ -4,9 +4,9 @@
    queda lo que es exclusivo de este componente. */
 
 #blazor-error-ui {
-    background: var(--danger-soft, rgba(239, 68, 68, .14));
-    color: var(--text-primary, #f3f4f7);
-    border-top: 1px solid var(--danger, #ef4444);
+    background: var(--danger-soft, rgba(242, 139, 130, .16));
+    color: var(--text-primary, #e8eaed);
+    border-top: 1px solid var(--danger, #f28b82);
     bottom: 0;
     box-shadow: var(--shadow-lg, 0 -3px 12px rgba(0, 0, 0, .3));
     box-sizing: border-box;
@@ -19,13 +19,13 @@
 }
 
     #blazor-error-ui a.reload {
-        color: var(--accent-hover, #7b7ef2);
+        color: var(--accent-hover, #d9bc6b);
         font-weight: 600;
     }
 
     #blazor-error-ui .dismiss {
         cursor: pointer;
-        color: var(--text-secondary, #9aa2b1);
+        color: var(--text-secondary, #9aa0a6);
         position: absolute;
         right: 0.75rem;
         top: 0.5rem;

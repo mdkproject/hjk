@@ -137,10 +137,10 @@
 
     private static string ColorParaClave(string clave) => clave switch
     {
-        "ColorDisponible" => "#16A34A",
-        "ColorOcupada" => "#2563EB",
-        "ColorLimpieza" => "#D97706",
-        "ColorMantenimiento" => "#DC2626",
-        _ => "#6B7280"
+        "ColorDisponible" => "var(--ok)",
+        "ColorOcupada" => "var(--info)",
+        "ColorLimpieza" => "var(--warn)",
+        "ColorMantenimiento" => "var(--danger)",
+        _ => "var(--text-muted)"
     };
 }

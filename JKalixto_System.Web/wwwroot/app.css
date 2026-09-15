@@ -47,39 +47,46 @@ h1:focus {
    ============================================================ */
 
 :root {
-    /* Superficies — de más oscura (fondo) a más clara (tarjeta elevada) */
-    --bg: #0e0f13;
-    --bg-sidebar: #131519;
-    --surface: #181a20;
-    --surface-hover: #1e2129;
-    --surface-2: #21242c;
-    --border: #262a33;
-    --border-strong: #343945;
+    /* Superficies — de más oscura (fondo) a más clara (tarjeta elevada).
+       Tomadas de TemaService.cs (tema oscuro) en la app de escritorio MAUI,
+       para que web y escritorio sean el MISMO sistema visual, no dos looks
+       parecidos por separado. */
+    --bg: #202124;
+    --bg-sidebar: #1a1b1e;
+    --surface: #292a2d;
+    --surface-hover: #35363a;
+    --surface-2: #303134;
+    --border: #3c4043;
+    --border-strong: #4c5155;
 
     /* Texto */
-    --text-primary: #f3f4f7;
-    --text-secondary: #9aa2b1;
-    --text-muted: #6b7280;
+    --text-primary: #e8eaed;
+    --text-secondary: #9aa0a6;
+    --text-muted: #797f85;
 
-    /* Acento único de marca (acciones, foco, enlaces, estado activo) —
-       separado a propósito de los colores de estado de habitación
-       (Disponible/Ocupada/Limpieza/Mantenimiento), que son información,
-       no decoración. */
-    --accent: #6366f1;
-    --accent-hover: #7b7ef2;
-    --accent-soft: rgba(99, 102, 241, .14);
-    --accent-border: rgba(99, 102, 241, .4);
+    /* Acento único de marca — el DORADO original del sistema (identidad
+       visual del hotel, ColorAcento en TemaService.cs), no un índigo
+       genérico de SaaS. Separado a propósito de los colores de estado de
+       habitación (Disponible/Ocupada/Limpieza/Mantenimiento), que son
+       información, no decoración. */
+    --accent: #c9a84c;
+    --accent-hover: #d9bc6b;
+    --accent-soft: rgba(201, 168, 76, .16);
+    --accent-border: rgba(201, 168, 76, .4);
 
-    --ok: #22c55e;
-    --ok-soft: rgba(34, 197, 94, .14);
-    --info: #3b82f6;
-    --info-soft: rgba(59, 130, 246, .14);
-    --warn: #f59e0b;
-    --warn-soft: rgba(245, 158, 11, .14);
-    --danger: #ef4444;
-    --danger-soft: rgba(239, 68, 68, .14);
-    --violet: #a855f7;
-    --violet-soft: rgba(168, 85, 247, .14);
+    /* Disponible / Ocupada / Limpieza / Mantenimiento / Reservada — mismos
+       hex que ColorDisponible/ColorOcupada/ColorLimpieza/ColorMantenimiento/
+       ColorReservada del tema oscuro de escritorio. */
+    --ok: #81c995;
+    --ok-soft: rgba(129, 201, 149, .16);
+    --info: #669df6;
+    --info-soft: rgba(102, 157, 246, .16);
+    --warn: #fdd663;
+    --warn-soft: rgba(253, 214, 99, .16);
+    --danger: #f28b82;
+    --danger-soft: rgba(242, 139, 130, .16);
+    --violet: #d7aefb;
+    --violet-soft: rgba(215, 174, 251, .16);
 
     --radius-sm: 6px;
     --radius-md: 10px;
@@ -581,9 +588,9 @@ h1, h2, h3, h4 {
     white-space: nowrap;
 }
 
-.cal-bloque-ocupada { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
-.cal-bloque-reservada { background: linear-gradient(135deg, #a855f7, #6d28d9); }
-.cal-bloque-mantenimiento { background: linear-gradient(135deg, #ef4444, #b91c1c); }
+.cal-bloque-ocupada { background: linear-gradient(135deg, #669df6, #3f6fd6); }
+.cal-bloque-reservada { background: linear-gradient(135deg, #d7aefb, #b57eef); }
+.cal-bloque-mantenimiento { background: linear-gradient(135deg, #f28b82, #dd6155); }
 
 /* ---------- Tabla ---------- */
 
@@ -1035,7 +1042,47 @@ h1, h2, h3, h4 {
     display: none;
 }
 
+/* ---------- Reloj + fecha (equivalente a BarraRelojTemaView en MAUI) ----------
+   Barra propia arriba del contenido, en TODAS las páginas — a propósito NO es
+   una capa flotante superpuesta (varias páginas ya tienen un botón de acción
+   arriba a la derecha, ej. "+ Nuevo Movimiento" en Gastos/Almacén/Reclamos, y
+   una capa flotante chocaría con ellos). Reserva su propia fila, como hace
+   BarraRelojTemaView en escritorio. */
+
+.app-topbar {
+    display: flex;
+    justify-content: flex-end;
+    padding: 14px 32px 0;
+}
+
+.reloj-widget {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 8px 16px;
+}
+
+.reloj-hora {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+}
+
+.reloj-fecha {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+}
+
 @media (max-width: 860px) {
+    .app-topbar {
+        display: none;
+    }
+
     .app-mobile-toggle {
         display: flex;
     }
