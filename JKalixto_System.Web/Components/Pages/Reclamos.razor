@@ -90,7 +90,7 @@
         var filtrados = Filtrados().ToList();
         @if (filtrados.Count == 0)
         {
-            <p class="empty-state">No hay reclamos ni quejas que coincidan con este filtro.</p>
+            <p class="empty-state">@(_reclamos.Count == 0 ? "Todavía no hay reclamos ni quejas registrados." : "Ningún reclamo o queja coincide con este filtro.")</p>
         }
         @foreach (var r in filtrados)
         {
