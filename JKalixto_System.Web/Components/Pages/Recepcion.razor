@@ -426,6 +426,12 @@
         }
     }
 
+    /// <summary>Si hay un modal de acciones abierto para una habitación puntual y
+    /// justo esa habitación cambia de estado desde OTRO dispositivo (ej. alguien más
+    /// ya hizo el check-out mientras yo tenía el modal abierto), cerrarlo en vez de
+    /// dejarlo con datos viejos — confirmar una acción ahí encima operaría sobre un
+    /// estado que ya no existe. Si cambió una habitación distinta a la que tengo
+    /// abierta, no interrumpe nada.</summary>
     private async void OnCambioDetectado(string area)
     {
         if (area != "habitaciones")
@@ -435,7 +441,26 @@
 
         await InvokeAsync(async () =>
         {
+            var idSeleccionada = _habitacionSeleccionada?.HabitacionId;
+            var estadoAntes = _habitacionSeleccionada?.Estado;
+            var estadiaAntes = _habitacionSeleccionada?.EstadiaId;
+
             await CargarAsync();
+
+            if (idSeleccionada is { } id)
+            {
+                var actualizada = _habitaciones.FirstOrDefault(h => h.HabitacionId == id);
+                if (actualizada is null || actualizada.Estado != estadoAntes || actualizada.EstadiaId != estadiaAntes)
+                {
+                    CerrarModal();
+                    _error = "Esta habitación se actualizó desde otro dispositivo — revisá el estado actual.";
+                }
+                else
+                {
+                    _habitacionSeleccionada = actualizada;
+                }
+            }
+
             StateHasChanged();
         });
     }
