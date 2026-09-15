@@ -28,6 +28,21 @@
         <div class="caja-error"><p>@_error</p></div>
     }
 
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-label">Clientes activos</div>
+            <div class="kpi-value">@_clientes.Count</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Consumo acumulado</div>
+            <div class="kpi-value" style="color:var(--ok);">@_clientes.Sum(c => c.TotalConsumo).ToString("C")</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Huéspedes del hotel</div>
+            <div class="kpi-value" style="color:var(--info);">@_clientes.Count(c => c.EsHuespedHotel)</div>
+        </div>
+    </div>
+
     <div class="filtros-fila">
         <div class="search-input" style="min-width:300px;">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
