@@ -1,4 +1,5 @@
 @page "/reclamos/nuevo"
+@using System.Globalization
 @using JKalixto_System.Application.Services
 @using JKalixto_System.Domain.Models
 @using JKalixto_System.Web.Services
@@ -147,12 +148,15 @@
             _errores.Add("El detalle del reclamo/queja es obligatorio.");
         }
 
+        // InvariantCulture: mismo motivo que en GastoNuevo.razor — no depender de la
+        // configuración regional de la PC del servidor para decidir si "." es
+        // decimal o separador de miles.
         decimal? monto = null;
         if (!string.IsNullOrWhiteSpace(_montoReclamadoTexto))
         {
-            if (!decimal.TryParse(_montoReclamadoTexto, out var m) || m < 0)
+            if (!decimal.TryParse(_montoReclamadoTexto, NumberStyles.Number, CultureInfo.InvariantCulture, out var m) || m < 0)
             {
-                _errores.Add("El monto reclamado debe ser un número válido.");
+                _errores.Add("El monto reclamado debe ser un número válido (usá punto para los decimales, ej. 150.50).");
             }
             else
             {
