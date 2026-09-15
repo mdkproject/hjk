@@ -23,42 +23,84 @@
         <div class="caja-error"><p>@_error</p></div>
     }
 
+    @{
+        var paraContar = HabitacionesPorPisoYTipo();
+        var contDisponible = paraContar.Count(h => h.Estado == EstadoHabitacion.Disponible);
+        var contOcupada = paraContar.Count(h => h.Estado == EstadoHabitacion.Ocupada);
+        var contLimpieza = paraContar.Count(h => h.Estado == EstadoHabitacion.LimpiezaSalida);
+        var contMantenimiento = paraContar.Count(h => h.Estado == EstadoHabitacion.Mantenimiento);
+        var totalFiltrado = paraContar.Count;
+        var pctOcupacion = totalFiltrado == 0 ? 0 : (int)Math.Round(100m * contOcupada / totalFiltrado);
+    }
+
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-label">Ocupación</div>
+            <div class="kpi-value">@pctOcupacion%</div>
+            <div style="color:var(--text-muted); font-size:0.78rem; margin-top:2px;">@contOcupada de @totalFiltrado habitaciones</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Disponibles</div>
+            <div class="kpi-value" style="color:var(--ok);">@contDisponible</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">En limpieza</div>
+            <div class="kpi-value" style="color:var(--warn);">@contLimpieza</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">En mantenimiento</div>
+            <div class="kpi-value" style="color:var(--danger);">@contMantenimiento</div>
+        </div>
+    </div>
+
     <!--
         Filtros — mismo criterio que RecepcionViewModel.TextoBusqueda /
         FiltroPiso / FiltroTipo / FiltroEstado en MAUI, reimplementado acá
         porque esa ViewModel es específica de MAUI (capa de presentación, no
         compartida). El tablero se recalcula solo con cada tecla/selección,
         sin volver a pedir datos al servidor (ya los tenemos todos cargados).
+        Chips de colores en vez de <select> — mismo patrón ya usado en
+        Reservas/Calendario, para que las pestañas del día a día se vean
+        consistentes entre sí.
     -->
-    <div class="filtros-fila">
-        <div class="search-input" style="min-width:300px;">
+    <div class="card" style="margin-bottom:20px;">
+        <div class="search-input" style="margin-bottom:14px;">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
             <input placeholder="Buscar por número, huésped, celular o documento…" value="@_textoBusqueda" @oninput="OnBuscarInput" />
         </div>
 
-        <select class="filtro-select" @bind="_filtroPiso">
-            <option value="0">Todos los pisos</option>
-            <option value="1">Piso 1</option>
-            <option value="2">Piso 2</option>
-            <option value="3">Piso 3</option>
-            <option value="4">Piso 4</option>
-        </select>
+        <div class="filtro-grupo">
+            <span class="filtro-grupo-label">Piso</span>
+            <div class="filtro-chips">
+                <button type="button" class="filtro-chip @(_filtroPiso == 0 ? "activo" : "")" @onclick="() => _filtroPiso = 0">Todos</button>
+                <button type="button" class="filtro-chip @(_filtroPiso == 1 ? "activo" : "")" @onclick="() => _filtroPiso = 1">Piso 1</button>
+                <button type="button" class="filtro-chip @(_filtroPiso == 2 ? "activo" : "")" @onclick="() => _filtroPiso = 2">Piso 2</button>
+                <button type="button" class="filtro-chip @(_filtroPiso == 3 ? "activo" : "")" @onclick="() => _filtroPiso = 3">Piso 3</button>
+                <button type="button" class="filtro-chip @(_filtroPiso == 4 ? "activo" : "")" @onclick="() => _filtroPiso = 4">Piso 4</button>
+            </div>
+        </div>
 
-        <select class="filtro-select" @bind="_filtroTipo">
-            <option value="">Todos los tipos</option>
-            @foreach (var tipo in Enum.GetValues<TipoHabitacion>())
-            {
-                <option value="@tipo">@tipo</option>
-            }
-        </select>
+        <div class="filtro-grupo">
+            <span class="filtro-grupo-label">Tipo</span>
+            <div class="filtro-chips">
+                <button type="button" class="filtro-chip @(_filtroTipo == "" ? "activo" : "")" @onclick='() => _filtroTipo = ""'>Todos</button>
+                @foreach (var tipo in Enum.GetValues<TipoHabitacion>())
+                {
+                    <button type="button" class="filtro-chip @(_filtroTipo == tipo.ToString() ? "activo" : "")" @onclick="() => _filtroTipo = tipo.ToString()">@tipo</button>
+                }
+            </div>
+        </div>
 
-        <select class="filtro-select" @bind="_filtroEstado">
-            <option value="">Todos los estados</option>
-            @foreach (var estado in Enum.GetValues<EstadoHabitacion>())
-            {
-                <option value="@estado">@EtiquetaEstado(estado)</option>
-            }
-        </select>
+        <div class="filtro-grupo" style="margin-bottom:0;">
+            <span class="filtro-grupo-label">Estado</span>
+            <div class="filtro-chips">
+                <button type="button" class="filtro-chip @(_filtroEstado == "" ? "activo" : "")" @onclick='() => _filtroEstado = ""'>Todos</button>
+                <button type="button" class="filtro-chip filtro-chip-estado filtro-chip-disponible @(_filtroEstado == "Disponible" ? "activo" : "")" @onclick='() => _filtroEstado = "Disponible"'>Disponible (@contDisponible)</button>
+                <button type="button" class="filtro-chip filtro-chip-estado filtro-chip-ocupada @(_filtroEstado == "Ocupada" ? "activo" : "")" @onclick='() => _filtroEstado = "Ocupada"'>Ocupada (@contOcupada)</button>
+                <button type="button" class="filtro-chip filtro-chip-estado filtro-chip-limpieza @(_filtroEstado == "LimpiezaSalida" ? "activo" : "")" @onclick='() => _filtroEstado = "LimpiezaSalida"'>Limpieza (@contLimpieza)</button>
+                <button type="button" class="filtro-chip filtro-chip-estado filtro-chip-mantenimiento @(_filtroEstado == "Mantenimiento" ? "activo" : "")" @onclick='() => _filtroEstado = "Mantenimiento"'>Mantenimiento (@contMantenimiento)</button>
+            </div>
+        </div>
     </div>
 
     @if (_cargando)
@@ -241,7 +283,10 @@
         }
     }
 
-    private IEnumerable<HabitacionCardDto> HabitacionesFiltradas()
+    /// <summary>Habitaciones filtradas solo por piso+tipo — base para los contadores
+    /// del KPI/chips de estado (que ignoran el filtro de estado, igual que en MAUI) y
+    /// para HabitacionesFiltradas. Mismo patrón que Reservas.razor/Calendario.razor.</summary>
+    private List<HabitacionCardDto> HabitacionesPorPisoYTipo()
     {
         var query = _habitaciones.AsEnumerable();
 
@@ -254,6 +299,13 @@
         {
             query = query.Where(h => h.Tipo == tipo);
         }
+
+        return query.ToList();
+    }
+
+    private IEnumerable<HabitacionCardDto> HabitacionesFiltradas()
+    {
+        var query = HabitacionesPorPisoYTipo().AsEnumerable();
 
         if (!string.IsNullOrEmpty(_filtroEstado) && Enum.TryParse<EstadoHabitacion>(_filtroEstado, out var estado))
         {

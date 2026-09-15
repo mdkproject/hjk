@@ -25,16 +25,18 @@
         <div class="caja-error"><p>@_error</p></div>
     }
 
-    <div class="filtros-fila">
-        <select class="filtro-select" @bind="_filtroCategoria">
-            <option value="">Todas las categorías</option>
-            <option value="@CategoriaInsumo.HotelHabitaciones">Hotel — Habitaciones</option>
-            <option value="@CategoriaInsumo.HotelCocina">Hotel — Cocina</option>
-            <option value="@CategoriaInsumo.Sauna">Sauna</option>
-        </select>
-        <div class="search-input" style="min-width:240px;">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
-            <input placeholder="Buscar insumo…" value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+    <div class="search-input" style="min-width:240px; margin-bottom:14px;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+        <input placeholder="Buscar insumo…" value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+    </div>
+
+    <div class="filtro-grupo" style="margin-bottom:18px;">
+        <span class="filtro-grupo-label">Categoría</span>
+        <div class="filtro-chips">
+            <button type="button" class="filtro-chip @(_filtroCategoria == "" ? "activo" : "")" @onclick='() => _filtroCategoria = ""'>Todas</button>
+            <button type="button" class="filtro-chip @(_filtroCategoria == CategoriaInsumo.HotelHabitaciones.ToString() ? "activo" : "")" @onclick="() => _filtroCategoria = CategoriaInsumo.HotelHabitaciones.ToString()">Hotel — Habitaciones</button>
+            <button type="button" class="filtro-chip @(_filtroCategoria == CategoriaInsumo.HotelCocina.ToString() ? "activo" : "")" @onclick="() => _filtroCategoria = CategoriaInsumo.HotelCocina.ToString()">Hotel — Cocina</button>
+            <button type="button" class="filtro-chip @(_filtroCategoria == CategoriaInsumo.Sauna.ToString() ? "activo" : "")" @onclick="() => _filtroCategoria = CategoriaInsumo.Sauna.ToString()">Sauna</button>
         </div>
     </div>
 
