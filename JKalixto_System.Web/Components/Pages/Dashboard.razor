@@ -1,6 +1,9 @@
 @page "/reportes"
 @using JKalixto_System.Application.Services
+@using JKalixto_System.Web.Services
 @inject IDashboardService DashboardService
+@inject INotificadorCambios Notificador
+@implements IDisposable
 
 <PageTitle>Reportes</PageTitle>
 
@@ -99,7 +102,11 @@
     private ResumenDashboardDto? _resumen;
     private string? _error;
 
-    protected override async Task OnInitializedAsync() => await CargarAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAsync();
+        Notificador.CambioDetectado += OnCambioDetectado;
+    }
 
     private async Task CargarAsync()
     {
@@ -113,6 +120,20 @@
             _error = $"No se pudo cargar el resumen: {ex.Message}";
         }
     }
+
+    /// <summary>El dashboard resume TODO el sistema (ingresos, ocupación, últimos
+    /// eventos), así que se refresca ante cualquier área — no vale la pena filtrar
+    /// por una sola, a diferencia de una página específica.</summary>
+    private async void OnCambioDetectado(string area)
+    {
+        await InvokeAsync(async () =>
+        {
+            await CargarAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose() => Notificador.CambioDetectado -= OnCambioDetectado;
 
     private static string ColorParaClave(string clave) => clave switch
     {

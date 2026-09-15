@@ -8,6 +8,7 @@
 @inject INotificadorCambios Notificador
 @inject SesionWebService Sesion
 @inject NavigationManager Navegacion
+@implements IDisposable
 
 <PageTitle>Clientes</PageTitle>
 
@@ -131,7 +132,24 @@
     protected override async Task OnInitializedAsync()
     {
         await CargarAsync();
+        Notificador.CambioDetectado += OnCambioDetectado;
     }
+
+    private async void OnCambioDetectado(string area)
+    {
+        if (area != "habitaciones" && area != "sauna")
+        {
+            return;
+        }
+
+        await InvokeAsync(async () =>
+        {
+            await CargarAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose() => Notificador.CambioDetectado -= OnCambioDetectado;
 
     private async Task CambiarOrigenHotelAsync()
     {

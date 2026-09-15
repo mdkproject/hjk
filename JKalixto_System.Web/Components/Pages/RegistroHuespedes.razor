@@ -1,6 +1,9 @@
 @page "/registro-huespedes"
 @using JKalixto_System.Application.Services
+@using JKalixto_System.Web.Services
 @inject IRegistroHuespedesService RegistroHuespedesService
+@inject INotificadorCambios Notificador
+@implements IDisposable
 
 <PageTitle>Registro de Huéspedes</PageTitle>
 
@@ -74,6 +77,12 @@
 
     protected override async Task OnInitializedAsync()
     {
+        await CargarAsync();
+        Notificador.CambioDetectado += OnCambioDetectado;
+    }
+
+    private async Task CargarAsync()
+    {
         try
         {
             _registros = await RegistroHuespedesService.ObtenerRegistroAsync();
@@ -87,6 +96,22 @@
             _cargando = false;
         }
     }
+
+    private async void OnCambioDetectado(string area)
+    {
+        if (area != "habitaciones")
+        {
+            return;
+        }
+
+        await InvokeAsync(async () =>
+        {
+            await CargarAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose() => Notificador.CambioDetectado -= OnCambioDetectado;
 
     private IEnumerable<RegistroHuespedDto> Filtrados()
     {

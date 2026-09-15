@@ -4,6 +4,7 @@
 @using JKalixto_System.Web.Services
 @inject IInventarioService InventarioService
 @inject SesionWebService Sesion
+@inject INotificadorCambios Notificador
 @inject NavigationManager Navegacion
 
 <PageTitle>Movimiento de almacén</PageTitle>
@@ -114,6 +115,7 @@
                 Motivo = _motivo.Trim(),
                 UsuarioId = usuario.Id
             });
+            Notificador.Avisar("almacen");
             Navegacion.NavigateTo("/almacen");
         }
         catch (Exception ex)

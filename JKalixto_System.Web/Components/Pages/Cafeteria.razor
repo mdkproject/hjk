@@ -1,8 +1,11 @@
 @page "/cafeteria"
 @using JKalixto_System.Application.Services
 @using JKalixto_System.Domain.Models
+@using JKalixto_System.Web.Services
 @inject ISaunaService SaunaService
+@inject INotificadorCambios Notificador
 @inject NavigationManager Navegacion
+@implements IDisposable
 
 <PageTitle>Cafetería</PageTitle>
 
@@ -63,6 +66,12 @@
 
     protected override async Task OnInitializedAsync()
     {
+        await CargarAsync();
+        Notificador.CambioDetectado += OnCambioDetectado;
+    }
+
+    private async Task CargarAsync()
+    {
         try
         {
             _huespedes = await SaunaService.BuscarHuespedesActivosAsync();
@@ -77,6 +86,22 @@
             _cargando = false;
         }
     }
+
+    private async void OnCambioDetectado(string area)
+    {
+        if (area != "habitaciones" && area != "sauna")
+        {
+            return;
+        }
+
+        await InvokeAsync(async () =>
+        {
+            await CargarAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose() => Notificador.CambioDetectado -= OnCambioDetectado;
 
     private void IrAVentaHotel(HabitacionCardDto h)
     {

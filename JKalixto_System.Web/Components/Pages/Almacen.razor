@@ -1,8 +1,11 @@
 @page "/almacen"
 @using JKalixto_System.Application.Services
 @using JKalixto_System.Domain.Models
+@using JKalixto_System.Web.Services
 @inject IInventarioService InventarioService
+@inject INotificadorCambios Notificador
 @inject NavigationManager Navegacion
+@implements IDisposable
 
 <PageTitle>Almacén</PageTitle>
 
@@ -75,6 +78,12 @@
 
     protected override async Task OnInitializedAsync()
     {
+        await CargarAsync();
+        Notificador.CambioDetectado += OnCambioDetectado;
+    }
+
+    private async Task CargarAsync()
+    {
         try
         {
             _insumos = await InventarioService.ObtenerInsumosAsync();
@@ -88,6 +97,22 @@
             _cargando = false;
         }
     }
+
+    private async void OnCambioDetectado(string area)
+    {
+        if (area != "almacen")
+        {
+            return;
+        }
+
+        await InvokeAsync(async () =>
+        {
+            await CargarAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose() => Notificador.CambioDetectado -= OnCambioDetectado;
 
     private IEnumerable<InsumoCardDto> Filtrados()
     {

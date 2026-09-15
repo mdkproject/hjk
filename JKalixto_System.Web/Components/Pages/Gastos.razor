@@ -4,7 +4,9 @@
 @using JKalixto_System.Web.Services
 @inject IGastosService GastosService
 @inject SesionWebService Sesion
+@inject INotificadorCambios Notificador
 @inject NavigationManager Navegacion
+@implements IDisposable
 
 <PageTitle>Gastos</PageTitle>
 
@@ -104,7 +106,24 @@
     protected override async Task OnInitializedAsync()
     {
         await CargarAsync();
+        Notificador.CambioDetectado += OnCambioDetectado;
     }
+
+    private async void OnCambioDetectado(string area)
+    {
+        if (area != "gastos" && area != "caja")
+        {
+            return;
+        }
+
+        await InvokeAsync(async () =>
+        {
+            await CargarAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose() => Notificador.CambioDetectado -= OnCambioDetectado;
 
     private async Task CargarAsync()
     {
@@ -152,6 +171,7 @@
             await GastosService.EliminarMovimientoAsync(_paraEliminar.Id, usuario.Id);
             _paraEliminar = null;
             await CargarAsync();
+            Notificador.Avisar("gastos");
         }
         catch (Exception ex)
         {

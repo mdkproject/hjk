@@ -4,6 +4,8 @@
 @using JKalixto_System.Web.Services
 @inject ICierreCajaService CierreCajaService
 @inject SesionWebService Sesion
+@inject INotificadorCambios Notificador
+@implements IDisposable
 
 <PageTitle>Cierre de Caja</PageTitle>
 
@@ -83,7 +85,24 @@
     protected override async Task OnInitializedAsync()
     {
         await CargarAsync();
+        Notificador.CambioDetectado += OnCambioDetectado;
     }
+
+    private async void OnCambioDetectado(string area)
+    {
+        if (area != "habitaciones" && area != "sauna")
+        {
+            return;
+        }
+
+        await InvokeAsync(async () =>
+        {
+            await CargarAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose() => Notificador.CambioDetectado -= OnCambioDetectado;
 
     private async Task CargarAsync()
     {
@@ -107,6 +126,7 @@
             await CierreCajaService.CerrarCajaAsync(_turno, usuario.Id);
             _mensajeExito = $"Caja cerrada correctamente — {DateTime.Now:dd/MM/yyyy HH:mm}.";
             await CargarAsync();
+            Notificador.Avisar("caja");
         }
         catch (Exception ex)
         {

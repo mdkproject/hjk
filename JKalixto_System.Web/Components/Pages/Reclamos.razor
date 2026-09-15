@@ -4,7 +4,9 @@
 @using JKalixto_System.Web.Services
 @inject IReclamosService ReclamosService
 @inject SesionWebService Sesion
+@inject INotificadorCambios Notificador
 @inject NavigationManager Navegacion
+@implements IDisposable
 
 <PageTitle>Libro de Reclamaciones</PageTitle>
 
@@ -92,7 +94,11 @@
     private ReclamoCardDto? _seleccionado;
     private string _respuesta = string.Empty;
 
-    protected override async Task OnInitializedAsync() => await CargarAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAsync();
+        Notificador.CambioDetectado += OnCambioDetectado;
+    }
 
     private async Task CargarAsync()
     {
@@ -109,6 +115,22 @@
             _cargando = false;
         }
     }
+
+    private async void OnCambioDetectado(string area)
+    {
+        if (area != "reclamos")
+        {
+            return;
+        }
+
+        await InvokeAsync(async () =>
+        {
+            await CargarAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose() => Notificador.CambioDetectado -= OnCambioDetectado;
 
     private IEnumerable<ReclamoCardDto> Filtrados()
     {
@@ -139,6 +161,7 @@
             _seleccionado = null;
             _respuesta = string.Empty;
             await CargarAsync();
+            Notificador.Avisar("reclamos");
         }
         catch (Exception ex)
         {

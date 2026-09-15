@@ -277,6 +277,7 @@
             await CargarReservasAsync();
             await CargarHabitacionesAsync();
             Notificador.Avisar("habitaciones");
+            Notificador.Avisar("reservas");
         }
         catch (Exception ex)
         {
@@ -292,6 +293,7 @@
             await ReservaService.CancelarReservaAsync(r.ReservaId, usuario.Id);
             _reservaSeleccionada = null;
             await CargarReservasAsync();
+            Notificador.Avisar("reservas");
         }
         catch (Exception ex)
         {
@@ -301,7 +303,7 @@
 
     private async void OnCambioDetectado(string area)
     {
-        if (area != "habitaciones")
+        if (area != "habitaciones" && area != "reservas")
         {
             return;
         }
@@ -309,6 +311,7 @@
         await InvokeAsync(async () =>
         {
             await CargarHabitacionesAsync();
+            await CargarReservasAsync();
             StateHasChanged();
         });
     }

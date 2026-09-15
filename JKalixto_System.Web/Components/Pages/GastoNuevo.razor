@@ -4,6 +4,7 @@
 @using JKalixto_System.Web.Services
 @inject IGastosService GastosService
 @inject SesionWebService Sesion
+@inject INotificadorCambios Notificador
 @inject NavigationManager Navegacion
 
 <PageTitle>Nuevo movimiento</PageTitle>
@@ -133,6 +134,7 @@
         try
         {
             await GastosService.RegistrarMovimientoAsync(dto);
+            Notificador.Avisar("gastos");
             Navegacion.NavigateTo("/gastos");
         }
         catch (Exception ex)

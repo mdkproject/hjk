@@ -277,7 +277,7 @@
         try
         {
             await ReservaService.CrearReservaAsync(dto);
-            Notificador.Avisar("habitaciones");
+            Notificador.Avisar("reservas");
             Navegacion.NavigateTo("/reservas");
         }
         catch (Exception ex)

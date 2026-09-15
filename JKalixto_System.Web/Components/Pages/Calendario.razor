@@ -1,8 +1,11 @@
 @page "/calendario"
 @using JKalixto_System.Application.Services
 @using JKalixto_System.Domain.Models
+@using JKalixto_System.Web.Services
 @inject ICalendarioService CalendarioService
+@inject INotificadorCambios Notificador
 @inject NavigationManager Navegacion
+@implements IDisposable
 
 <PageTitle>Calendario</PageTitle>
 
@@ -248,7 +251,11 @@
     private readonly HashSet<TipoHabitacion> _gruposColapsados = new();
     private (ColumnaHabitacionCalendarioDto columna, BloqueCalendario bloque)? _bloqueSeleccionado;
 
-    protected override async Task OnInitializedAsync() => await CargarAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAsync();
+        Notificador.CambioDetectado += OnCambioDetectado;
+    }
 
     private async Task CargarAsync()
     {
@@ -262,6 +269,22 @@
             _error = $"No se pudo cargar el calendario: {ex.Message}";
         }
     }
+
+    private async void OnCambioDetectado(string area)
+    {
+        if (area != "habitaciones" && area != "reservas")
+        {
+            return;
+        }
+
+        await InvokeAsync(async () =>
+        {
+            await CargarAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose() => Notificador.CambioDetectado -= OnCambioDetectado;
 
     private async Task MesAnteriorAsync()
     {

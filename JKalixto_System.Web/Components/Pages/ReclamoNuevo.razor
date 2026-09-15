@@ -4,6 +4,7 @@
 @using JKalixto_System.Web.Services
 @inject IReclamosService ReclamosService
 @inject SesionWebService Sesion
+@inject INotificadorCambios Notificador
 @inject NavigationManager Navegacion
 
 <PageTitle>Nuevo Reclamo</PageTitle>
@@ -187,6 +188,7 @@
         try
         {
             await ReclamosService.RegistrarAsync(dto, usuario.Id);
+            Notificador.Avisar("reclamos");
             Navegacion.NavigateTo("/reclamos");
         }
         catch (Exception ex)

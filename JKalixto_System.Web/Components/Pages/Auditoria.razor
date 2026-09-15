@@ -4,6 +4,8 @@
 @using JKalixto_System.Web.Services
 @inject IAuditoriaService AuditoriaService
 @inject SesionWebService Sesion
+@inject INotificadorCambios Notificador
+@implements IDisposable
 
 <PageTitle>Ver Auditoría</PageTitle>
 
@@ -55,6 +57,12 @@
 
     protected override async Task OnInitializedAsync()
     {
+        await CargarAsync();
+        Notificador.CambioDetectado += OnCambioDetectado;
+    }
+
+    private async Task CargarAsync()
+    {
         try
         {
             // Resuelve el "usuario actual" del circuito ANTES de pedir los logs — si
@@ -78,6 +86,19 @@
             _cargando = false;
         }
     }
+
+    /// <summary>Prácticamente toda acción del sistema deja un registro acá, así que
+    /// se refresca ante cualquier área — mismo criterio que el Dashboard.</summary>
+    private async void OnCambioDetectado(string area)
+    {
+        await InvokeAsync(async () =>
+        {
+            await CargarAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose() => Notificador.CambioDetectado -= OnCambioDetectado;
 
     private IEnumerable<LogAuditoria> Filtrados()
     {
