@@ -3,6 +3,7 @@
 @using JKalixto_System.Web.Services
 @inject IDashboardService DashboardService
 @inject INotificadorCambios Notificador
+@inject AuthenticationStateProvider AuthProvider
 @implements IDisposable
 
 <PageTitle>Reportes</PageTitle>
@@ -42,15 +43,15 @@
         <div class="kpi-grid" style="margin-bottom:24px;">
             <div class="kpi-card" style="border-color:var(--accent-border); background:var(--accent-soft);">
                 <div class="kpi-label">Total Hoy</div>
-                <div class="kpi-value">@_resumen.IngresosTotalHoy.ToString("C")</div>
+                <div class="kpi-value">@(_puedeVerFinanzas ? _resumen.IngresosTotalHoy.ToString("C") : "***")</div>
             </div>
             <div class="kpi-card">
                 <div class="kpi-label">Ingresos Hotel</div>
-                <div class="kpi-value">@_resumen.IngresosHotelHoy.ToString("C")</div>
+                <div class="kpi-value">@(_puedeVerFinanzas ? _resumen.IngresosHotelHoy.ToString("C") : "***")</div>
             </div>
             <div class="kpi-card">
                 <div class="kpi-label">Ingresos Sauna</div>
-                <div class="kpi-value">@_resumen.IngresosSaunaHoy.ToString("C")</div>
+                <div class="kpi-value">@(_puedeVerFinanzas ? _resumen.IngresosSaunaHoy.ToString("C") : "***")</div>
             </div>
             <div class="kpi-card">
                 <div class="kpi-label">Ocupación</div>
@@ -58,11 +59,11 @@
             </div>
             <div class="kpi-card">
                 <div class="kpi-label">Tarifa Promedio (ADR)</div>
-                <div class="kpi-value">@_resumen.TarifaPromedioDiaria.ToString("C")</div>
+                <div class="kpi-value">@(_puedeVerFinanzas ? _resumen.TarifaPromedioDiaria.ToString("C") : "***")</div>
             </div>
             <div class="kpi-card">
                 <div class="kpi-label">RevPAR</div>
-                <div class="kpi-value">@_resumen.IngresoPorHabitacionDisponible.ToString("C")</div>
+                <div class="kpi-value">@(_puedeVerFinanzas ? _resumen.IngresoPorHabitacionDisponible.ToString("C") : "***")</div>
             </div>
             <div class="kpi-card">
                 <div class="kpi-label">Clientes Sauna Hoy</div>
@@ -101,9 +102,19 @@
 @code {
     private ResumenDashboardDto? _resumen;
     private string? _error;
+    private bool _puedeVerFinanzas;
 
     protected override async Task OnInitializedAsync()
     {
+        // Mismo criterio que DashboardViewModel.PuedeVerFinanzas en MAUI: un
+        // Recepcionista ve ocupación y clientes de sauna, pero NO montos de dinero
+        // (ingresos, ADR, RevPAR) — esos quedan en "***". Se determina acá (no en
+        // el servidor/DTO) porque es una regla de PRESENTACIÓN por rol, igual que
+        // "Ver Auditoría" en MainLayout.razor.
+        var estadoAuth = await AuthProvider.GetAuthenticationStateAsync();
+        var rol = estadoAuth.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+        _puedeVerFinanzas = rol is "Gerencia" or "Desarrollador";
+
         await CargarAsync();
         Notificador.CambioDetectado += OnCambioDetectado;
     }
