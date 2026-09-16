@@ -577,6 +577,16 @@ h1, h2, h3, h4 {
     cursor: pointer;
 }
 
+/* Estas celdas son <td> con tabindex para poder abrirse por teclado (ver
+   OnActivarConTeclado en Calendario.razor) — sin un outline explícito, el
+   foco quedaría invisible sobre el fondo oscuro y el atajo sería inútil. */
+.cal-fila-grupo:focus-visible,
+.cal-celda-vacia:focus-visible,
+.cal-celda-bloque:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
 .cal-celda-hoy {
     box-shadow: inset 0 0 0 2px var(--accent);
 }

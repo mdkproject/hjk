@@ -56,15 +56,19 @@
     <div class="card" style="margin-bottom:20px;">
         <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
             <div class="cal-nav-group">
-                <button class="cal-nav-btn" @onclick="MesAnteriorAsync" title="Mes anterior">
+                <button class="cal-nav-btn" disabled="@_cargando" @onclick="MesAnteriorAsync" title="Mes anterior">
                     <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6" /></svg>
                 </button>
                 <strong style="min-width:150px; text-align:center; font-size:0.95rem;">@(_calendario?.NombreMesTexto ?? "")</strong>
-                <button class="cal-nav-btn" @onclick="MesSiguienteAsync" title="Mes siguiente">
+                <button class="cal-nav-btn" disabled="@_cargando" @onclick="MesSiguienteAsync" title="Mes siguiente">
                     <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6" /></svg>
                 </button>
             </div>
-            <button class="btn btn-secundario" @onclick="IrAHoyAsync">Hoy</button>
+            <button class="btn btn-secundario" disabled="@_cargando" @onclick="IrAHoyAsync">Hoy</button>
+            @if (_cargando)
+            {
+                <span style="color:var(--text-muted); font-size:0.8rem;">Actualizando…</span>
+            }
 
             <div class="search-input" style="min-width:240px; margin-left:auto;">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
@@ -140,7 +144,9 @@
                         {
                             var colapsado = _gruposColapsados.Contains(grupoTipo.Key);
                             <tr>
-                                <td colspan="@(_calendario.Dias.Count + 1)" class="cal-fila-grupo" @onclick="() => ToggleGrupo(grupoTipo.Key)">
+                                <td colspan="@(_calendario.Dias.Count + 1)" class="cal-fila-grupo" tabindex="0" role="button"
+                                    aria-expanded="@(!colapsado)" aria-label="@($"Habitación {grupoTipo.Key}, {grupoTipo.Count()} habitaciones")"
+                                    @onclick="() => ToggleGrupo(grupoTipo.Key)" @onkeydown="e => OnActivarConTeclado(e, () => ToggleGrupo(grupoTipo.Key))">
                                     <div class="cal-fila-grupo-inner">
                                         <span class="cal-fila-grupo-chevron @(colapsado ? "colapsado" : "")">
                                             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" /></svg>
@@ -167,13 +173,17 @@
                                             {
                                                 <td colspan="@bloque.CantidadDias"
                                                     class="cal-celda-vacia @(bloque.ContieneHoy ? "cal-celda-hoy" : "")"
-                                                    @onclick="() => AbrirBloque(columna, bloque)"></td>
+                                                    tabindex="0" role="button" aria-label="@DescripcionBloque(columna, bloque)"
+                                                    @onclick="() => AbrirBloque(columna, bloque)"
+                                                    @onkeydown="e => OnActivarConTeclado(e, () => AbrirBloque(columna, bloque))"></td>
                                             }
                                             else
                                             {
                                                 <td colspan="@bloque.CantidadDias"
                                                     class="cal-celda-bloque @(bloque.ContieneHoy ? "cal-celda-hoy" : "")"
-                                                    @onclick="() => AbrirBloque(columna, bloque)">
+                                                    tabindex="0" role="button" aria-label="@DescripcionBloque(columna, bloque)"
+                                                    @onclick="() => AbrirBloque(columna, bloque)"
+                                                    @onkeydown="e => OnActivarConTeclado(e, () => AbrirBloque(columna, bloque))">
                                                     <div class="cal-bloque @ClaseBloque(bloque.Estado)">
                                                         @if (!string.IsNullOrWhiteSpace(bloque.NombreCliente) && bloque.CantidadDias > 1)
                                                         {
@@ -250,6 +260,8 @@
     private string _textoBusqueda = string.Empty;
     private readonly HashSet<TipoHabitacion> _gruposColapsados = new();
     private (ColumnaHabitacionCalendarioDto columna, BloqueCalendario bloque)? _bloqueSeleccionado;
+    private bool _cargando;
+    private int _cargaToken;
 
     protected override async Task OnInitializedAsync()
     {
@@ -257,16 +269,41 @@
         Notificador.CambioDetectado += OnCambioDetectado;
     }
 
+    /// <summary>Usa un token de secuencia porque el usuario puede navegar de mes
+    /// varias veces antes de que la primera carga responda (o el notificador puede
+    /// disparar una recarga mientras ya hay una en curso): sin esto, una respuesta
+    /// vieja que llega tarde podría pisar a una más nueva y dejar el calendario
+    /// mostrando un mes distinto al que indican los botones de navegación.</summary>
     private async Task CargarAsync()
     {
+        var token = ++_cargaToken;
+        _cargando = true;
         try
         {
+            var resultado = await CalendarioService.ObtenerCalendarioMensualAsync(_anio, _mes);
+            if (token != _cargaToken)
+            {
+                return;
+            }
+
             _error = null;
-            _calendario = await CalendarioService.ObtenerCalendarioMensualAsync(_anio, _mes);
+            _calendario = resultado;
         }
         catch (Exception ex)
         {
+            if (token != _cargaToken)
+            {
+                return;
+            }
+
             _error = $"No se pudo cargar el calendario: {ex.Message}";
+        }
+        finally
+        {
+            if (token == _cargaToken)
+            {
+                _cargando = false;
+            }
         }
     }
 
@@ -389,6 +426,28 @@
     }
 
     private void AbrirBloque(ColumnaHabitacionCalendarioDto columna, BloqueCalendario bloque) => _bloqueSeleccionado = (columna, bloque);
+
+    /// <summary>Las celdas del calendario son &lt;td&gt; con @onclick, no controles
+    /// nativos — sin esto, un usuario que navega con teclado (o con lector de
+    /// pantalla) no podría abrir ni una sola habitación ni expandir/colapsar un
+    /// grupo. Enter y Espacio son las teclas de activación estándar para role="button".</summary>
+    private static void OnActivarConTeclado(KeyboardEventArgs e, Action accion)
+    {
+        if (e.Key is "Enter" or " ")
+        {
+            accion();
+        }
+    }
+
+    private static string DescripcionBloque(ColumnaHabitacionCalendarioDto columna, BloqueCalendario bloque)
+    {
+        var rango = bloque.CantidadDias == 1
+            ? $"día {bloque.DiaInicio}"
+            : $"días {bloque.DiaInicio} a {bloque.DiaInicio + bloque.CantidadDias - 1}";
+        var estado = EtiquetaEstadoBloque(bloque.Estado);
+        var cliente = string.IsNullOrWhiteSpace(bloque.NombreCliente) ? "" : $", {bloque.NombreCliente}";
+        return $"Habitación {columna.Numero}, {rango}, {estado}{cliente}";
+    }
 
     /// <summary>Reserva rápida desde una celda Disponible: mismo espíritu que
     /// AbrirReservaRapidaAsync en MAUI (llegar al formulario con la habitación y la
