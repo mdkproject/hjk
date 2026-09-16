@@ -19,7 +19,10 @@
 
     @if (_error is not null)
     {
-        <div class="caja-error"><p>@_error</p></div>
+        <div class="caja-error">
+            <p>@_error</p>
+            <button class="btn btn-secundario" style="margin-top:8px;" @onclick="CargarAsync">Reintentar</button>
+        </div>
     }
 
     @{
@@ -273,8 +276,10 @@
     /// varias veces antes de que la primera carga responda (o el notificador puede
     /// disparar una recarga mientras ya hay una en curso): sin esto, una respuesta
     /// vieja que llega tarde podría pisar a una más nueva y dejar el calendario
-    /// mostrando un mes distinto al que indican los botones de navegación.</summary>
-    private async Task CargarAsync()
+    /// mostrando un mes distinto al que indican los botones de navegación. Devuelve
+    /// si la carga tuvo éxito para que quien navegó pueda deshacer el cambio de mes
+    /// si falló (ver MesAnteriorAsync/MesSiguienteAsync/IrAHoyAsync).</summary>
+    private async Task<bool> CargarAsync()
     {
         var token = ++_cargaToken;
         _cargando = true;
@@ -283,20 +288,22 @@
             var resultado = await CalendarioService.ObtenerCalendarioMensualAsync(_anio, _mes);
             if (token != _cargaToken)
             {
-                return;
+                return false;
             }
 
             _error = null;
             _calendario = resultado;
+            return true;
         }
         catch (Exception ex)
         {
             if (token != _cargaToken)
             {
-                return;
+                return false;
             }
 
             _error = $"No se pudo cargar el calendario: {ex.Message}";
+            return false;
         }
         finally
         {
@@ -325,25 +332,37 @@
 
     private async Task MesAnteriorAsync()
     {
+        var (anioPrevio, mesPrevio) = (_anio, _mes);
         var fecha = new DateTime(_anio, _mes, 1).AddMonths(-1);
         _anio = fecha.Year;
         _mes = fecha.Month;
-        await CargarAsync();
+        if (!await CargarAsync())
+        {
+            (_anio, _mes) = (anioPrevio, mesPrevio);
+        }
     }
 
     private async Task MesSiguienteAsync()
     {
+        var (anioPrevio, mesPrevio) = (_anio, _mes);
         var fecha = new DateTime(_anio, _mes, 1).AddMonths(1);
         _anio = fecha.Year;
         _mes = fecha.Month;
-        await CargarAsync();
+        if (!await CargarAsync())
+        {
+            (_anio, _mes) = (anioPrevio, mesPrevio);
+        }
     }
 
     private async Task IrAHoyAsync()
     {
+        var (anioPrevio, mesPrevio) = (_anio, _mes);
         _anio = DateTime.Today.Year;
         _mes = DateTime.Today.Month;
-        await CargarAsync();
+        if (!await CargarAsync())
+        {
+            (_anio, _mes) = (anioPrevio, mesPrevio);
+        }
     }
 
     private void ToggleGrupo(TipoHabitacion tipo)
