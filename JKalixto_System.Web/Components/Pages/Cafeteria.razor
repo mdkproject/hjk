@@ -1,0 +1,117 @@
+@page "/cafeteria"
+@using JKalixto_System.Application.Services
+@using JKalixto_System.Domain.Models
+@using JKalixto_System.Web.Services
+@inject ISaunaService SaunaService
+@inject INotificadorCambios Notificador
+@inject NavigationManager Navegacion
+@implements IDisposable
+
+<PageTitle>Cafetería</PageTitle>
+
+<div class="page">
+    <div class="page-header">
+        <div>
+            <h1>Cafetería</h1>
+            <p class="page-subtitle">Elegí a quién se le va a cobrar el consumo — un huésped del hotel o un cliente de sauna</p>
+        </div>
+    </div>
+
+    <div style="display:flex; gap:8px; margin-bottom:18px;">
+        <button class="btn @(_origen == "Hotel" ? "" : "btn-secundario")" @onclick='() => _origen = "Hotel"'>Hotel</button>
+        <button class="btn @(_origen == "Sauna" ? "" : "btn-secundario")" @onclick='() => _origen = "Sauna"'>Sauna</button>
+    </div>
+
+    @if (_error is not null)
+    {
+        <div class="caja-error"><p>@_error</p></div>
+    }
+
+    @if (_cargando)
+    {
+        <p class="empty-state">Cargando…</p>
+    }
+    else if (_origen == "Hotel")
+    {
+        <div class="card-grid">
+            @foreach (var h in _huespedes)
+            {
+                <div class="card card-clickable" style="width:200px;" @onclick="() => IrAVentaHotel(h)">
+                    <strong>Hab. @h.Numero</strong>
+                    <div style="margin-top:2px;">@h.NombreHuesped</div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="card-grid">
+            @foreach (var c in _clientesSauna)
+            {
+                <div class="card card-clickable" style="width:200px;" @onclick="() => IrAVentaSauna(c)">
+                    <strong>@c.NombreCompleto</strong>
+                    <div style="color:var(--text-secondary); font-size:0.85rem; margin-top:2px;">Candado @c.NumeroCandado</div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private string _origen = "Hotel";
+    private bool _cargando = true;
+    private string? _error;
+    private List<HabitacionCardDto> _huespedes = new();
+    private List<ClienteSaunaCardDto> _clientesSauna = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAsync();
+        Notificador.CambioDetectado += OnCambioDetectado;
+    }
+
+    private async Task CargarAsync()
+    {
+        try
+        {
+            _huespedes = await SaunaService.BuscarHuespedesActivosAsync();
+            _clientesSauna = await SaunaService.ObtenerClientesActivosAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo cargar la lista: {ex.Message}";
+        }
+        finally
+        {
+            _cargando = false;
+        }
+    }
+
+    private async void OnCambioDetectado(string area)
+    {
+        if (area != "habitaciones" && area != "sauna")
+        {
+            return;
+        }
+
+        await InvokeAsync(async () =>
+        {
+            await CargarAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose() => Notificador.CambioDetectado -= OnCambioDetectado;
+
+    private void IrAVentaHotel(HabitacionCardDto h)
+    {
+        var nombre = Uri.EscapeDataString(h.NombreHuesped ?? string.Empty);
+        Navegacion.NavigateTo($"/sauna/venta?estadiaId={h.EstadiaId}&numero={h.Numero}&nombre={nombre}");
+    }
+
+    private void IrAVentaSauna(ClienteSaunaCardDto c)
+    {
+        var nombre = Uri.EscapeDataString(c.NombreCompleto);
+        Navegacion.NavigateTo($"/sauna/venta?clienteSaunaId={c.ClienteSaunaId}&nombre={nombre}&esHuespedHotel={c.EsHuespedHotel}");
+    }
+}

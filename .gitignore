@@ -3,6 +3,10 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+# Lock de sesión de Claude Code (runtime, no config) — .claude/launch.json sí
+# se versiona (es el config del dev-server para el proyecto Web).
+.claude/scheduled_tasks.lock
+
 # User-specific files
 *.rsuser
 *.suo
@@ -228,6 +232,13 @@ _pkginfo.txt
 *.[Cc]ache
 # but keep track of directories ending in .cache
 !?*.[Cc]ache/
+
+# Base de datos SQLite en tiempo de ejecución (JKalixto_System.Web/Data/jkalixto.db
+# y sus archivos WAL/SHM) — se genera sola al levantar el servidor la primera vez,
+# nunca debe versionarse.
+*.db
+*.db-shm
+*.db-wal
 
 # Others
 ClientBin/

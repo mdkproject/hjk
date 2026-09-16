@@ -1,0 +1,278 @@
+@page "/clientes"
+@using JKalixto_System.Application.Services
+@using JKalixto_System.Domain.Models
+@using JKalixto_System.Web.Services
+@inject IClientesService ClientesService
+@inject IHabitacionService HabitacionService
+@inject ISaunaService SaunaService
+@inject INotificadorCambios Notificador
+@inject SesionWebService Sesion
+@inject NavigationManager Navegacion
+@implements IDisposable
+
+<PageTitle>Clientes</PageTitle>
+
+<div class="page">
+    <div class="page-header">
+        <div>
+            <h1>Clientes</h1>
+            <p class="page-subtitle">Vista unificada de huéspedes del hotel y clientes de sauna</p>
+        </div>
+    </div>
+
+    @if (_error is not null)
+    {
+        <div class="caja-error"><p>@_error</p></div>
+    }
+
+    <div style="display:flex; gap:8px; margin-bottom:14px;">
+        <button class="btn @(_origen == "Hotel" ? "" : "btn-secundario")" @onclick="CambiarOrigenHotelAsync">Hotel</button>
+        <button class="btn @(_origen == "Sauna" ? "" : "btn-secundario")" @onclick="CambiarOrigenSaunaAsync">Sauna</button>
+    </div>
+
+    <div class="search-input" style="max-width:400px; margin-bottom:16px;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+        <input placeholder="Buscar por nombre o ubicación…" value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+    </div>
+
+    @if (_cargando)
+    {
+        <p class="empty-state">Cargando…</p>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table-pro">
+                <thead>
+                    <tr>
+                        <th>Hora</th>
+                        <th>Cliente</th>
+                        <th>Ubicación</th>
+                        <th>Estado</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var c in Filtrados())
+                    {
+                        <tr class="row-clickable" @onclick="() => SeleccionarAsync(c)">
+                            <td>@c.HoraRegistro.ToString("HH:mm")</td>
+                            <td style="font-weight:600;">@c.NombreCliente</td>
+                            <td>@c.UbicacionTexto</td>
+                            <td>@c.EstadoTexto</td>
+                            <td>@c.Total.ToString("C")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@if (_detalle is { } d)
+{
+    <ModalBase Titulo="@d.NombreCliente" OnCerrar="() => _detalle = null">
+        <p style="color:var(--text-secondary); margin-top:0;">@d.EtiquetaTipoDocumento: @d.NumeroDocumento</p>
+        <p>Celular: @d.Celular</p>
+        <p>Ubicación: @d.UbicacionTexto</p>
+        <p>Ingreso: @d.HoraRegistro.ToString("dd/MM/yyyy HH:mm")</p>
+        <p>Estado: @d.EstadoTexto</p>
+
+        <h4>Consumos</h4>
+        @if (d.Consumos.Count == 0)
+        {
+            <p class="empty-state" style="padding:4px 0;">Sin consumos registrados.</p>
+        }
+        @foreach (var item in d.Consumos)
+        {
+            <div style="display:flex; justify-content:space-between; font-size:0.9rem;">
+                <span>@item.Cantidad × @item.Descripcion</span>
+                <span>@item.Subtotal.ToString("C")</span>
+            </div>
+        }
+        <p style="font-weight:700; margin-top:8px;">Total: @d.Total.ToString("C")</p>
+
+        @if (d.ClienteSaunaIdParaVenta.HasValue || d.EstadiaIdParaVenta.HasValue)
+        {
+            <button class="btn btn-bloque" @onclick="() => IrAVenta(d)">+ Agregar Consumo (POS)</button>
+        }
+        @if (d.EstaActivo)
+        {
+            <button class="btn btn-secundario btn-bloque" @onclick="() => _vistaPago = true">Pagar y Finalizar</button>
+        }
+
+        @if (_vistaPago)
+        {
+            @if (d.EstadiaIdParaVenta.HasValue)
+            {
+                <p style="margin-top:8px;">Método de pago:</p>
+                @foreach (var metodo in Enum.GetValues<MetodoPago>())
+                {
+                    <button class="btn btn-secundario btn-bloque" disabled="@_guardando" @onclick="() => FinalizarConCheckoutAsync(d, metodo)">@(_guardando ? "Guardando…" : metodo.ToString())</button>
+                }
+            }
+            else
+            {
+                <p style="margin-top:8px;">¿Confirmar el fin de la sesión de @d.NombreCliente?</p>
+                <button class="btn btn-peligro btn-bloque" disabled="@_guardando" @onclick="() => FinalizarSesionSaunaAsync(d)">@(_guardando ? "Guardando…" : "Sí, finalizar")</button>
+            }
+        }
+    </ModalBase>
+}
+
+@code {
+    private string _origen = "Hotel";
+    private string _textoBusqueda = string.Empty;
+    private bool _cargando = true;
+    private string? _error;
+    private List<ClienteUnificadoDto> _clientes = new();
+    private DetalleClienteDto? _detalle;
+    private bool _vistaPago;
+    private bool _guardando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAsync();
+        Notificador.CambioDetectado += OnCambioDetectado;
+    }
+
+    private async void OnCambioDetectado(string area)
+    {
+        if (area != "habitaciones" && area != "sauna")
+        {
+            return;
+        }
+
+        await InvokeAsync(async () =>
+        {
+            await CargarAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose() => Notificador.CambioDetectado -= OnCambioDetectado;
+
+    private async Task CambiarOrigenHotelAsync()
+    {
+        _origen = "Hotel";
+        await CargarAsync();
+    }
+
+    private async Task CambiarOrigenSaunaAsync()
+    {
+        _origen = "Sauna";
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        try
+        {
+            _clientes = _origen == "Hotel"
+                ? await ClientesService.ObtenerClientesHotelAsync()
+                : await ClientesService.ObtenerClientesSaunaAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo cargar la lista: {ex.Message}";
+        }
+        finally
+        {
+            _cargando = false;
+        }
+    }
+
+    private IEnumerable<ClienteUnificadoDto> Filtrados()
+    {
+        if (string.IsNullOrWhiteSpace(_textoBusqueda))
+        {
+            return _clientes;
+        }
+
+        var texto = _textoBusqueda.Trim();
+        return _clientes.Where(c =>
+            c.NombreCliente.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
+            c.UbicacionTexto.Contains(texto, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task SeleccionarAsync(ClienteUnificadoDto c)
+    {
+        _vistaPago = false;
+        try
+        {
+            _detalle = c.Origen == "Hotel"
+                ? await ClientesService.ObtenerDetalleHotelAsync(c.EstadiaId!.Value)
+                : await ClientesService.ObtenerDetalleSaunaAsync(c.ClienteSaunaId!.Value);
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo cargar el detalle: {ex.Message}";
+        }
+    }
+
+    private void IrAVenta(DetalleClienteDto d)
+    {
+        var nombre = Uri.EscapeDataString(d.NombreParaVenta ?? d.NombreCliente);
+        if (d.EstadiaIdParaVenta.HasValue)
+        {
+            Navegacion.NavigateTo($"/sauna/venta?estadiaId={d.EstadiaIdParaVenta}&numero={d.NumeroHabitacionParaVenta}&nombre={nombre}");
+        }
+        else if (d.ClienteSaunaIdParaVenta.HasValue)
+        {
+            Navegacion.NavigateTo($"/sauna/venta?clienteSaunaId={d.ClienteSaunaIdParaVenta}&nombre={nombre}&esHuespedHotel={d.EsHuespedHotelParaVenta}");
+        }
+    }
+
+    private async Task FinalizarConCheckoutAsync(DetalleClienteDto d, MetodoPago metodo)
+    {
+        if (_guardando)
+        {
+            return;
+        }
+
+        _guardando = true;
+        try
+        {
+            var usuario = await Sesion.ObtenerUsuarioActualAsync();
+            await HabitacionService.CheckOutAsync(d.EstadiaIdParaVenta!.Value, usuario.Id, metodo);
+            _detalle = null;
+            await CargarAsync();
+            Notificador.Avisar("habitaciones");
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo hacer el check-out: {ex.Message}";
+        }
+        finally
+        {
+            _guardando = false;
+        }
+    }
+
+    private async Task FinalizarSesionSaunaAsync(DetalleClienteDto d)
+    {
+        if (_guardando)
+        {
+            return;
+        }
+
+        _guardando = true;
+        try
+        {
+            var usuario = await Sesion.ObtenerUsuarioActualAsync();
+            await SaunaService.FinalizarSesionAsync(d.ClienteSaunaIdParaVenta!.Value, usuario.Id);
+            _detalle = null;
+            await CargarAsync();
+            Notificador.Avisar("sauna");
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo finalizar la sesión: {ex.Message}";
+        }
+        finally
+        {
+            _guardando = false;
+        }
+    }
+}

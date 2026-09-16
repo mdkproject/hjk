@@ -1,0 +1,26 @@
+@* Shell genérico de modal — backdrop + tarjeta + título + botón "cerrar" (X).
+   Pensado para reutilizarse en todas las páginas que necesiten confirmar una
+   acción o mostrar un formulario corto (ver app.css). *@
+
+<div class="modal-backdrop" @onclick="OnCerrar">
+    <div class="modal-card" @onclick:stopPropagation="true">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <h3>@Titulo</h3>
+            <button class="modal-close" @onclick="OnCerrar" aria-label="Cerrar" type="button">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
+            </button>
+        </div>
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Titulo { get; set; } = string.Empty;
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public EventCallback OnCerrar { get; set; }
+}
