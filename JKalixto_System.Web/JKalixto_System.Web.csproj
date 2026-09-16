@@ -4,6 +4,13 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- BLAZOR106 es un falso positivo del SDK con ReconnectModal.razor.js: el
+         analizador de "publish" no reconoce que @Assets[...] (usado en
+         ReconnectModal.razor) es una forma válida de referenciar el JS
+         colocalizado de un componente, y lo marca como "huérfano". Solo
+         aparece al publicar en Release (no en "dotnet build" de Debug, por
+         eso nunca se vio hasta instalar el servicio de Windows). -->
+    <NoWarn>$(NoWarn);BLAZOR106</NoWarn>
   </PropertyGroup>
 
   <!-- Reutiliza tal cual el Domain/Application/Infrastructure que ya usa la app de
