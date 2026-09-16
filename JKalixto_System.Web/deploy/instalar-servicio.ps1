@@ -5,26 +5,31 @@
     la PC (sin depender de dejar una ventana de terminal abierta con
     "dotnet run") y se reinicie solo si el proceso se cae.
 
-    CÓMO CORRERLO:
-      1. Abrí PowerShell COMO ADMINISTRADOR (clic derecho → "Ejecutar como
+    COMO CORRERLO:
+      1. Abri PowerShell COMO ADMINISTRADOR (clic derecho -> "Ejecutar como
          administrador").
-      2. Pará cualquier "dotnet run" que tengas abierto para este proyecto.
-      3. Ubicate en la carpeta JKalixto_System.Web (donde está este script,
-         dentro de deploy/) o corré el script con su ruta completa.
-      4. Ejecutá:  .\deploy\instalar-servicio.ps1
+      2. Para cualquier "dotnet run" que tengas abierto para este proyecto.
+      3. Ubicate en la carpeta JKalixto_System.Web (donde esta este script,
+         dentro de deploy/) o corre el script con su ruta completa.
+      4. Ejecuta:  .\deploy\instalar-servicio.ps1
 
-    Qué hace, paso a paso:
+    Que hace, paso a paso:
       1. Publica la app en modo Release (autocontenida, sin depender de tener
-         el SDK de .NET instalado en la PC del servidor — solo el runtime).
+         el SDK de .NET instalado en la PC del servidor - solo el runtime).
       2. Registra el servicio de Windows "JKalixto Web" apuntando al .exe
          publicado.
-      3. Configura reinicio automático si el proceso se cae inesperadamente.
+      3. Configura reinicio automatico si el proceso se cae inesperadamente.
       4. Recuerda el paso pendiente del Firewall (no lo hace solo, porque ya
-         se documentó antes como un paso manual — ver el mensaje final).
+         se documento antes como un paso manual - ver el mensaje final).
 
-    Para DESINSTALARLO más adelante (si hiciera falta):
+    Para DESINSTALARLO mas adelante (si hiciera falta):
         Stop-Service "JKalixto Web"
         sc.exe delete "JKalixto Web"
+
+    NOTA: este archivo se guarda a proposito sin tildes ni caracteres
+    especiales (solo texto ASCII), porque Windows PowerShell 5.1 puede leer
+    mal los acentos si el archivo no tiene BOM UTF-8, lo que rompe el script
+    a mitad de una linea con errores de "parser" dificiles de entender.
 #>
 
 $ErrorActionPreference = "Stop"
@@ -36,18 +41,18 @@ $carpetaPublicacion = Join-Path $carpetaProyecto "publish"
 Write-Host "== 1/3: Publicando la app en modo Release ==" -ForegroundColor Cyan
 dotnet publish $carpetaProyecto -c Release -o $carpetaPublicacion --self-contained false
 if ($LASTEXITCODE -ne 0) {
-    throw "dotnet publish falló — revisá el error de arriba antes de seguir."
+    throw "dotnet publish fallo - revisa el error de arriba antes de seguir."
 }
 
 $exePublicado = Join-Path $carpetaPublicacion "JKalixto_System.Web.exe"
 if (-not (Test-Path $exePublicado)) {
-    throw "No se encontró $exePublicado después de publicar — algo salió mal."
+    throw "No se encontro $exePublicado despues de publicar - algo salio mal."
 }
 
 Write-Host "== 2/3: Registrando el servicio de Windows ==" -ForegroundColor Cyan
 $servicioExistente = Get-Service -Name $nombreServicio -ErrorAction SilentlyContinue
 if ($servicioExistente) {
-    Write-Host "El servicio '$nombreServicio' ya existe — se detiene para volver a registrarlo." -ForegroundColor Yellow
+    Write-Host "El servicio '$nombreServicio' ya existe - se detiene para volver a registrarlo." -ForegroundColor Yellow
     Stop-Service $nombreServicio -Force -ErrorAction SilentlyContinue
     sc.exe delete $nombreServicio | Out-Null
     Start-Sleep -Seconds 2
@@ -56,21 +61,21 @@ if ($servicioExistente) {
 New-Service -Name $nombreServicio `
     -BinaryPathName "`"$exePublicado`"" `
     -DisplayName $nombreServicio `
-    -Description "Sistema de Hotel y Sauna JKalixto — servidor web para la red local del hotel." `
+    -Description "Sistema de Hotel y Sauna JKalixto - servidor web para la red local del hotel." `
     -StartupType Automatic
 
-Write-Host "== 3/3: Configurando reinicio automático si el proceso se cae ==" -ForegroundColor Cyan
-# reset= 86400 (24h): después de un día sin fallas, se resetea el contador de reintentos.
+Write-Host "== 3/3: Configurando reinicio automatico si el proceso se cae ==" -ForegroundColor Cyan
+# reset= 86400 (24h): despues de un dia sin fallas, se resetea el contador de reintentos.
 sc.exe failure $nombreServicio reset= 86400 actions= restart/5000/restart/5000/restart/5000 | Out-Null
 
 Start-Service $nombreServicio
 
 Write-Host ""
-Write-Host "Listo. El servicio '$nombreServicio' quedó instalado y arrancado." -ForegroundColor Green
+Write-Host "Listo. El servicio '$nombreServicio' quedo instalado y arrancado." -ForegroundColor Green
 Write-Host "Se va a iniciar solo cada vez que prenda esta PC, sin necesidad de dejar" -ForegroundColor Green
 Write-Host "ninguna ventana abierta." -ForegroundColor Green
 Write-Host ""
-Write-Host "PENDIENTE (si todavía no lo hiciste): habilitar el puerto en el Firewall" -ForegroundColor Yellow
+Write-Host "PENDIENTE (si todavia no lo hiciste): habilitar el puerto en el Firewall" -ForegroundColor Yellow
 Write-Host "de Windows para que la laptop pueda conectarse por la red:" -ForegroundColor Yellow
 Write-Host '    New-NetFirewallRule -DisplayName "JKalixto Web (5078)" -Direction Inbound -Protocol TCP -LocalPort 5078 -Action Allow -Profile Private' -ForegroundColor White
 Write-Host ""
