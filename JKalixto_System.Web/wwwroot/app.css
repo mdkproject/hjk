@@ -388,8 +388,26 @@ h1, h2, h3, h4 {
     font-size: 0.8rem;
 }
 
-.cal-table-wrap {
+/* Contenedor con su PROPIO scroll (alto y ancho) en vez de dejar que la
+   página entera scrollee — mismo objetivo que el "panel congelado" de
+   MAUI (ver comentario en CalendarioPage.xaml.cs), pero con
+   position:sticky nativo del navegador en vez de un TranslationX/Y manual:
+   con un contenedor de scroll bien definido (esto), sticky ya sabe
+   "quedarse pegado" solo, sin JS ni handlers de Scrolled. */
+/* Selector compuesto (.table-wrap.cal-table-wrap) a propósito, no solo
+   .cal-table-wrap: la regla genérica ".table-wrap" (más abajo en este
+   archivo) fija overflow-y:hidden, y por especificidad de CSS un
+   selector de una sola clase no le gana a otro de una sola clase según
+   el ORDEN en el archivo — bug real que se encontró acá mismo: sin este
+   selector compuesto, overflow-y quedaba en "hidden" con una altura
+   máxima fija, así que las filas que no entraban NO quedaban scrolleables,
+   quedaban directamente invisibles y inalcanzables. Con .table-wrap.cal-table-wrap
+   (dos clases combinadas) la especificidad es mayor sin importar el
+   orden, así que esta regla gana siempre. */
+.table-wrap.cal-table-wrap {
     box-shadow: var(--shadow-sm);
+    max-height: 70vh;
+    overflow: auto;
 }
 
 .cal-nav-group {
@@ -430,7 +448,20 @@ h1, h2, h3, h4 {
     border-bottom: 1px solid var(--border);
 }
 
+/* Esquina superior izquierda: fija en las DOS direcciones a la vez (like
+   Excel/Google Sheets) — necesita quedar por encima tanto de las filas
+   (que solo se congelan a la izquierda) como del encabezado de días (que
+   solo se congela arriba), por eso el z-index más alto de los tres. */
+.cal-corner-sticky {
+    top: 0;
+    z-index: 3;
+}
+
 .cal-dia-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--surface);
     padding: 5px 2px;
     border-bottom: 1px solid var(--border);
     min-width: 38px;
@@ -439,13 +470,28 @@ h1, h2, h3, h4 {
     text-align: center;
 }
 
+/* background en capas (gradiente sólido + superficie opaca debajo) en vez
+   de solo la variante translúcida: el encabezado ahora es sticky (ver
+   .cal-dia-header) y necesita quedar 100% opaco al quedarse pegado
+   arriba — si no, se vería el contenido de abajo transparentándose a
+   través mientras se scrollea. */
 .cal-dia-header-hoy {
     color: var(--accent);
-    background: var(--accent-soft);
+    background: linear-gradient(var(--accent-soft), var(--accent-soft)), var(--surface);
+}
+
+/* Regla explícita para cuando HOY cae en fin de semana: sin esto, ambas
+   reglas de abajo tienen la misma especificidad y gana la que esté
+   declarada después en el archivo — un empate frágil. Combinar las dos
+   clases en un solo selector le da más especificidad a propósito, así el
+   resaltado de HOY (lo más importante) siempre se ve, sin depender del
+   orden en que quedaron escritas las reglas. */
+.cal-dia-header-hoy.cal-finde {
+    background: linear-gradient(var(--accent-soft), var(--accent-soft)), var(--surface);
 }
 
 .cal-finde {
-    background: rgba(255, 255, 255, .025);
+    background: linear-gradient(rgba(255, 255, 255, .025), rgba(255, 255, 255, .025)), var(--surface);
 }
 
 .cal-fila-grupo {

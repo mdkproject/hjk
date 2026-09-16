@@ -125,7 +125,7 @@
                 <table class="cal-tabla">
                     <thead>
                         <tr>
-                            <th class="cal-col-sticky" style="padding:6px 12px; color:var(--text-muted); font-size:0.7rem; text-transform:uppercase;">Habitación</th>
+                            <th class="cal-col-sticky cal-corner-sticky" style="padding:6px 12px; color:var(--text-muted); font-size:0.7rem; text-transform:uppercase;">Habitación</th>
                             @foreach (var dia in _calendario.Dias)
                             {
                                 <th class="cal-dia-header @(EsFinDeSemana(dia) ? "cal-finde" : "") @(EsHoyDia(dia) ? "cal-dia-header-hoy" : "")">
@@ -227,7 +227,7 @@
 
         @if (info.bloque.Estado == EstadoCeldaCalendario.Disponible)
         {
-            <button class="btn btn-bloque" @onclick='() => Navegacion.NavigateTo("/reservas/nuevo")'>Reservar esta habitación</button>
+            <button class="btn btn-bloque" @onclick="() => IrAReservaRapida(info.columna, info.bloque)">Reservar esta habitación</button>
         }
     </ModalBase>
 }
@@ -389,6 +389,18 @@
     }
 
     private void AbrirBloque(ColumnaHabitacionCalendarioDto columna, BloqueCalendario bloque) => _bloqueSeleccionado = (columna, bloque);
+
+    /// <summary>Reserva rápida desde una celda Disponible: mismo espíritu que
+    /// AbrirReservaRapidaAsync en MAUI (llegar al formulario con la habitación y la
+    /// fecha ya elegidas, sin tener que reconfigurar nada) — adaptado al selector de
+    /// Nueva Reserva en web, que precarga y preselecciona en vez de bloquear la
+    /// habitación, así el usuario todavía puede elegir otra del mismo tipo si
+    /// necesita ajustar algo.</summary>
+    private void IrAReservaRapida(ColumnaHabitacionCalendarioDto columna, BloqueCalendario bloque)
+    {
+        var fechaInicio = new DateTime(_anio, _mes, bloque.DiaInicio);
+        Navegacion.NavigateTo($"/reservas/nuevo?habitacionId={columna.HabitacionId}&tipo={columna.Tipo}&fechaInicio={fechaInicio:yyyy-MM-dd}");
+    }
 
     private bool EsFinDeSemana(int dia) => new DateTime(_anio, _mes, dia).DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
 

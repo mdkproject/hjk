@@ -155,6 +155,22 @@
     private readonly List<string> _errores = new();
     private bool _guardando;
 
+    // "Reserva rápida" desde una celda Disponible del Calendario (ver
+    // IrAReservaRapida en Calendario.razor) — mismo espíritu que
+    // AbrirReservaRapidaAsync en MAUI (llegar con la habitación y la fecha ya
+    // elegidas), pero adaptado al selector más flexible que ya tiene la web:
+    // en vez de bloquear la habitación, se precarga fecha+tipo+habitación y se
+    // la deja PRESELECCIONADA en la lista — el usuario todavía puede elegir
+    // otra del mismo tipo si lo necesita, sin tener que reconfigurar nada si no.
+    [SupplyParameterFromQuery(Name = "habitacionId")]
+    public int? HabitacionIdQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "tipo")]
+    public string? TipoQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "fechaInicio")]
+    public string? FechaInicioQuery { get; set; }
+
     private TipoDocumento _tipoDocumento = TipoDocumento.DNI;
     private string _numeroDocumento = string.Empty;
     private string _nombreCompleto = string.Empty;
@@ -169,7 +185,23 @@
 
     protected override async Task OnInitializedAsync()
     {
+        if (!string.IsNullOrWhiteSpace(FechaInicioQuery) && DateTime.TryParse(FechaInicioQuery, out var fechaInicioPrecargada))
+        {
+            _fechaInicio = fechaInicioPrecargada;
+            _fechaFin = fechaInicioPrecargada.AddDays(1);
+        }
+
+        if (!string.IsNullOrWhiteSpace(TipoQuery) && Enum.TryParse<TipoHabitacion>(TipoQuery, out var tipoPrecargado))
+        {
+            _tipoFiltro = tipoPrecargado;
+        }
+
         await CargarDisponiblesAsync();
+
+        if (HabitacionIdQuery is { } habitacionIdPrecargada)
+        {
+            _habitacionSeleccionada = _disponibles.FirstOrDefault(h => h.HabitacionId == habitacionIdPrecargada);
+        }
     }
 
     private async Task OnCambioFechas(ChangeEventArgs e)
