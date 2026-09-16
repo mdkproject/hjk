@@ -212,9 +212,9 @@ app.Run();
 /// el archivo .db entero cada vez que arranca en Debug, porque cada instalación de
 /// escritorio tiene su propia base aislada y descartable. ACÁ la base es
 /// compartida — el servidor se puede reiniciar sin perder lo que ya cargaron el
-/// hotel/sauna. Por eso: EnsureCreated crea el esquema solo si no existe, y los
-/// datos de prueba se siembran SOLO la primera vez (cuando el archivo no existía
-/// todavía), nunca en un reinicio posterior.
+/// hotel/sauna. Por eso: Migrate() crea o actualiza el esquema sin borrar nada, y
+/// los datos de prueba se siembran SOLO la primera vez (cuando el archivo no
+/// existía todavía), nunca en un reinicio posterior.
 /// </summary>
 static void InicializarBaseDeDatos(IServiceProvider servicios, string dbPath)
 {
@@ -222,7 +222,13 @@ static void InicializarBaseDeDatos(IServiceProvider servicios, string dbPath)
 
     using var scope = servicios.CreateScope();
     var contexto = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    contexto.Database.EnsureCreated();
+
+    if (!esNueva)
+    {
+        MarcarMigracionInicialSiHaceFalta(contexto);
+    }
+
+    contexto.Database.Migrate();
 
 #if DEBUG
     if (esNueva)
@@ -234,4 +240,42 @@ static void InicializarBaseDeDatos(IServiceProvider servicios, string dbPath)
         }
     }
 #endif
+}
+
+/// <summary>
+/// Este proyecto usó Database.EnsureCreated() hasta que se adoptó EF Core
+/// Migrations (ver JKalixto_System.Infrastructure/Data/Migrations). Una base ya
+/// creada con EnsureCreated tiene el esquema completo de "InitialCreate" pero NO
+/// tiene la tabla de historial de migraciones — sin esto, Migrate() intentaría
+/// crear de nuevo tablas que ya existen y fallaría. Se marca esa migración como
+/// "ya aplicada" a mano (documentado por EF Core para este escenario exacto), sin
+/// tocar ninguna tabla de datos. Si la base ya tiene historial (porque ya se migró
+/// normalmente antes), esto no hace nada.
+/// </summary>
+static void MarcarMigracionInicialSiHaceFalta(AppDbContext contexto)
+{
+    const string migracionInicial = "20260916222913_InitialCreate";
+
+    var tieneHistorial = contexto.Database
+        .SqlQueryRaw<int>("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='__EFMigrationsHistory'")
+        .AsEnumerable()
+        .First() > 0;
+
+    if (tieneHistorial)
+    {
+        return;
+    }
+
+    contexto.Database.ExecuteSqlRaw(
+        """
+        CREATE TABLE "__EFMigrationsHistory" (
+            "MigrationId" TEXT NOT NULL CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY,
+            "ProductVersion" TEXT NOT NULL
+        )
+        """);
+    contexto.Database.ExecuteSqlRaw(
+        $"""
+        INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+        VALUES ('{migracionInicial}', '10.0.10')
+        """);
 }

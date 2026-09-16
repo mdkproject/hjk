@@ -36,7 +36,13 @@ $ErrorActionPreference = "Stop"
 
 $nombreServicio = "JKalixto Web"
 $carpetaProyecto = Split-Path -Parent $PSScriptRoot   # .../JKalixto_System.Web
-$carpetaPublicacion = Join-Path $carpetaProyecto "publish"
+$carpetaRepo = Split-Path -Parent $carpetaProyecto    # .../hjk-Hotel-y-Sauna-Pos
+
+# A PROPOSITO fuera de JKalixto_System.Web: si la publicacion queda DENTRO del
+# proyecto, el SDK de .NET la detecta como si fuera codigo fuente propio en el
+# siguiente "dotnet build" (archivos duplicados, error BLAZOR106) y rompe la
+# compilacion normal del proyecto. Un bug real que ya pasó una vez.
+$carpetaPublicacion = Join-Path $carpetaRepo "publish-jkalixto-web"
 
 Write-Host "== 1/3: Publicando la app en modo Release ==" -ForegroundColor Cyan
 dotnet publish $carpetaProyecto -c Release -o $carpetaPublicacion --self-contained false

@@ -28,6 +28,12 @@
        nada cuando se sigue corriendo por consola con "dotnet run". -->
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.0" />
+    <!-- Requerido por "dotnet ef" (herramienta de diseño) cuando este es el
+         proyecto de arranque. Ver JKalixto_System.Infrastructure/Data/Migrations. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
 </Project>

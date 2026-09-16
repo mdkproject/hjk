@@ -183,6 +183,11 @@ DocProject/Help/html
 # Click-Once directory
 publish/
 
+# Salida de "dotnet publish" para el Servicio de Windows de JKalixto (ver
+# JKalixto_System.Web/deploy/instalar-servicio.ps1) -- a proposito fuera del
+# proyecto, nunca debe versionarse.
+/publish-jkalixto-web/
+
 # Publish Web Output
 *.[Pp]ublish.xml
 *.azurePubxml

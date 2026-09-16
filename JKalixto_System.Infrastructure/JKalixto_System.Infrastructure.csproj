@@ -14,6 +14,13 @@
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.10" />
+		<!-- Solo hace falta en tiempo de diseño, para "dotnet ef migrations add" —
+		     ver JKalixto_System.Web/Data/Migrations. No se usa en tiempo de
+		     ejecución. -->
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
 	</ItemGroup>
 
 	<ItemGroup>
