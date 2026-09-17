@@ -52,6 +52,24 @@ $servicioExistente = Get-Service -Name $nombreServicio -ErrorAction SilentlyCont
 if ($servicioExistente) {
     Write-Host "El servicio '$nombreServicio' ya existe - se detiene para volver a publicarlo." -ForegroundColor Yellow
     Stop-Service $nombreServicio -Force -ErrorAction SilentlyContinue
+
+    # Stop-Service a veces devuelve el control antes de que el proceso termine
+    # de verdad (o directamente no lo mata) -- ya paso una vez, y "dotnet
+    # publish" fallaba porque el .exe/.dll seguian bloqueados. Se espera hasta
+    # 10 segundos y, si sigue vivo, se lo mata a la fuerza por PID.
+    $exeBuscado = "JKalixto_System.Web"
+    for ($intento = 1; $intento -le 10; $intento++) {
+        $procesoViejo = Get-Process -Name $exeBuscado -ErrorAction SilentlyContinue
+        if (-not $procesoViejo) {
+            break
+        }
+        if ($intento -eq 10) {
+            Write-Host "El proceso viejo no se cerro solo despues de 10s - lo cierro a la fuerza." -ForegroundColor Yellow
+            $procesoViejo | Stop-Process -Force -ErrorAction SilentlyContinue
+        }
+        Start-Sleep -Seconds 1
+    }
+
     sc.exe delete $nombreServicio | Out-Null
     Start-Sleep -Seconds 2
 }
