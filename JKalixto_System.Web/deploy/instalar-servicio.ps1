@@ -41,10 +41,25 @@ $carpetaRepo = Split-Path -Parent $carpetaProyecto    # .../hjk-Hotel-y-Sauna-Po
 # A PROPOSITO fuera de JKalixto_System.Web: si la publicacion queda DENTRO del
 # proyecto, el SDK de .NET la detecta como si fuera codigo fuente propio en el
 # siguiente "dotnet build" (archivos duplicados, error BLAZOR106) y rompe la
-# compilacion normal del proyecto. Un bug real que ya pasó una vez.
+# compilacion normal del proyecto. Un bug real que ya paso una vez.
 $carpetaPublicacion = Join-Path $carpetaRepo "publish-jkalixto-web"
 
-Write-Host "== 1/3: Publicando la app en modo Release ==" -ForegroundColor Cyan
+Write-Host "== 1/4: Deteniendo el servicio si ya estaba corriendo ==" -ForegroundColor Cyan
+# Tiene que ir ANTES de publicar: si el servicio ya esta corriendo, sus .dll
+# quedan bloqueados y "dotnet publish" no puede sobrescribirlos (error real ya
+# visto: MSB3021/MSB3026 "being used by another process").
+$servicioExistente = Get-Service -Name $nombreServicio -ErrorAction SilentlyContinue
+if ($servicioExistente) {
+    Write-Host "El servicio '$nombreServicio' ya existe - se detiene para volver a publicarlo." -ForegroundColor Yellow
+    Stop-Service $nombreServicio -Force -ErrorAction SilentlyContinue
+    sc.exe delete $nombreServicio | Out-Null
+    Start-Sleep -Seconds 2
+}
+else {
+    Write-Host "No habia un servicio instalado todavia - se instala por primera vez." -ForegroundColor DarkGray
+}
+
+Write-Host "== 2/4: Publicando la app en modo Release ==" -ForegroundColor Cyan
 dotnet publish $carpetaProyecto -c Release -o $carpetaPublicacion --self-contained false
 if ($LASTEXITCODE -ne 0) {
     throw "dotnet publish fallo - revisa el error de arriba antes de seguir."
@@ -55,22 +70,14 @@ if (-not (Test-Path $exePublicado)) {
     throw "No se encontro $exePublicado despues de publicar - algo salio mal."
 }
 
-Write-Host "== 2/3: Registrando el servicio de Windows ==" -ForegroundColor Cyan
-$servicioExistente = Get-Service -Name $nombreServicio -ErrorAction SilentlyContinue
-if ($servicioExistente) {
-    Write-Host "El servicio '$nombreServicio' ya existe - se detiene para volver a registrarlo." -ForegroundColor Yellow
-    Stop-Service $nombreServicio -Force -ErrorAction SilentlyContinue
-    sc.exe delete $nombreServicio | Out-Null
-    Start-Sleep -Seconds 2
-}
-
+Write-Host "== 3/4: Registrando el servicio de Windows ==" -ForegroundColor Cyan
 New-Service -Name $nombreServicio `
     -BinaryPathName "`"$exePublicado`"" `
     -DisplayName $nombreServicio `
     -Description "Sistema de Hotel y Sauna JKalixto - servidor web para la red local del hotel." `
     -StartupType Automatic
 
-Write-Host "== 3/3: Configurando reinicio automatico si el proceso se cae ==" -ForegroundColor Cyan
+Write-Host "== 4/4: Configurando reinicio automatico si el proceso se cae ==" -ForegroundColor Cyan
 # reset= 86400 (24h): despues de un dia sin fallas, se resetea el contador de reintentos.
 sc.exe failure $nombreServicio reset= 86400 actions= restart/5000/restart/5000/restart/5000 | Out-Null
 
