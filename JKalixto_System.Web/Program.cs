@@ -3,6 +3,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using JKalixto_System.Application.Services;
 using JKalixto_System.Infrastructure.Data;
@@ -24,6 +25,21 @@ builder.Host.UseWindowsService(options =>
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+// ------------------------------------------------------------------
+// DATA PROTECTION — clave de cifrado para la cookie de sesión (ver login más
+// abajo). Por defecto, ASP.NET Core guarda esa clave en el perfil del usuario
+// de Windows que corre el proceso (%LOCALAPPDATA%). Corriendo como Servicio de
+// Windows, el proceso corre como LocalSystem, no como el usuario de escritorio
+// — esa carpeta de perfil no es confiable ahí, y en la práctica la app no podía
+// ni cifrar ni descifrar la cookie: SignInAsync fallaba con una excepción, el
+// login se veía "rechazado" sin ningún mensaje de error real. Se fija la
+// carpeta explícitamente dentro de la propia carpeta de la app (accesible para
+// cualquier cuenta que la ejecute) para que sea confiable sin importar cómo se
+// inicie (consola o servicio).
+builder.Services.AddDataProtection()
+    .SetApplicationName("JKalixtoWeb")
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, "Data", "dpkeys")));
 
 // ------------------------------------------------------------------
 // LOGIN — cookie de ASP.NET Core, reutilizando IAuthService.IniciarSesionAsync
