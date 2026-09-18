@@ -587,8 +587,16 @@ h1, h2, h3, h4 {
     outline-offset: -2px;
 }
 
-.cal-celda-hoy {
-    box-shadow: inset 0 0 0 2px var(--accent);
+/* Tiñe la columna de un día entero (fin de semana), de punta a punta de la
+   grilla — incluso a través de una barra "Disponible" larga que la
+   atraviesa sin partirse, porque el fondo de <col> se pinta por debajo de
+   cualquier celda que no tenga su propio background (las barras de color
+   Ocupada/Reservada/Mantenimiento sí lo tienen, así que no se ven afectadas).
+   El encabezado (<th>) no lo hereda porque ya tiene su propio fondo opaco
+   para poder quedar sticky — por eso .cal-finde se sigue aplicando ahí
+   aparte (ver el <th> del encabezado de días). */
+.cal-col-finde {
+    background: rgba(255, 255, 255, .07);
 }
 
 .cal-bloque {

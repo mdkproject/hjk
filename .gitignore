@@ -245,6 +245,11 @@ _pkginfo.txt
 *.db-shm
 *.db-wal
 
+# Claves de Data Protection (cookie de sesión) generadas en tiempo de
+# ejecución — ver Program.cs. Son secretas y específicas de cada
+# instalación; nunca deben versionarse.
+/JKalixto_System.Web/Data/dpkeys/
+
 # Others
 ClientBin/
 ~$*

@@ -130,6 +130,13 @@
         {
             <div class="table-wrap cal-table-wrap">
                 <table class="cal-tabla">
+                    <colgroup>
+                        <col />
+                        @foreach (var dia in _calendario.Dias)
+                        {
+                            <col class="@(EsFinDeSemana(dia) ? "cal-col-finde" : "")" />
+                        }
+                    </colgroup>
                     <thead>
                         <tr>
                             <th class="cal-col-sticky cal-corner-sticky" style="padding:6px 12px; color:var(--text-muted); font-size:0.7rem; text-transform:uppercase;">Habitación</th>
@@ -175,7 +182,7 @@
                                             @if (bloque.Estado == EstadoCeldaCalendario.Disponible)
                                             {
                                                 <td colspan="@bloque.CantidadDias"
-                                                    class="cal-celda-vacia @(bloque.ContieneHoy ? "cal-celda-hoy" : "")"
+                                                    class="cal-celda-vacia"
                                                     tabindex="0" role="button" aria-label="@DescripcionBloque(columna, bloque)"
                                                     @onclick="() => AbrirBloque(columna, bloque)"
                                                     @onkeydown="e => OnActivarConTeclado(e, () => AbrirBloque(columna, bloque))"></td>
@@ -183,7 +190,7 @@
                                             else
                                             {
                                                 <td colspan="@bloque.CantidadDias"
-                                                    class="cal-celda-bloque @(bloque.ContieneHoy ? "cal-celda-hoy" : "")"
+                                                    class="cal-celda-bloque"
                                                     tabindex="0" role="button" aria-label="@DescripcionBloque(columna, bloque)"
                                                     @onclick="() => AbrirBloque(columna, bloque)"
                                                     @onkeydown="e => OnActivarConTeclado(e, () => AbrirBloque(columna, bloque))">
@@ -249,7 +256,7 @@
     /// <summary>Un tramo de días consecutivos con el mismo estado+cliente dentro de la
     /// fila de una habitación — se dibuja como una sola barra que abarca esos días
     /// (igual que Little Hotelier/Hotelerian), en vez de una celda de color por día.</summary>
-    private sealed record BloqueCalendario(int DiaInicio, int CantidadDias, EstadoCeldaCalendario Estado, string? NombreCliente, bool ContieneHoy);
+    private sealed record BloqueCalendario(int DiaInicio, int CantidadDias, EstadoCeldaCalendario Estado, string? NombreCliente);
 
     private static readonly string[] DiasSemana = { "Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb" };
 
@@ -436,8 +443,7 @@
                 j++;
             }
 
-            var contieneHoy = ordenadas.Skip(i).Take(j - i + 1).Any(c => c.EsHoy);
-            bloques.Add(new BloqueCalendario(inicio.Dia, j - i + 1, inicio.Estado, inicio.NombreCliente, contieneHoy));
+            bloques.Add(new BloqueCalendario(inicio.Dia, j - i + 1, inicio.Estado, inicio.NombreCliente));
             i = j + 1;
         }
 
