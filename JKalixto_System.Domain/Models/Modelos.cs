@@ -84,6 +84,26 @@ public class Habitacion
     public DateTime? FechaInicioMantenimiento { get; set; }
 }
 
+/// <summary>
+/// Historial de cada ciclo de limpieza de salida (post check-out) de una
+/// habitación — Id, cuándo empezó, cuándo terminó (nulo mientras sigue en
+/// curso) y quién hizo cada parte. Existe para poder reportar qué tan seguido
+/// se limpia cada habitación (frecuencia), no para redibujar el calendario en
+/// días pasados — el Calendario solo usa Habitacion.Estado (el estado actual)
+/// para marcar limpieza, y únicamente en la columna de HOY, igual que ya hace
+/// con Mantenimiento. Ver HabitacionService.CheckOutAsync (abre el registro)
+/// y FinalizarLimpiezaAsync (lo cierra).
+/// </summary>
+public class RegistroLimpieza
+{
+    public int Id { get; set; }
+    public int HabitacionId { get; set; }
+    public DateTime FechaInicio { get; set; }
+    public DateTime? FechaFin { get; set; }
+    public int UsuarioInicioId { get; set; }
+    public int? UsuarioFinId { get; set; }
+}
+
 public enum EstadoEstadia
 {
     Activa,

@@ -269,7 +269,7 @@ public class RecepcionViewModel : BaseViewModel
                     "Sí, está limpia", "Cancelar");
                 if (confirmarLimpieza)
                 {
-                    await _habitacionService.FinalizarLimpiezaAsync(habitacion.HabitacionId);
+                    await _habitacionService.FinalizarLimpiezaAsync(habitacion.HabitacionId, usuarioId);
                     await CargarAsync();
                 }
                 break;

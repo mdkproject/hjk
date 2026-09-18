@@ -30,6 +30,7 @@ public class AppDbContext : DbContext
     public DbSet<LogAuditoria> LogsAuditoria => Set<LogAuditoria>();
     public DbSet<NumeracionComprobante> NumeracionesComprobante => Set<NumeracionComprobante>();
     public DbSet<Reclamo> Reclamos => Set<Reclamo>();
+    public DbSet<RegistroLimpieza> RegistrosLimpieza => Set<RegistroLimpieza>();
 
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
@@ -339,6 +340,30 @@ public class AppDbContext : DbContext
             entity.HasOne<Usuario>()
                   .WithMany()
                   .HasForeignKey(r => r.UsuarioRegistroId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ----------------------------------------------------------------
+        // HISTORIAL DE LIMPIEZA
+        // ----------------------------------------------------------------
+        modelBuilder.Entity<RegistroLimpieza>(entity =>
+        {
+            entity.ToTable("RegistrosLimpieza");
+            entity.HasKey(r => r.Id);
+
+            entity.HasOne<Habitacion>()
+                  .WithMany()
+                  .HasForeignKey(r => r.HabitacionId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Usuario>()
+                  .WithMany()
+                  .HasForeignKey(r => r.UsuarioInicioId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Usuario>()
+                  .WithMany()
+                  .HasForeignKey(r => r.UsuarioFinId)
                   .OnDelete(DeleteBehavior.Restrict);
         });
 

@@ -289,7 +289,7 @@ public interface IHabitacionService
     Task CheckOutAsync(int estadiaId, int usuarioId, MetodoPago metodoPago);
     Task IniciarMantenimientoAsync(int habitacionId, string motivo, int usuarioId);
     Task FinalizarMantenimientoAsync(int habitacionId, int usuarioId);
-    Task FinalizarLimpiezaAsync(int habitacionId);
+    Task FinalizarLimpiezaAsync(int habitacionId, int usuarioId);
     Task RegistrarLimpiezaIntermediaAsync(int habitacionId, int usuarioId);
 }
 
@@ -539,6 +539,17 @@ public class HabitacionService : IHabitacionService
             }
 
             estadia.Habitacion.Estado = EstadoHabitacion.LimpiezaSalida;
+
+            // Abre el registro histórico de limpieza (ver RegistroLimpieza) — se
+            // cierra en FinalizarLimpiezaAsync. Sirve para reportar frecuencia de
+            // limpieza por habitación; no afecta el Calendario, que solo mira
+            // Habitacion.Estado para HOY.
+            _context.RegistrosLimpieza.Add(new RegistroLimpieza
+            {
+                HabitacionId = estadia.Habitacion.Id,
+                FechaInicio = DateTime.Now,
+                UsuarioInicioId = usuarioId
+            });
         }
 
         await _context.SaveChangesAsync();
@@ -602,7 +613,7 @@ public class HabitacionService : IHabitacionService
             usuarioId, "Habitacion", habitacion.Id);
     }
 
-    public async Task FinalizarLimpiezaAsync(int habitacionId)
+    public async Task FinalizarLimpiezaAsync(int habitacionId, int usuarioId)
     {
         // AsTracking(): se modifica (Estado = Disponible) y se guarda.
         var habitacion = await _context.Habitaciones.AsTracking().FirstOrDefaultAsync(h => h.Id == habitacionId);
@@ -616,6 +627,21 @@ public class HabitacionService : IHabitacionService
         }
 
         habitacion.Estado = EstadoHabitacion.Disponible;
+
+        // Cierra el registro histórico que abrió CheckOutAsync. AsTracking()
+        // porque se modifica (FechaFin, UsuarioFinId) y se guarda junto con la
+        // habitación en el mismo SaveChangesAsync.
+        var registroAbierto = await _context.RegistrosLimpieza
+            .AsTracking()
+            .Where(r => r.HabitacionId == habitacionId && r.FechaFin == null)
+            .OrderByDescending(r => r.FechaInicio)
+            .FirstOrDefaultAsync();
+        if (registroAbierto is not null)
+        {
+            registroAbierto.FechaFin = DateTime.Now;
+            registroAbierto.UsuarioFinId = usuarioId;
+        }
+
         await _context.SaveChangesAsync();
     }
 
@@ -1611,7 +1637,8 @@ public enum EstadoCeldaCalendario
     Disponible,
     Ocupada,
     Reservada,
-    Mantenimiento
+    Mantenimiento,
+    Limpieza
 }
 
 public class CeldaCalendarioDto
@@ -1726,11 +1753,19 @@ public class CalendarioService : ICalendarioService
                 var fecha = new DateTime(anio, mes, dia);
                 var esHoy = fecha == hoy;
 
-                // 1) Mantenimiento: solo se puede saber para HOY (es el único estado
-                //    "actual" que tenemos, no hay historial de mantenimiento por fecha).
+                // 1) Mantenimiento y Limpieza: solo se pueden saber para HOY (son estados
+                //    "actuales" de la habitación, no hay historial por fecha para pintar
+                //    días pasados o futuros — ver RegistroLimpieza para el historial real,
+                //    que existe para reportes de frecuencia, no para esta grilla).
                 if (esHoy && habitacion.Estado == EstadoHabitacion.Mantenimiento)
                 {
                     columna.Celdas.Add(new CeldaCalendarioDto { Dia = dia, Estado = EstadoCeldaCalendario.Mantenimiento, EsHoy = true });
+                    continue;
+                }
+
+                if (esHoy && habitacion.Estado == EstadoHabitacion.LimpiezaSalida)
+                {
+                    columna.Celdas.Add(new CeldaCalendarioDto { Dia = dia, Estado = EstadoCeldaCalendario.Limpieza, EsHoy = true });
                     continue;
                 }
 

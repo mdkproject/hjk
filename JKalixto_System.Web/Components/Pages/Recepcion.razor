@@ -386,7 +386,8 @@
 
     private Task ConfirmarFinalizarLimpiezaAsync(HabitacionCardDto h) => EjecutarAccionAsync(async () =>
     {
-        await HabitacionService.FinalizarLimpiezaAsync(h.HabitacionId);
+        var usuario = await Sesion.ObtenerUsuarioActualAsync();
+        await HabitacionService.FinalizarLimpiezaAsync(h.HabitacionId, usuario.Id);
     });
 
     private Task ConfirmarFinalizarMantenimientoAsync(HabitacionCardDto h) => EjecutarAccionAsync(async () =>

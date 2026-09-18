@@ -222,6 +222,7 @@
                 <span><span style="display:inline-block; width:11px; height:11px; border-radius:3px; background:var(--info); margin-right:5px; vertical-align:-1px;"></span>Ocupada</span>
                 <span><span style="display:inline-block; width:11px; height:11px; border-radius:3px; background:var(--violet); margin-right:5px; vertical-align:-1px;"></span>Reservada</span>
                 <span><span style="display:inline-block; width:11px; height:11px; border-radius:3px; background:var(--danger); margin-right:5px; vertical-align:-1px;"></span>Mantenimiento</span>
+                <span><span style="display:inline-block; width:11px; height:11px; border-radius:3px; background:var(--warn); margin-right:5px; vertical-align:-1px;"></span>Limpieza (solo hoy)</span>
                 <span><span style="display:inline-block; width:11px; height:11px; border-radius:3px; border:1px solid var(--border-strong); margin-right:5px; vertical-align:-1px;"></span>Casilla en blanco = Disponible</span>
             </div>
         }
@@ -540,6 +541,7 @@
         EstadoCeldaCalendario.Ocupada => "Ocupada",
         EstadoCeldaCalendario.Reservada => "Reservada",
         EstadoCeldaCalendario.Mantenimiento => "Mantenimiento",
+        EstadoCeldaCalendario.Limpieza => "Limpieza",
         _ => estado.ToString()
     };
 
@@ -548,6 +550,7 @@
         EstadoCeldaCalendario.Ocupada => "cal-bloque-ocupada",
         EstadoCeldaCalendario.Reservada => "cal-bloque-reservada",
         EstadoCeldaCalendario.Mantenimiento => "cal-bloque-mantenimiento",
+        EstadoCeldaCalendario.Limpieza => "cal-bloque-limpieza",
         _ => ""
     };
 }

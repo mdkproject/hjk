@@ -677,6 +677,7 @@ h1, h2, h3, h4 {
 .cal-bloque-ocupada { background: linear-gradient(135deg, #669df6, #3f6fd6); }
 .cal-bloque-reservada { background: linear-gradient(135deg, #d7aefb, #b57eef); }
 .cal-bloque-mantenimiento { background: linear-gradient(135deg, #f28b82, #dd6155); }
+.cal-bloque-limpieza { background: linear-gradient(135deg, #fdd663, #e0b93a); }
 
 /* ---------- Tabla ---------- */
 
