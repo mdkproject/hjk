@@ -1,0 +1,132 @@
+@page "/almacen"
+@using JKalixto_System.Application.Services
+@using JKalixto_System.Domain.Models
+@using JKalixto_System.Web.Services
+@inject IInventarioService InventarioService
+@inject INotificadorCambios Notificador
+@inject NavigationManager Navegacion
+@implements IDisposable
+
+<PageTitle>Almacén</PageTitle>
+
+<div class="page">
+    <div class="page-header">
+        <div>
+            <h1>Almacén</h1>
+            <p class="page-subtitle">Stock de insumos de hotel y sauna</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn" @onclick='() => Navegacion.NavigateTo("/almacen/nuevo")'>
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                Registrar Movimiento
+            </button>
+        </div>
+    </div>
+
+    @if (_error is not null)
+    {
+        <div class="caja-error"><p>@_error</p></div>
+    }
+
+    <div class="search-input" style="min-width:240px; margin-bottom:14px;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+        <input placeholder="Buscar insumo…" value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+    </div>
+
+    <div class="filtro-grupo" style="margin-bottom:18px;">
+        <span class="filtro-grupo-label">Categoría</span>
+        <div class="filtro-chips">
+            <button type="button" class="filtro-chip @(_filtroCategoria == "" ? "activo" : "")" @onclick='() => _filtroCategoria = ""'>Todas</button>
+            <button type="button" class="filtro-chip @(_filtroCategoria == CategoriaInsumo.HotelHabitaciones.ToString() ? "activo" : "")" @onclick="() => _filtroCategoria = CategoriaInsumo.HotelHabitaciones.ToString()">Hotel — Habitaciones</button>
+            <button type="button" class="filtro-chip @(_filtroCategoria == CategoriaInsumo.HotelCocina.ToString() ? "activo" : "")" @onclick="() => _filtroCategoria = CategoriaInsumo.HotelCocina.ToString()">Hotel — Cocina</button>
+            <button type="button" class="filtro-chip @(_filtroCategoria == CategoriaInsumo.Sauna.ToString() ? "activo" : "")" @onclick="() => _filtroCategoria = CategoriaInsumo.Sauna.ToString()">Sauna</button>
+        </div>
+    </div>
+
+    @if (_cargando)
+    {
+        <p class="empty-state">Cargando…</p>
+    }
+    else
+    {
+        <div class="card-grid">
+            @foreach (var insumo in Filtrados())
+            {
+                <div class="card" style="width:200px; border-color:@(insumo.StockBajo ? "var(--danger)" : "var(--border)");">
+                    <strong>@insumo.Nombre</strong>
+                    <div style="color:var(--text-secondary); font-size:0.85rem;">@insumo.EtiquetaCategoria</div>
+                    @if (insumo.StockBajo)
+                    {
+                        <span class="badge" style="background:var(--danger-soft); color:#fca5a5; margin-top:6px;">Stock bajo</span>
+                    }
+                    <div style="margin-top:6px; font-weight:600; color:@(insumo.StockBajo ? "var(--danger)" : "var(--text-primary)");">
+                        Stock: @insumo.StockActual @insumo.UnidadMedida
+                    </div>
+                    <div style="color:var(--text-secondary); font-size:0.8rem;">Mínimo: @insumo.StockMinimo @insumo.UnidadMedida</div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<InsumoCardDto> _insumos = new();
+    private bool _cargando = true;
+    private string? _error;
+    private string _filtroCategoria = string.Empty;
+    private string _textoBusqueda = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAsync();
+        Notificador.CambioDetectado += OnCambioDetectado;
+    }
+
+    private async Task CargarAsync()
+    {
+        try
+        {
+            _insumos = await InventarioService.ObtenerInsumosAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo cargar el almacén: {ex.Message}";
+        }
+        finally
+        {
+            _cargando = false;
+        }
+    }
+
+    private async void OnCambioDetectado(string area)
+    {
+        if (area != "almacen")
+        {
+            return;
+        }
+
+        await InvokeAsync(async () =>
+        {
+            await CargarAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose() => Notificador.CambioDetectado -= OnCambioDetectado;
+
+    private IEnumerable<InsumoCardDto> Filtrados()
+    {
+        var query = _insumos.AsEnumerable();
+        if (!string.IsNullOrEmpty(_filtroCategoria) && Enum.TryParse<CategoriaInsumo>(_filtroCategoria, out var categoria))
+        {
+            query = query.Where(i => i.Categoria == categoria);
+        }
+
+        if (!string.IsNullOrWhiteSpace(_textoBusqueda))
+        {
+            query = query.Where(i => i.Nombre.Contains(_textoBusqueda, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return query;
+    }
+}

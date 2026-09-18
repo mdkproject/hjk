@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- BLAZOR106 es un falso positivo del SDK con ReconnectModal.razor.js: el
+         analizador de "publish" no reconoce que @Assets[...] (usado en
+         ReconnectModal.razor) es una forma válida de referenciar el JS
+         colocalizado de un componente, y lo marca como "huérfano". Solo
+         aparece al publicar en Release (no en "dotnet build" de Debug, por
+         eso nunca se vio hasta instalar el servicio de Windows). -->
+    <NoWarn>$(NoWarn);BLAZOR106</NoWarn>
+  </PropertyGroup>
+
+  <!-- Reutiliza tal cual el Domain/Application/Infrastructure que ya usa la app de
+       escritorio (MAUI) — mismo código de negocio, misma base de datos, dos UIs
+       distintas. Ver Migración a Web. -->
+  <ItemGroup>
+    <ProjectReference Include="..\JKalixto_System.Domain\JKalixto_System.Domain.csproj" />
+    <ProjectReference Include="..\JKalixto_System.Application\JKalixto_System.Application.csproj" />
+    <ProjectReference Include="..\JKalixto_System.Infrastructure\JKalixto_System.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <!-- Permite que este mismo ejecutable corra como servicio de Windows (arranque
+       automático con la PC, sin depender de dejar una terminal abierta) — ver
+       Program.cs (UseWindowsService) y deploy/instalar-servicio.ps1. No cambia
+       nada cuando se sigue corriendo por consola con "dotnet run". -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.0" />
+    <!-- Requerido por "dotnet ef" (herramienta de diseño) cuando este es el
+         proyecto de arranque. Ver JKalixto_System.Infrastructure/Data/Migrations. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>

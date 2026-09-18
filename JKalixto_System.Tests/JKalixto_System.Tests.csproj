@@ -14,21 +14,19 @@
 		<PackageReference Include="xunit" Version="2.9.2" />
 		<PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.10" />
-		<PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
-		<PackageReference Include="Microsoft.Maui.Graphics" Version="10.0.90" />
-		<PackageReference Include="Microsoft.Maui.Controls" Version="10.0.90" />
 	</ItemGroup>
 
+	<!-- Domain/Application/Infrastructure se movieron a librerías de clases (net10.0
+	     puro, sin MAUI) — ver Migración a Web. Ahora se referencian con
+	     ProjectReference normal en vez de linkear los .cs a mano; ya no hace falta
+	     el rodeo de antes porque estas librerías ya no son parte de un proyecto MAUI
+	     Exe. También se pudo sacar la dependencia directa de Microsoft.Maui.Graphics/
+	     Controls: Servicios.cs ya no usa Color/Application.Current de MAUI (ver
+	     ClaveColorEstado/ClaveColorBarra). -->
 	<ItemGroup>
-		<!-- Se referencian los archivos fuente directamente (sin ProjectReference) porque el
-		     proyecto principal es una app MAUI (OutputType Exe, workloads mobile) y referenciarlo
-		     como librería desde un proyecto de test es frágil. Así el test compila la MISMA
-		     lógica de negocio real, sin depender del empaquetado de la app. -->
-		<Compile Include="..\JKalixto_System\Domain\Models\Modelos.cs" Link="Fuente\Modelos.cs" />
-		<Compile Include="..\JKalixto_System\Infrastructure\Data\AppDbContext.cs" Link="Fuente\AppDbContext.cs" />
-		<Compile Include="..\JKalixto_System\Infrastructure\Data\DatosPruebaSeeder.cs" Link="Fuente\DatosPruebaSeeder.cs" />
-		<Compile Include="..\JKalixto_System\Infrastructure\Repositories\Repositorios.cs" Link="Fuente\Repositorios.cs" />
-		<Compile Include="..\JKalixto_System\Application\Services\Servicios.cs" Link="Fuente\Servicios.cs" />
+		<ProjectReference Include="..\JKalixto_System.Domain\JKalixto_System.Domain.csproj" />
+		<ProjectReference Include="..\JKalixto_System.Application\JKalixto_System.Application.csproj" />
+		<ProjectReference Include="..\JKalixto_System.Infrastructure\JKalixto_System.Infrastructure.csproj" />
 	</ItemGroup>
 
 </Project>

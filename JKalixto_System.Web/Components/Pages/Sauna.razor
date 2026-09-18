@@ -1,0 +1,195 @@
+@page "/sauna"
+@using JKalixto_System.Application.Services
+@using JKalixto_System.Web.Services
+@inject ISaunaService SaunaService
+@inject INotificadorCambios Notificador
+@inject SesionWebService Sesion
+@inject NavigationManager Navegacion
+@implements IDisposable
+
+<PageTitle>Registro Sauna</PageTitle>
+
+<div class="page">
+    <div class="page-header">
+        <div>
+            <h1>Registro Sauna</h1>
+            <p class="page-subtitle">Clientes activos en sesión de sauna</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn" @onclick='() => Navegacion.NavigateTo("/sauna/nuevo")'>
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                Nuevo Cliente de Sauna
+            </button>
+        </div>
+    </div>
+
+    @if (_error is not null)
+    {
+        <div class="caja-error"><p>@_error</p></div>
+    }
+
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-label">Clientes activos</div>
+            <div class="kpi-value">@_clientes.Count</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Consumo acumulado</div>
+            <div class="kpi-value" style="color:var(--ok);">@_clientes.Sum(c => c.TotalConsumo).ToString("C")</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Huéspedes del hotel</div>
+            <div class="kpi-value" style="color:var(--info);">@_clientes.Count(c => c.EsHuespedHotel)</div>
+        </div>
+    </div>
+
+    <div class="filtros-fila">
+        <div class="search-input" style="min-width:300px;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+            <input placeholder="Buscar por nombre o número de candado…" value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+        </div>
+    </div>
+
+    @if (_cargando)
+    {
+        <p class="empty-state">Cargando…</p>
+    }
+    else
+    {
+        var filtrados = Filtrados().ToList();
+        @if (filtrados.Count == 0)
+        {
+            <p class="empty-state">No hay clientes de sauna activos que coincidan.</p>
+        }
+        <div class="card-grid">
+            @foreach (var cliente in filtrados)
+            {
+                <div class="card card-clickable" style="width:230px;" @onclick="() => AbrirMenu(cliente)">
+                    <strong>@cliente.NombreCompleto</strong>
+                    <div style="color:var(--text-secondary); font-size:0.85rem; margin-top:2px;">Candado @cliente.NumeroCandado · Sección @cliente.EtiquetaSeccion</div>
+                    @if (cliente.EsHuespedHotel)
+                    {
+                        <span class="badge" style="background:var(--ok-soft); color:var(--ok); margin-top:6px;">Huésped del Hotel — entrada gratis</span>
+                    }
+                    <div style="margin-top:8px; font-weight:700; font-size:1.05rem;">@cliente.TotalConsumo.ToString("C")</div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@if (_clienteSeleccionado is { } c)
+{
+    <ModalBase Titulo="@c.NombreCompleto" OnCerrar="() => _clienteSeleccionado = null">
+        <button class="btn btn-bloque" @onclick="() => IrAVenta(c)">Vender productos (POS)</button>
+        <button class="btn btn-secundario btn-bloque" @onclick="() => _confirmarFin = true">Finalizar sesión de Sauna</button>
+
+        @if (_confirmarFin)
+        {
+            <p style="margin-top:10px;">¿Confirmar que @c.NombreCompleto ya terminó su sesión?</p>
+            <button class="btn btn-peligro btn-bloque" disabled="@_guardando" @onclick="() => FinalizarAsync(c)">@(_guardando ? "Guardando…" : "Sí, finalizar sesión")</button>
+        }
+    </ModalBase>
+}
+
+@code {
+    private List<ClienteSaunaCardDto> _clientes = new();
+    private bool _cargando = true;
+    private string? _error;
+    private string _textoBusqueda = string.Empty;
+    private ClienteSaunaCardDto? _clienteSeleccionado;
+    private bool _confirmarFin;
+    private bool _guardando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAsync();
+        Notificador.CambioDetectado += OnCambioDetectado;
+    }
+
+    private async Task CargarAsync()
+    {
+        try
+        {
+            _error = null;
+            _clientes = await SaunaService.ObtenerClientesActivosAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo cargar la lista: {ex.Message}";
+        }
+        finally
+        {
+            _cargando = false;
+        }
+    }
+
+    private IEnumerable<ClienteSaunaCardDto> Filtrados()
+    {
+        if (string.IsNullOrWhiteSpace(_textoBusqueda))
+        {
+            return _clientes;
+        }
+
+        var texto = _textoBusqueda.Trim();
+        return _clientes.Where(c =>
+            c.NombreCompleto.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
+            c.NumeroCandado.Contains(texto, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void AbrirMenu(ClienteSaunaCardDto c)
+    {
+        _clienteSeleccionado = c;
+        _confirmarFin = false;
+    }
+
+    private void IrAVenta(ClienteSaunaCardDto c)
+    {
+        Navegacion.NavigateTo($"/sauna/venta?clienteSaunaId={c.ClienteSaunaId}&nombre={Uri.EscapeDataString(c.NombreCompleto)}&esHuespedHotel={c.EsHuespedHotel}");
+    }
+
+    private async Task FinalizarAsync(ClienteSaunaCardDto c)
+    {
+        if (_guardando)
+        {
+            return;
+        }
+
+        _guardando = true;
+        try
+        {
+            var usuario = await Sesion.ObtenerUsuarioActualAsync();
+            await SaunaService.FinalizarSesionAsync(c.ClienteSaunaId, usuario.Id);
+            _clienteSeleccionado = null;
+            await CargarAsync();
+            Notificador.Avisar("sauna");
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo finalizar la sesión: {ex.Message}";
+        }
+        finally
+        {
+            _guardando = false;
+        }
+    }
+
+    private async void OnCambioDetectado(string area)
+    {
+        if (area != "sauna")
+        {
+            return;
+        }
+
+        await InvokeAsync(async () =>
+        {
+            await CargarAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        Notificador.CambioDetectado -= OnCambioDetectado;
+    }
+}

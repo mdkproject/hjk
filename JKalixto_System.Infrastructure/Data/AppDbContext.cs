@@ -30,6 +30,7 @@ public class AppDbContext : DbContext
     public DbSet<LogAuditoria> LogsAuditoria => Set<LogAuditoria>();
     public DbSet<NumeracionComprobante> NumeracionesComprobante => Set<NumeracionComprobante>();
     public DbSet<Reclamo> Reclamos => Set<Reclamo>();
+    public DbSet<RegistroLimpieza> RegistrosLimpieza => Set<RegistroLimpieza>();
 
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
@@ -87,6 +88,11 @@ public class AppDbContext : DbContext
                   .HasForeignKey(r => r.HabitacionId)
                   .OnDelete(DeleteBehavior.Restrict);
 
+            entity.HasOne<Usuario>()
+                  .WithMany()
+                  .HasForeignKey(r => r.UsuarioCreacionId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
             entity.HasMany(r => r.Acompanantes)
                   .WithOne()
                   .HasForeignKey(a => a.ReservaId)
@@ -118,6 +124,16 @@ public class AppDbContext : DbContext
                   .HasForeignKey(e => e.HabitacionId)
                   .OnDelete(DeleteBehavior.Restrict);
 
+            entity.HasOne<Usuario>()
+                  .WithMany()
+                  .HasForeignKey(e => e.UsuarioCheckInId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Usuario>()
+                  .WithMany()
+                  .HasForeignKey(e => e.UsuarioCheckOutId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
             entity.HasMany(e => e.Acompanantes)
                   .WithOne()
                   .HasForeignKey(a => a.EstadiaId)
@@ -137,6 +153,11 @@ public class AppDbContext : DbContext
         {
             entity.ToTable("ClientesSauna");
             entity.HasKey(c => c.Id);
+
+            entity.HasOne<Estadia>()
+                  .WithMany()
+                  .HasForeignKey(c => c.EstadiaHotelId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<ProductoPOS>(entity =>
@@ -159,6 +180,21 @@ public class AppDbContext : DbContext
                   .WithOne()
                   .HasForeignKey(d => d.VentaSaunaId)
                   .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<ClienteSauna>()
+                  .WithMany()
+                  .HasForeignKey(v => v.ClienteSaunaId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Estadia>()
+                  .WithMany()
+                  .HasForeignKey(v => v.EstadiaHotelDestinoId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Usuario>()
+                  .WithMany()
+                  .HasForeignKey(v => v.UsuarioId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<DetalleVenta>(entity =>
@@ -167,6 +203,11 @@ public class AppDbContext : DbContext
             entity.HasKey(d => d.Id);
             entity.Property(d => d.PrecioUnitario).HasPrecision(10, 2);
             entity.Property(d => d.Subtotal).HasPrecision(10, 2);
+
+            entity.HasOne<ProductoPOS>()
+                  .WithMany()
+                  .HasForeignKey(d => d.ProductoId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Penalidad>(entity =>
@@ -174,6 +215,21 @@ public class AppDbContext : DbContext
             entity.ToTable("Penalidades");
             entity.HasKey(p => p.Id);
             entity.Property(p => p.Monto).HasPrecision(10, 2);
+
+            entity.HasOne<ClienteSauna>()
+                  .WithMany()
+                  .HasForeignKey(p => p.ClienteSaunaId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Estadia>()
+                  .WithMany()
+                  .HasForeignKey(p => p.EstadiaHotelId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Usuario>()
+                  .WithMany()
+                  .HasForeignKey(p => p.UsuarioId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<CierreCaja>(entity =>
@@ -182,6 +238,11 @@ public class AppDbContext : DbContext
             entity.HasKey(c => c.Id);
             entity.Property(c => c.TotalHotel).HasPrecision(10, 2);
             entity.Property(c => c.TotalSauna).HasPrecision(10, 2);
+
+            entity.HasOne<Usuario>()
+                  .WithMany()
+                  .HasForeignKey(c => c.UsuarioId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<MovimientoCaja>(entity =>
@@ -191,6 +252,11 @@ public class AppDbContext : DbContext
             entity.Property(m => m.Descripcion).IsRequired().HasMaxLength(200);
             entity.Property(m => m.PersonalRelacionado).HasMaxLength(150);
             entity.Property(m => m.Monto).HasPrecision(10, 2);
+
+            entity.HasOne<Usuario>()
+                  .WithMany()
+                  .HasForeignKey(m => m.UsuarioId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ----------------------------------------------------------------
@@ -209,6 +275,16 @@ public class AppDbContext : DbContext
             entity.ToTable("MovimientosInventario");
             entity.HasKey(m => m.Id);
             entity.Property(m => m.Motivo).IsRequired().HasMaxLength(200);
+
+            entity.HasOne<Insumo>()
+                  .WithMany()
+                  .HasForeignKey(m => m.InsumoId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Usuario>()
+                  .WithMany()
+                  .HasForeignKey(m => m.UsuarioId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ----------------------------------------------------------------
@@ -220,6 +296,11 @@ public class AppDbContext : DbContext
             entity.HasKey(l => l.Id);
             entity.Property(l => l.TipoAccion).IsRequired().HasMaxLength(50);
             entity.Property(l => l.EntidadAfectada).IsRequired().HasMaxLength(50);
+
+            entity.HasOne<Usuario>()
+                  .WithMany()
+                  .HasForeignKey(l => l.UsuarioId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ----------------------------------------------------------------
@@ -255,6 +336,35 @@ public class AppDbContext : DbContext
             entity.Property(r => r.DetalleReclamo).IsRequired().HasMaxLength(1000);
             entity.Property(r => r.PedidoConsumidor).HasMaxLength(500);
             entity.Property(r => r.RespuestaEstablecimiento).HasMaxLength(1000);
+
+            entity.HasOne<Usuario>()
+                  .WithMany()
+                  .HasForeignKey(r => r.UsuarioRegistroId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ----------------------------------------------------------------
+        // HISTORIAL DE LIMPIEZA
+        // ----------------------------------------------------------------
+        modelBuilder.Entity<RegistroLimpieza>(entity =>
+        {
+            entity.ToTable("RegistrosLimpieza");
+            entity.HasKey(r => r.Id);
+
+            entity.HasOne<Habitacion>()
+                  .WithMany()
+                  .HasForeignKey(r => r.HabitacionId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Usuario>()
+                  .WithMany()
+                  .HasForeignKey(r => r.UsuarioInicioId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Usuario>()
+                  .WithMany()
+                  .HasForeignKey(r => r.UsuarioFinId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ==================================================================

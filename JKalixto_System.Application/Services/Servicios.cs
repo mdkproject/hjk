@@ -3,13 +3,31 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Maui.Controls;
-using Microsoft.Maui.Graphics;
 using JKalixto_System.Domain.Models;
 using JKalixto_System.Infrastructure.Data;
 using JKalixto_System.Infrastructure.Repositories;
 
 namespace JKalixto_System.Application.Services;
+
+/// <summary>
+/// Traduce un EstadoHabitacion a la CLAVE (string) del color de tema asociado — NO al
+/// color en sí, para que esta capa (Application) no dependa de ningún tipo de UI (MAUI,
+/// Blazor, etc.) y pueda vivir en una librería compartida entre la app de escritorio y
+/// el futuro proyecto web. Las claves son las mismas que usa TemaService como llaves de
+/// Application.Current.Resources en MAUI. Compartida entre HabitacionCardDto y
+/// DashboardService para no repetir el mismo switch dos veces.
+/// </summary>
+internal static class ClaveDeColorEstado
+{
+    public static string ParaEstadoHabitacion(EstadoHabitacion estado) => estado switch
+    {
+        EstadoHabitacion.Disponible => "ColorDisponible",
+        EstadoHabitacion.Ocupada => "ColorOcupada",
+        EstadoHabitacion.LimpiezaSalida => "ColorLimpieza",
+        EstadoHabitacion.Mantenimiento => "ColorMantenimiento",
+        _ => string.Empty
+    };
+}
 
 /// <summary>
 /// Resultado de un intento de inicio de sesión. Se usa "Exito" en vez de excepciones
@@ -201,14 +219,14 @@ public class HabitacionCardDto
         ? "Sin acompañantes"
         : string.Join(", ", AcompanantesHuesped);
 
-    public Color ColorEstado => Estado switch
-    {
-        EstadoHabitacion.Disponible => (Color)Microsoft.Maui.Controls.Application.Current!.Resources["ColorDisponible"],
-        EstadoHabitacion.Ocupada => (Color)Microsoft.Maui.Controls.Application.Current!.Resources["ColorOcupada"],
-        EstadoHabitacion.LimpiezaSalida => (Color)Microsoft.Maui.Controls.Application.Current!.Resources["ColorLimpieza"],
-        EstadoHabitacion.Mantenimiento => (Color)Microsoft.Maui.Controls.Application.Current!.Resources["ColorMantenimiento"],
-        _ => Colors.Gray
-    };
+    /// <summary>
+    /// Clave del color de tema asociado al estado (ej. "ColorDisponible"), NO un Color
+    /// de MAUI — esta capa (Application) tiene que poder compilar sin MAUI para poder
+    /// vivir en una librería compartida con el futuro proyecto web. Cada UI (MAUI hoy,
+    /// Blazor Server más adelante) traduce esta clave a su propio tipo de color; en MAUI
+    /// eso lo hace Presentation/Converters/ClaveColorConverters.cs.
+    /// </summary>
+    public string ClaveColorEstado => ClaveDeColorEstado.ParaEstadoHabitacion(Estado);
 
     public string EtiquetaEstado => Estado switch
     {
@@ -232,12 +250,6 @@ public class HabitacionCardDto
     public string TarifaTexto => $"S/ {TarifaNoche:0.00} / noche";
     public string FechaCheckInTexto => FechaCheckInHuesped?.ToString("dd/MM HH:mm") ?? "-";
 
-    /// <summary>
-    /// Igual que ColorEstado pero como Brush. Border.Stroke es de tipo Brush (no Color),
-    /// así que se expone esta versión aparte para el borde de la tarjeta — evita depender
-    /// de una conversión implícita Color→Brush en el binding.
-    /// </summary>
-    public Brush BrushEstado => new SolidColorBrush(ColorEstado);
 }
 
 /// <summary>Datos que llegan desde CheckInPage para crear una nueva Estadia.</summary>
@@ -277,7 +289,7 @@ public interface IHabitacionService
     Task CheckOutAsync(int estadiaId, int usuarioId, MetodoPago metodoPago);
     Task IniciarMantenimientoAsync(int habitacionId, string motivo, int usuarioId);
     Task FinalizarMantenimientoAsync(int habitacionId, int usuarioId);
-    Task FinalizarLimpiezaAsync(int habitacionId);
+    Task FinalizarLimpiezaAsync(int habitacionId, int usuarioId);
     Task RegistrarLimpiezaIntermediaAsync(int habitacionId, int usuarioId);
 }
 
@@ -527,6 +539,17 @@ public class HabitacionService : IHabitacionService
             }
 
             estadia.Habitacion.Estado = EstadoHabitacion.LimpiezaSalida;
+
+            // Abre el registro histórico de limpieza (ver RegistroLimpieza) — se
+            // cierra en FinalizarLimpiezaAsync. Sirve para reportar frecuencia de
+            // limpieza por habitación; no afecta el Calendario, que solo mira
+            // Habitacion.Estado para HOY.
+            _context.RegistrosLimpieza.Add(new RegistroLimpieza
+            {
+                HabitacionId = estadia.Habitacion.Id,
+                FechaInicio = DateTime.Now,
+                UsuarioInicioId = usuarioId
+            });
         }
 
         await _context.SaveChangesAsync();
@@ -590,7 +613,7 @@ public class HabitacionService : IHabitacionService
             usuarioId, "Habitacion", habitacion.Id);
     }
 
-    public async Task FinalizarLimpiezaAsync(int habitacionId)
+    public async Task FinalizarLimpiezaAsync(int habitacionId, int usuarioId)
     {
         // AsTracking(): se modifica (Estado = Disponible) y se guarda.
         var habitacion = await _context.Habitaciones.AsTracking().FirstOrDefaultAsync(h => h.Id == habitacionId);
@@ -604,6 +627,21 @@ public class HabitacionService : IHabitacionService
         }
 
         habitacion.Estado = EstadoHabitacion.Disponible;
+
+        // Cierra el registro histórico que abrió CheckOutAsync. AsTracking()
+        // porque se modifica (FechaFin, UsuarioFinId) y se guarda junto con la
+        // habitación en el mismo SaveChangesAsync.
+        var registroAbierto = await _context.RegistrosLimpieza
+            .AsTracking()
+            .Where(r => r.HabitacionId == habitacionId && r.FechaFin == null)
+            .OrderByDescending(r => r.FechaInicio)
+            .FirstOrDefaultAsync();
+        if (registroAbierto is not null)
+        {
+            registroAbierto.FechaFin = DateTime.Now;
+            registroAbierto.UsuarioFinId = usuarioId;
+        }
+
         await _context.SaveChangesAsync();
     }
 
@@ -634,7 +672,10 @@ public class EstadoHabitacionResumenDto
 
     /// <summary>Ancho ya calculado en pixeles para dibujar la barra proporcional (ver DashboardService).</summary>
     public double AnchoBarra { get; set; }
-    public Color ColorBarra { get; set; } = Colors.Gray;
+
+    /// <summary>Clave del color de tema (ej. "ColorDisponible"), no un Color de MAUI — ver
+    /// el comentario de HabitacionCardDto.ClaveColorEstado más arriba.</summary>
+    public string ClaveColorBarra { get; set; } = string.Empty;
     public string Etiqueta { get; set; } = string.Empty;
 }
 
@@ -763,39 +804,12 @@ public class DashboardService : IDashboardService
                 Estado = estado,
                 Cantidad = cantidad,
                 AnchoBarra = ancho,
-                ColorBarra = ColorParaEstado(estado),
+                ClaveColorBarra = ClaveDeColorEstado.ParaEstadoHabitacion(estado),
                 Etiqueta = EtiquetaParaEstado(estado)
             });
         }
 
         return resultado;
-    }
-
-    /// <summary>
-    /// Busca el color del tema con "TryGetValue" en vez de indexar directo con "!":
-    /// así, si algún día esto se llama sin una Application de MAUI corriendo (como en
-    /// las pruebas automatizadas, donde no hay ventana ni tema cargado), devuelve un
-    /// gris neutro en vez de tirar NullReferenceException. En la app real esto nunca
-    /// cambia nada — Application.Current y las 4 claves siempre existen.
-    /// </summary>
-    private static Color ColorParaEstado(EstadoHabitacion estado)
-    {
-        var clave = estado switch
-        {
-            EstadoHabitacion.Disponible => "ColorDisponible",
-            EstadoHabitacion.Ocupada => "ColorOcupada",
-            EstadoHabitacion.LimpiezaSalida => "ColorLimpieza",
-            EstadoHabitacion.Mantenimiento => "ColorMantenimiento",
-            _ => (string?)null
-        };
-
-        var recursos = Microsoft.Maui.Controls.Application.Current?.Resources;
-        if (clave is not null && recursos is not null && recursos.TryGetValue(clave, out var valor) && valor is Color color)
-        {
-            return color;
-        }
-
-        return Colors.Gray;
     }
 
     private static string EtiquetaParaEstado(EstadoHabitacion estado) => estado switch
@@ -1623,7 +1637,8 @@ public enum EstadoCeldaCalendario
     Disponible,
     Ocupada,
     Reservada,
-    Mantenimiento
+    Mantenimiento,
+    Limpieza
 }
 
 public class CeldaCalendarioDto
@@ -1641,6 +1656,7 @@ public class ColumnaHabitacionCalendarioDto
     public int Numero { get; set; }
     public int Piso { get; set; }
     public TipoHabitacion Tipo { get; set; }
+    public decimal TarifaNoche { get; set; }
 
     /// <summary>Estado actual (de hoy) de la habitación — no es por día, es el mismo
     /// dato que usa Registro Hotel. Sirve para el filtro de estado del Calendario.</summary>
@@ -1725,6 +1741,7 @@ public class CalendarioService : ICalendarioService
                 Numero = habitacion.Numero,
                 Piso = habitacion.Piso,
                 Tipo = habitacion.Tipo,
+                TarifaNoche = habitacion.TarifaNoche,
                 EstadoActual = habitacion.Estado
             };
 
@@ -1736,11 +1753,19 @@ public class CalendarioService : ICalendarioService
                 var fecha = new DateTime(anio, mes, dia);
                 var esHoy = fecha == hoy;
 
-                // 1) Mantenimiento: solo se puede saber para HOY (es el único estado
-                //    "actual" que tenemos, no hay historial de mantenimiento por fecha).
+                // 1) Mantenimiento y Limpieza: solo se pueden saber para HOY (son estados
+                //    "actuales" de la habitación, no hay historial por fecha para pintar
+                //    días pasados o futuros — ver RegistroLimpieza para el historial real,
+                //    que existe para reportes de frecuencia, no para esta grilla).
                 if (esHoy && habitacion.Estado == EstadoHabitacion.Mantenimiento)
                 {
                     columna.Celdas.Add(new CeldaCalendarioDto { Dia = dia, Estado = EstadoCeldaCalendario.Mantenimiento, EsHoy = true });
+                    continue;
+                }
+
+                if (esHoy && habitacion.Estado == EstadoHabitacion.LimpiezaSalida)
+                {
+                    columna.Celdas.Add(new CeldaCalendarioDto { Dia = dia, Estado = EstadoCeldaCalendario.Limpieza, EsHoy = true });
                     continue;
                 }
 

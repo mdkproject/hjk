@@ -1,0 +1,1204 @@
+h1:focus {
+    outline: none;
+}
+
+.valid.modified:not([type=checkbox]) {
+    outline: 1px solid #26b050;
+}
+
+.invalid {
+    outline: 1px solid #e50000;
+}
+
+.validation-message {
+    color: #e50000;
+}
+
+.blazor-error-boundary {
+    background: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTYiIGhlaWdodD0iNDkiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIG92ZXJmbG93PSJoaWRkZW4iPjxkZWZzPjxjbGlwUGF0aCBpZD0iY2xpcDAiPjxyZWN0IHg9IjIzNSIgeT0iNTEiIHdpZHRoPSI1NiIgaGVpZ2h0PSI0OSIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCNjbGlwMCkiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yMzUgLTUxKSI+PHBhdGggZD0iTTI2My41MDYgNTFDMjY0LjcxNyA1MSAyNjUuODEzIDUxLjQ4MzcgMjY2LjYwNiA1Mi4yNjU4TDI2Ny4wNTIgNTIuNzk4NyAyNjcuNTM5IDUzLjYyODMgMjkwLjE4NSA5Mi4xODMxIDI5MC41NDUgOTIuNzk1IDI5MC42NTYgOTIuOTk2QzI5MC44NzcgOTMuNTEzIDI5MSA5NC4wODE1IDI5MSA5NC42NzgyIDI5MSA5Ny4wNjUxIDI4OS4wMzggOTkgMjg2LjYxNyA5OUwyNDAuMzgzIDk5QzIzNy45NjMgOTkgMjM2IDk3LjA2NTEgMjM2IDk0LjY3ODIgMjM2IDk0LjM3OTkgMjM2LjAzMSA5NC4wODg2IDIzNi4wODkgOTMuODA3MkwyMzYuMzM4IDkzLjAxNjIgMjM2Ljg1OCA5Mi4xMzE0IDI1OS40NzMgNTMuNjI5NCAyNTkuOTYxIDUyLjc5ODUgMjYwLjQwNyA1Mi4yNjU4QzI2MS4yIDUxLjQ4MzcgMjYyLjI5NiA1MSAyNjMuNTA2IDUxWk0yNjMuNTg2IDY2LjAxODNDMjYwLjczNyA2Ni4wMTgzIDI1OS4zMTMgNjcuMTI0NSAyNTkuMzEzIDY5LjMzNyAyNTkuMzEzIDY5LjYxMDIgMjU5LjMzMiA2OS44NjA4IDI1OS4zNzEgNzAuMDg4N0wyNjEuNzk1IDg0LjAxNjEgMjY1LjM4IDg0LjAxNjEgMjY3LjgyMSA2OS43NDc1QzI2Ny44NiA2OS43MzA5IDI2Ny44NzkgNjkuNTg3NyAyNjcuODc5IDY5LjMxNzkgMjY3Ljg3OSA2Ny4xMTgyIDI2Ni40NDggNjYuMDE4MyAyNjMuNTg2IDY2LjAxODNaTTI2My41NzYgODYuMDU0N0MyNjEuMDQ5IDg2LjA1NDcgMjU5Ljc4NiA4Ny4zMDA1IDI1OS43ODYgODkuNzkyMSAyNTkuNzg2IDkyLjI4MzcgMjYxLjA0OSA5My41Mjk1IDI2My41NzYgOTMuNTI5NSAyNjYuMTE2IDkzLjUyOTUgMjY3LjM4NyA5Mi4yODM3IDI2Ny4zODcgODkuNzkyMSAyNjcuMzg3IDg3LjMwMDUgMjY2LjExNiA4Ni4wNTQ3IDI2My41NzYgODYuMDU0N1oiIGZpbGw9IiNGRkU1MDAiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjwvZz48L3N2Zz4=) no-repeat 1rem/1.8rem, #b32121;
+    padding: 1rem 1rem 1rem 3.7rem;
+    color: white;
+}
+
+    .blazor-error-boundary::after {
+        content: "An error has occurred."
+    }
+
+.darker-border-checkbox.form-check-input {
+    border-color: #929292;
+}
+
+.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
+    color: var(--bs-secondary-color);
+    text-align: end;
+}
+
+.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
+    text-align: start;
+}
+
+/* ============================================================
+   SISTEMA DE DISEÑO — JKalixto Web
+   Un único lugar con los "tokens" (colores, tipografía, espaciado, sombras)
+   y los componentes reutilizables (tarjeta, tabla, badge, botón, modal,
+   buscador, KPI) que usan TODAS las páginas. La idea: cambiar un color acá
+   cambia toda la app, y ninguna página vuelve a inventar su propio estilo
+   suelto.
+   ============================================================ */
+
+:root {
+    /* Superficies — de más oscura (fondo) a más clara (tarjeta elevada).
+       Tomadas de TemaService.cs (tema oscuro) en la app de escritorio MAUI,
+       para que web y escritorio sean el MISMO sistema visual, no dos looks
+       parecidos por separado. */
+    --bg: #202124;
+    --bg-sidebar: #1a1b1e;
+    --surface: #292a2d;
+    --surface-hover: #35363a;
+    --surface-2: #303134;
+    --border: #3c4043;
+    --border-strong: #4c5155;
+
+    /* Texto */
+    --text-primary: #e8eaed;
+    --text-secondary: #9aa0a6;
+    --text-muted: #797f85;
+
+    /* Acento único de marca — el DORADO original del sistema (identidad
+       visual del hotel, ColorAcento en TemaService.cs), no un índigo
+       genérico de SaaS. Separado a propósito de los colores de estado de
+       habitación (Disponible/Ocupada/Limpieza/Mantenimiento), que son
+       información, no decoración. */
+    --accent: #c9a84c;
+    --accent-hover: #d9bc6b;
+    --accent-soft: rgba(201, 168, 76, .16);
+    --accent-border: rgba(201, 168, 76, .4);
+
+    /* Disponible / Ocupada / Limpieza / Mantenimiento / Reservada — mismos
+       hex que ColorDisponible/ColorOcupada/ColorLimpieza/ColorMantenimiento/
+       ColorReservada del tema oscuro de escritorio. */
+    --ok: #81c995;
+    --ok-soft: rgba(129, 201, 149, .16);
+    --info: #669df6;
+    --info-soft: rgba(102, 157, 246, .16);
+    --warn: #fdd663;
+    --warn-soft: rgba(253, 214, 99, .16);
+    --danger: #f28b82;
+    --danger-soft: rgba(242, 139, 130, .16);
+    --violet: #d7aefb;
+    --violet-soft: rgba(215, 174, 251, .16);
+
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, .35);
+    --shadow-md: 0 6px 20px rgba(0, 0, 0, .35);
+    --shadow-lg: 0 16px 40px rgba(0, 0, 0, .45);
+    --transition: 120ms ease;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text-primary);
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+}
+
+a {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+a:hover {
+    color: var(--accent-hover);
+    text-decoration: underline;
+}
+
+h1, h2, h3, h4 {
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0 0 4px;
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 6px;
+}
+
+/* ---------- Estructura de página ---------- */
+
+.page {
+    padding: 28px 32px 48px;
+    max-width: 1400px;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 22px;
+}
+
+.page-header h1 {
+    font-size: 1.5rem;
+}
+
+.page-subtitle {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin: 2px 0 0;
+}
+
+.page-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.volver {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-bottom: 14px;
+}
+
+.volver:hover {
+    color: var(--text-primary);
+}
+
+.section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 28px 0 12px;
+    color: var(--text-primary);
+}
+
+/* ---------- Tarjetas ---------- */
+
+.card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+}
+
+.card-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.card-clickable {
+    cursor: pointer;
+    transition: border-color var(--transition), transform var(--transition), background var(--transition);
+}
+
+.card-clickable:hover {
+    border-color: var(--border-strong);
+    background: var(--surface-hover);
+}
+
+.card-clickable:active {
+    transform: scale(0.99);
+}
+
+.empty-state {
+    color: var(--text-muted);
+    padding: 24px 4px;
+    font-size: 0.9rem;
+}
+
+/* ---------- Badges (estado) ---------- */
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+
+/* ---------- Buscador ---------- */
+
+.search-input {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 8px 12px;
+    color: var(--text-primary);
+    transition: border-color var(--transition);
+}
+
+.search-input:focus-within {
+    border-color: var(--accent-border);
+}
+
+.search-input svg {
+    flex-shrink: 0;
+    color: var(--text-muted);
+}
+
+.search-input input {
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    outline: none;
+    font-size: 0.9rem;
+    width: 100%;
+    min-width: 0;
+}
+
+.search-input input::placeholder {
+    color: var(--text-muted);
+}
+
+.filtro-select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 8px 10px;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+}
+
+.filtros-fila {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 18px;
+}
+
+/* ---------- Filtros como botones de colores (chips) ----------
+   Reemplaza los <select> de piso/tipo/estado: mismo patrón que la app de
+   escritorio (botones con DataTrigger), donde el filtro activo se ve de un
+   vistazo sin tener que abrir una lista desplegable. Los chips de piso/tipo
+   son neutros (se iluminan con el acento al elegirlos); los chips de estado
+   llevan su propio color siempre —igual que el badge de estado de la
+   habitación— para reconocer Disponible/Ocupada/Limpieza/Mantenimiento sin
+   leer el texto. */
+
+.filtro-grupo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.filtro-grupo-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.filtro-chips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.filtro-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    border-radius: 999px;
+    padding: 6px 13px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1.3;
+    cursor: pointer;
+    transition: background var(--transition), color var(--transition), border-color var(--transition);
+    white-space: nowrap;
+}
+
+.filtro-chip:hover {
+    border-color: var(--border-strong);
+    color: var(--text-primary);
+}
+
+.filtro-chip.activo {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+.filtro-chip-estado {
+    border-color: transparent;
+}
+
+.filtro-chip-disponible { background: var(--ok-soft); color: var(--ok); }
+.filtro-chip-disponible.activo { background: var(--ok); color: white; }
+
+.filtro-chip-ocupada { background: var(--info-soft); color: var(--info); }
+.filtro-chip-ocupada.activo { background: var(--info); color: white; }
+
+.filtro-chip-limpieza { background: var(--warn-soft); color: var(--warn); }
+.filtro-chip-limpieza.activo { background: var(--warn); color: white; }
+
+.filtro-chip-mantenimiento { background: var(--danger-soft); color: var(--danger); }
+.filtro-chip-mantenimiento.activo { background: var(--danger); color: white; }
+
+/* ---------- Calendario: grilla de habitaciones × días ----------
+   Referencia visual: PMS tipo Little Hotelier/Hotelerian — barras que
+   abarcan varios días con el nombre del huésped adentro (en vez de una
+   celda de color por día), agrupadas por tipo de habitación, con la
+   columna izquierda mostrando número + tipo + tarifa. Los colores de
+   estado son los mismos que ya usa el resto de la app (Ocupada=azul,
+   Mantenimiento=rojo); "Reservada" (solo existe acá, para una reserva
+   confirmada que todavía no hizo check-in) usa el mismo violeta que su
+   badge en la pestaña Reservas. Un día Disponible queda en blanco a
+   propósito —así se distingue de un vistazo dónde hay ocupación real
+   sin que el color "Disponible" compita visualmente con las barras. */
+
+.cal-tabla {
+    border-collapse: collapse;
+    font-size: 0.8rem;
+}
+
+/* Contenedor con su PROPIO scroll (alto y ancho) en vez de dejar que la
+   página entera scrollee — mismo objetivo que el "panel congelado" de
+   MAUI (ver comentario en CalendarioPage.xaml.cs), pero con
+   position:sticky nativo del navegador en vez de un TranslationX/Y manual:
+   con un contenedor de scroll bien definido (esto), sticky ya sabe
+   "quedarse pegado" solo, sin JS ni handlers de Scrolled. */
+/* Selector compuesto (.table-wrap.cal-table-wrap) a propósito, no solo
+   .cal-table-wrap: la regla genérica ".table-wrap" (más abajo en este
+   archivo) fija overflow-y:hidden, y por especificidad de CSS un
+   selector de una sola clase no le gana a otro de una sola clase según
+   el ORDEN en el archivo — bug real que se encontró acá mismo: sin este
+   selector compuesto, overflow-y quedaba en "hidden" con una altura
+   máxima fija, así que las filas que no entraban NO quedaban scrolleables,
+   quedaban directamente invisibles y inalcanzables. Con .table-wrap.cal-table-wrap
+   (dos clases combinadas) la especificidad es mayor sin importar el
+   orden, así que esta regla gana siempre. */
+.table-wrap.cal-table-wrap {
+    box-shadow: var(--shadow-sm);
+    max-height: 70vh;
+    overflow: auto;
+}
+
+.cal-nav-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 4px 6px;
+}
+
+.cal-nav-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background var(--transition), color var(--transition);
+}
+
+.cal-nav-btn:hover {
+    background: var(--surface-hover);
+    color: var(--text-primary);
+}
+
+.cal-col-sticky {
+    position: sticky;
+    left: 0;
+    background: var(--surface);
+    z-index: 1;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+}
+
+/* Esquina superior izquierda: fija en las DOS direcciones a la vez (like
+   Excel/Google Sheets) — necesita quedar por encima tanto de las filas
+   (que solo se congelan a la izquierda) como del encabezado de días (que
+   solo se congela arriba), por eso el z-index más alto de los tres. */
+.cal-corner-sticky {
+    top: 0;
+    z-index: 3;
+}
+
+.cal-dia-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--surface);
+    padding: 5px 2px;
+    border-bottom: 1px solid var(--border);
+    min-width: 38px;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-align: center;
+}
+
+/* background en capas (gradiente sólido + superficie opaca debajo) en vez
+   de solo la variante translúcida: el encabezado ahora es sticky (ver
+   .cal-dia-header) y necesita quedar 100% opaco al quedarse pegado
+   arriba — si no, se vería el contenido de abajo transparentándose a
+   través mientras se scrollea. */
+.cal-dia-header-hoy {
+    color: var(--accent);
+    background: linear-gradient(var(--accent-soft), var(--accent-soft)), var(--surface);
+}
+
+/* Regla explícita para cuando HOY cae en fin de semana: sin esto, ambas
+   reglas de abajo tienen la misma especificidad y gana la que esté
+   declarada después en el archivo — un empate frágil. Combinar las dos
+   clases en un solo selector le da más especificidad a propósito, así el
+   resaltado de HOY (lo más importante) siempre se ve, sin depender del
+   orden en que quedaron escritas las reglas. */
+.cal-dia-header-hoy.cal-finde {
+    background: linear-gradient(var(--accent-soft), var(--accent-soft)), var(--surface);
+}
+
+.cal-finde {
+    background: linear-gradient(rgba(255, 255, 255, .025), rgba(255, 255, 255, .025)), var(--surface);
+}
+
+.cal-fila-grupo {
+    background: var(--surface-2);
+    color: var(--text-secondary);
+    font-weight: 700;
+    font-size: 0.78rem;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    border-top: 1px solid var(--border);
+    text-align: left;
+    cursor: pointer;
+    transition: background var(--transition);
+}
+
+.cal-fila-grupo:hover {
+    background: var(--surface-hover);
+}
+
+.cal-fila-grupo-inner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.cal-fila-grupo-chevron {
+    display: inline-flex;
+    flex-shrink: 0;
+    color: var(--text-muted);
+    transition: transform var(--transition);
+}
+
+.cal-fila-grupo-chevron.colapsado {
+    transform: rotate(-90deg);
+}
+
+.cal-fila-grupo-count {
+    margin-left: auto;
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 0.72rem;
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.cal-col-habitacion {
+    padding: 6px 12px;
+    vertical-align: middle;
+    min-width: 130px;
+}
+
+.cal-col-habitacion-numero {
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+
+.cal-col-habitacion-tipo {
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+}
+
+.cal-col-habitacion-tarifa {
+    color: var(--text-muted);
+    font-size: 0.68rem;
+    margin-top: 1px;
+}
+
+.cal-celda-vacia {
+    border-bottom: 1px solid var(--border);
+    border-left: 1px solid var(--border);
+    height: 46px;
+    cursor: pointer;
+    transition: background var(--transition);
+}
+
+.cal-celda-vacia:hover {
+    background: var(--surface-hover);
+}
+
+.cal-celda-bloque {
+    border-bottom: 1px solid var(--border);
+    padding: 3px 4px;
+    cursor: pointer;
+}
+
+/* Estas celdas son <td> con tabindex para poder abrirse por teclado (ver
+   OnActivarConTeclado en Calendario.razor) — sin un outline explícito, el
+   foco quedaría invisible sobre el fondo oscuro y el atajo sería inútil. */
+.cal-fila-grupo:focus-visible,
+.cal-celda-vacia:focus-visible,
+.cal-celda-bloque:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
+/* Tiñe la columna de un día entero (fin de semana), de punta a punta de la
+   grilla — incluso a través de una barra "Disponible" larga que la
+   atraviesa sin partirse, porque el fondo de <col> se pinta por debajo de
+   cualquier celda que no tenga su propio background (las barras de color
+   Ocupada/Reservada/Mantenimiento sí lo tienen, así que no se ven afectadas).
+   El encabezado (<th>) no lo hereda porque ya tiene su propio fondo opaco
+   para poder quedar sticky — por eso .cal-finde se sigue aplicando ahí
+   aparte (ver el <th> del encabezado de días). */
+.cal-col-finde {
+    background: rgba(255, 255, 255, .07);
+}
+
+.cal-bloque {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 40px;
+    padding: 4px 9px;
+    border-radius: 7px;
+    color: white;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--transition), box-shadow var(--transition);
+}
+
+/* Corte diagonal en el borde de entrada/salida de una estadía (ver
+   ClasesCorte en Calendario.razor) — el "diente" de 9px representa,
+   visualmente nada más, que el huésped entra a mediodía y sale antes de
+   las 11am del día que termina, no el día completo. Se saca el
+   border-radius del lado cortado porque una esquina redondeada y una
+   punta recta en el mismo lugar se ven en conflicto. */
+.cal-bloque-corte-inicio {
+    clip-path: polygon(9px 0, 100% 0, 100% 100%, 0 100%, 0 9px);
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.cal-bloque-corte-fin {
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%);
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.cal-bloque-corte-inicio.cal-bloque-corte-fin {
+    clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+}
+
+.cal-celda-bloque:hover .cal-bloque {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.cal-bloque-avatar {
+    flex-shrink: 0;
+    width: 21px;
+    height: 21px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 0;
+}
+
+.cal-bloque-texto {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-width: 0;
+}
+
+.cal-bloque-nombre {
+    font-size: 0.74rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cal-bloque-noches {
+    font-size: 0.65rem;
+    opacity: 0.85;
+    white-space: nowrap;
+}
+
+.cal-bloque-ocupada { background: linear-gradient(135deg, #669df6, #3f6fd6); }
+.cal-bloque-reservada { background: linear-gradient(135deg, #d7aefb, #b57eef); }
+.cal-bloque-mantenimiento { background: linear-gradient(135deg, #f28b82, #dd6155); }
+.cal-bloque-limpieza { background: linear-gradient(135deg, #fdd663, #e0b93a); }
+
+/* ---------- Tabla ---------- */
+
+.table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    overflow-x: auto;
+}
+
+.table-pro {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+}
+
+.table-pro thead th {
+    text-align: left;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    font-weight: 600;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+.table-pro tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+}
+
+.table-pro tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.table-pro tbody tr.row-clickable {
+    cursor: pointer;
+    transition: background var(--transition);
+}
+
+.table-pro tbody tr.row-clickable:hover {
+    background: var(--surface-hover);
+}
+
+/* ---------- Formularios ---------- */
+
+.form-grupo {
+    margin-bottom: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.form-grupo label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--text-secondary);
+}
+
+.form-grupo input[type=text],
+.form-grupo input[type=date],
+.form-grupo input[type=email],
+.form-grupo input[type=tel],
+.form-grupo select,
+.form-grupo textarea {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 9px 11px;
+    color: var(--text-primary);
+    font-size: 0.92rem;
+    font-family: inherit;
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.form-grupo input[type=text]:focus,
+.form-grupo input[type=date]:focus,
+.form-grupo input[type=email]:focus,
+.form-grupo input[type=tel]:focus,
+.form-grupo select:focus,
+.form-grupo textarea:focus {
+    outline: none;
+    border-color: var(--accent-border);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.form-grupo .campo-invalido {
+    border-color: var(--danger) !important;
+}
+
+.form-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 14px;
+}
+
+@media (max-width: 640px) {
+    .form-grid-2 {
+        grid-template-columns: 1fr;
+    }
+}
+
+.mensaje-error {
+    color: #fca5a5;
+    font-size: 0.85rem;
+    margin: -8px 0 12px;
+}
+
+.caja-error {
+    background: var(--danger-soft);
+    border: 1px solid rgba(239, 68, 68, .35);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    margin-bottom: 16px;
+}
+
+.caja-error p {
+    margin: 2px 0;
+    color: #fca5a5;
+    font-size: 0.88rem;
+}
+
+/* ---------- Botones ---------- */
+
+.btn {
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    padding: 9px 16px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    color: white;
+    background: var(--accent);
+    margin: 4px 4px 4px 0;
+    transition: background var(--transition), border-color var(--transition), opacity var(--transition), transform var(--transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn:hover {
+    background: var(--accent-hover);
+}
+
+.btn:active {
+    transform: scale(0.98);
+}
+
+.btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.btn-secundario {
+    background: transparent;
+    border-color: var(--border-strong);
+    color: var(--text-primary);
+}
+
+.btn-secundario:hover {
+    background: var(--surface-hover);
+}
+
+.btn-peligro {
+    background: var(--danger);
+}
+
+.btn-peligro:hover {
+    background: #f16464;
+}
+
+.btn-bloque {
+    display: flex;
+    width: 100%;
+    justify-content: center;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+/* ---------- Modal ---------- */
+
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(6, 7, 10, 0.65);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+    animation: fade-in 140ms ease;
+}
+
+.modal-card {
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    padding: 20px 22px;
+    width: 100%;
+    max-width: 440px;
+    max-height: 85vh;
+    overflow-y: auto;
+    animation: modal-in 160ms ease;
+}
+
+.modal-card h3 {
+    margin: 0;
+    padding-right: 12px;
+    font-size: 1.1rem;
+}
+
+.modal-close {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 2px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    flex-shrink: 0;
+    transition: background var(--transition), color var(--transition);
+}
+
+.modal-close:hover {
+    background: var(--surface-hover);
+    color: var(--text-primary);
+}
+
+.modal-card > div:first-child {
+    margin-bottom: 14px;
+}
+
+@keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes modal-in {
+    from { opacity: 0; transform: translateY(6px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ---------- KPIs (Reportes) ---------- */
+
+.kpi-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 14px 18px;
+    min-width: 168px;
+    flex: 1;
+}
+
+.kpi-label {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 6px;
+}
+
+.kpi-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+/* ---------- Layout general (sidebar + contenido) ----------
+   Vive acá (global) y no en MainLayout.razor.css porque el CSS aislado de
+   Blazor no siempre llega al <a> que renderiza el componente NavLink — con
+   estas reglas en el CSS global no hay dudas de que aplican. */
+
+.app-shell {
+    display: flex;
+    min-height: 100vh;
+}
+
+.app-sidebar {
+    width: 246px;
+    flex-shrink: 0;
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+}
+
+.app-sidebar-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 22px 22px 18px;
+    border-bottom: 1px solid var(--border);
+}
+
+.app-logo {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: var(--accent-soft);
+    color: var(--accent-hover);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.app-sidebar-brand {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.app-sidebar-subtitle {
+    font-size: 10.5px;
+    color: var(--text-muted);
+    margin-top: 1px;
+}
+
+.app-sidebar-links {
+    display: flex;
+    flex-direction: column;
+    padding: 14px 12px;
+    gap: 1px;
+}
+
+.app-nav-group-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    padding: 14px 10px 6px;
+}
+
+.app-nav-group-label:first-child {
+    padding-top: 4px;
+}
+
+.app-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 9px 10px;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary) !important;
+    text-decoration: none;
+    font-size: 0.86rem;
+    transition: background var(--transition), color var(--transition);
+}
+
+.app-nav-link svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+.app-nav-link:hover {
+    background: var(--surface-hover);
+    color: var(--text-primary) !important;
+    text-decoration: none;
+}
+
+.app-nav-link.active {
+    background: var(--accent-soft);
+    color: var(--text-primary) !important;
+    font-weight: 600;
+}
+
+.app-nav-link.active svg {
+    color: var(--accent-hover);
+}
+
+.app-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.app-sidebar-footer {
+    margin-top: auto;
+    padding: 14px 16px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.app-logout-btn {
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    color: var(--text-secondary);
+    border-radius: var(--radius-sm);
+    padding: 7px;
+    cursor: pointer;
+    display: flex;
+    transition: background var(--transition), color var(--transition);
+}
+
+.app-logout-btn:hover {
+    background: var(--surface-hover);
+    color: var(--danger);
+}
+
+/* ---------- Sidebar en mobile (menú tipo "drawer") ----------
+   Debajo de 860px el sidebar deja de ocupar espacio fijo (no entra junto
+   al contenido en una pantalla de celular) y pasa a ser un panel que se
+   desliza por encima, oculto por defecto. El botón hamburguesa y el fondo
+   oscuro solo existen visualmente acá — en desktop quedan con
+   display:none y no estorban. */
+
+.app-mobile-toggle {
+    display: none;
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    z-index: 220;
+    width: 38px;
+    height: 38px;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    cursor: pointer;
+    box-shadow: var(--shadow-md);
+}
+
+.app-sidebar-backdrop {
+    display: none;
+}
+
+/* ---------- Reloj + fecha (equivalente a BarraRelojTemaView en MAUI) ----------
+   Barra propia arriba del contenido, en TODAS las páginas — a propósito NO es
+   una capa flotante superpuesta (varias páginas ya tienen un botón de acción
+   arriba a la derecha, ej. "+ Nuevo Movimiento" en Gastos/Almacén/Reclamos, y
+   una capa flotante chocaría con ellos). Reserva su propia fila, como hace
+   BarraRelojTemaView en escritorio. */
+
+.app-topbar {
+    display: flex;
+    justify-content: flex-end;
+    padding: 14px 32px 0;
+}
+
+.reloj-widget {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 8px 16px;
+}
+
+.reloj-hora {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+}
+
+.reloj-fecha {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+}
+
+@media (max-width: 860px) {
+    .app-topbar {
+        display: none;
+    }
+
+    .app-mobile-toggle {
+        display: flex;
+    }
+
+    .app-sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        z-index: 210;
+        transform: translateX(-100%);
+        transition: transform 200ms ease;
+        box-shadow: var(--shadow-lg);
+    }
+
+    .app-sidebar.abierto {
+        transform: translateX(0);
+    }
+
+    .app-sidebar-backdrop.visible {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(6, 7, 10, .6);
+        z-index: 200;
+    }
+
+    .app-content {
+        padding-top: 54px;
+    }
+}

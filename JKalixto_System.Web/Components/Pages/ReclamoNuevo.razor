@@ -1,0 +1,230 @@
+@page "/reclamos/nuevo"
+@using System.Globalization
+@using JKalixto_System.Application.Services
+@using JKalixto_System.Domain.Models
+@using JKalixto_System.Web.Services
+@inject IReclamosService ReclamosService
+@inject SesionWebService Sesion
+@inject INotificadorCambios Notificador
+@inject NavigationManager Navegacion
+
+<PageTitle>Nuevo Reclamo</PageTitle>
+
+<div class="page" style="max-width:560px;">
+    <a href="/reclamos" class="volver">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+        Volver al Libro de Reclamaciones
+    </a>
+    <div class="page-header"><h1>Nuevo Reclamo / Queja</h1></div>
+
+    @if (_registroExitoso)
+    {
+        <div class="card" style="border-color:var(--ok); background:var(--ok-soft); text-align:center; padding:32px 24px;">
+            <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="var(--ok)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:8px;"><circle cx="12" cy="12" r="9" /><path d="m8.5 12.5 2.5 2.5 5-5" /></svg>
+            <h3 style="margin:0 0 6px;">Reclamo registrado correctamente</h3>
+            <p style="color:var(--text-secondary); max-width:400px; margin:0 auto 20px;">
+                Por ley (N° 29571), el establecimiento tiene <strong>15 días hábiles</strong> para responder este reclamo/queja.
+                Vas a poder verlo y responderlo desde el Libro de Reclamaciones.
+            </p>
+            <button class="btn" @onclick='() => Navegacion.NavigateTo("/reclamos")'>Volver al Libro de Reclamaciones</button>
+        </div>
+    }
+    else
+    {
+        @if (_errores.Count > 0)
+        {
+            <div class="caja-error">
+                @foreach (var error in _errores)
+                {
+                    <p>@error</p>
+                }
+            </div>
+        }
+
+        <div class="card">
+            <div style="display:flex; gap:8px; margin-bottom:16px;">
+                <button class="btn @(_tipo == TipoReclamoQueja.Reclamo ? "" : "btn-secundario")" @onclick="() => _tipo = TipoReclamoQueja.Reclamo">Reclamo</button>
+                <button class="btn @(_tipo == TipoReclamoQueja.Queja ? "" : "btn-secundario")" @onclick="() => _tipo = TipoReclamoQueja.Queja">Queja</button>
+            </div>
+
+            <div class="form-grupo">
+                <label>Nombre completo *</label>
+                <input type="text" @bind="_nombreCompleto" @bind:event="oninput" />
+            </div>
+
+            <div class="form-grupo">
+                <label>Domicilio *</label>
+                <input type="text" @bind="_domicilio" @bind:event="oninput" />
+            </div>
+
+            <div class="form-grid-2">
+                <div class="form-grupo">
+                    <label>Tipo de documento</label>
+                    <select @bind="_tipoDocumento">
+                        <option value="@TipoDocumento.DNI">DNI</option>
+                        <option value="@TipoDocumento.Pasaporte">Pasaporte</option>
+                        <option value="@TipoDocumento.CarneExtranjeria">Carné Ext.</option>
+                    </select>
+                </div>
+                <div class="form-grupo">
+                    <label>Número de documento *</label>
+                    <input type="text" @bind="_numeroDocumento" @bind:event="oninput" />
+                </div>
+            </div>
+
+            <div class="form-grid-2">
+                <div class="form-grupo">
+                    <label>Teléfono</label>
+                    <input type="tel" @bind="_telefono" @bind:event="oninput" />
+                </div>
+                <div class="form-grupo">
+                    <label>Email</label>
+                    <input type="email" @bind="_email" @bind:event="oninput" />
+                </div>
+            </div>
+
+            <div class="form-grupo">
+                <label style="display:flex; align-items:center; gap:6px; font-weight:400; color:var(--text-primary);"><input type="checkbox" @bind="_esMenorDeEdad" /> Es menor de edad</label>
+            </div>
+
+            @if (_esMenorDeEdad)
+            {
+                <div class="form-grid-2">
+                    <div class="form-grupo">
+                        <label>Nombre del apoderado</label>
+                        <input type="text" @bind="_nombreApoderado" @bind:event="oninput" />
+                    </div>
+                    <div class="form-grupo">
+                        <label>Documento del apoderado</label>
+                        <input type="text" @bind="_documentoApoderado" @bind:event="oninput" />
+                    </div>
+                </div>
+            }
+
+            <div class="form-grid-2">
+                <div class="form-grupo">
+                    <label>Bien contratado *</label>
+                    <input type="text" @bind="_bienContratado" @bind:event="oninput" />
+                </div>
+                <div class="form-grupo">
+                    <label>Monto reclamado (S/)</label>
+                    <input type="text" @bind="_montoReclamadoTexto" @bind:event="oninput" />
+                </div>
+            </div>
+
+            <div class="form-grupo">
+                <label>Detalle del reclamo/queja *</label>
+                <textarea style="min-height:80px;" @bind="_detalleReclamo" @bind:event="oninput"></textarea>
+            </div>
+
+            <div class="form-grupo">
+                <label>Pedido del consumidor</label>
+                <textarea style="min-height:60px;" @bind="_pedidoConsumidor" @bind:event="oninput"></textarea>
+            </div>
+        </div>
+
+        <button class="btn" disabled="@_guardando" @onclick="ConfirmarAsync">@(_guardando ? "Guardando…" : "Registrar")</button>
+    }
+</div>
+
+@code {
+    private readonly List<string> _errores = new();
+    private bool _guardando;
+    private bool _registroExitoso;
+    private TipoReclamoQueja _tipo = TipoReclamoQueja.Reclamo;
+    private string _nombreCompleto = string.Empty;
+    private string _domicilio = string.Empty;
+    private TipoDocumento _tipoDocumento = TipoDocumento.DNI;
+    private string _numeroDocumento = string.Empty;
+    private string _telefono = string.Empty;
+    private string _email = string.Empty;
+    private bool _esMenorDeEdad;
+    private string _nombreApoderado = string.Empty;
+    private string _documentoApoderado = string.Empty;
+    private string _bienContratado = string.Empty;
+    private string _montoReclamadoTexto = string.Empty;
+    private string _detalleReclamo = string.Empty;
+    private string _pedidoConsumidor = string.Empty;
+
+    private async Task ConfirmarAsync()
+    {
+        if (_guardando)
+        {
+            return;
+        }
+
+        _errores.Clear();
+
+        if (string.IsNullOrWhiteSpace(_nombreCompleto) || string.IsNullOrWhiteSpace(_domicilio) || string.IsNullOrWhiteSpace(_numeroDocumento))
+        {
+            _errores.Add("El nombre completo, domicilio y número de documento son obligatorios.");
+        }
+
+        if (string.IsNullOrWhiteSpace(_bienContratado))
+        {
+            _errores.Add("El bien contratado es obligatorio.");
+        }
+
+        if (string.IsNullOrWhiteSpace(_detalleReclamo))
+        {
+            _errores.Add("El detalle del reclamo/queja es obligatorio.");
+        }
+
+        // InvariantCulture: mismo motivo que en GastoNuevo.razor — no depender de la
+        // configuración regional de la PC del servidor para decidir si "." es
+        // decimal o separador de miles.
+        decimal? monto = null;
+        if (!string.IsNullOrWhiteSpace(_montoReclamadoTexto))
+        {
+            if (!decimal.TryParse(_montoReclamadoTexto, NumberStyles.Number, CultureInfo.InvariantCulture, out var m) || m < 0)
+            {
+                _errores.Add("El monto reclamado debe ser un número válido (usá punto para los decimales, ej. 150.50).");
+            }
+            else
+            {
+                monto = m;
+            }
+        }
+
+        if (_errores.Count > 0)
+        {
+            return;
+        }
+
+        var usuario = await Sesion.ObtenerUsuarioActualAsync();
+
+        var dto = new NuevoReclamoDto
+        {
+            NombreCompleto = _nombreCompleto.Trim(),
+            Domicilio = _domicilio.Trim(),
+            TipoDocumento = _tipoDocumento,
+            NumeroDocumento = _numeroDocumento.Trim(),
+            Telefono = string.IsNullOrWhiteSpace(_telefono) ? null : _telefono.Trim(),
+            Email = string.IsNullOrWhiteSpace(_email) ? null : _email.Trim(),
+            EsMenorDeEdad = _esMenorDeEdad,
+            NombreApoderado = _esMenorDeEdad && !string.IsNullOrWhiteSpace(_nombreApoderado) ? _nombreApoderado.Trim() : null,
+            DocumentoApoderado = _esMenorDeEdad && !string.IsNullOrWhiteSpace(_documentoApoderado) ? _documentoApoderado.Trim() : null,
+            BienContratado = _bienContratado.Trim(),
+            MontoReclamado = monto,
+            Tipo = _tipo,
+            DetalleReclamo = _detalleReclamo.Trim(),
+            PedidoConsumidor = string.IsNullOrWhiteSpace(_pedidoConsumidor) ? null : _pedidoConsumidor.Trim()
+        };
+
+        _guardando = true;
+        try
+        {
+            await ReclamosService.RegistrarAsync(dto, usuario.Id);
+            Notificador.Avisar("reclamos");
+            _registroExitoso = true;
+        }
+        catch (Exception ex)
+        {
+            _errores.Add($"No se pudo registrar: {ex.Message}");
+        }
+        finally
+        {
+            _guardando = false;
+        }
+    }
+}

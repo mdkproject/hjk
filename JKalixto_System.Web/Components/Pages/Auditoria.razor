@@ -1,0 +1,116 @@
+@page "/auditoria"
+@using JKalixto_System.Application.Services
+@using JKalixto_System.Domain.Models
+@using JKalixto_System.Web.Services
+@inject IAuditoriaService AuditoriaService
+@inject SesionWebService Sesion
+@inject INotificadorCambios Notificador
+@implements IDisposable
+
+<PageTitle>Ver Auditoría</PageTitle>
+
+<div class="page">
+    <div class="page-header"><h1>Ver Auditoría</h1></div>
+
+    @if (_sinPermiso)
+    {
+        <div class="caja-error"><p>No tenés permiso para ver el registro de auditoría (solo Gerencia/Desarrollador).</p></div>
+    }
+    else if (_error is not null)
+    {
+        <div class="caja-error"><p>@_error</p></div>
+    }
+    else
+    {
+        <div class="search-input" style="max-width:400px; margin-bottom:16px;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+            <input placeholder="Buscar por descripción, usuario o tipo de acción…" value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+        </div>
+
+        @if (_cargando)
+        {
+            <p class="empty-state">Cargando…</p>
+        }
+        else
+        {
+            @foreach (var log in Filtrados())
+            {
+                <div class="card" style="margin-bottom:8px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span class="badge" style="background:var(--surface-2); color:var(--text-secondary); border:1px solid var(--border);">@log.TipoAccion</span>
+                        <span style="color:var(--text-muted); font-size:0.82rem;">@log.Timestamp.ToString("dd/MM HH:mm")</span>
+                    </div>
+                    <div style="margin-top:6px;">@log.Descripcion</div>
+                    <div style="color:var(--text-secondary); font-size:0.85rem; margin-top:2px;">@log.UsuarioNombre</div>
+                </div>
+            }
+        }
+    }
+</div>
+
+@code {
+    private List<LogAuditoria> _logs = new();
+    private bool _cargando = true;
+    private bool _sinPermiso;
+    private string? _error;
+    private string _textoBusqueda = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAsync();
+        Notificador.CambioDetectado += OnCambioDetectado;
+    }
+
+    private async Task CargarAsync()
+    {
+        try
+        {
+            // Resuelve el "usuario actual" del circuito ANTES de pedir los logs — si
+            // esta es la primera página que visita este circuito (ej. se abrió el
+            // navegador directo en /auditoria), ISessionService.UsuarioActual todavía
+            // no está fijado y el chequeo de rol de AuditoriaService fallaría siempre,
+            // aunque el usuario sí tuviera permiso.
+            await Sesion.ObtenerUsuarioActualAsync();
+            _logs = await AuditoriaService.ObtenerRecientesAsync(200);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            _sinPermiso = true;
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo cargar la auditoría: {ex.Message}";
+        }
+        finally
+        {
+            _cargando = false;
+        }
+    }
+
+    /// <summary>Prácticamente toda acción del sistema deja un registro acá, así que
+    /// se refresca ante cualquier área — mismo criterio que el Dashboard.</summary>
+    private async void OnCambioDetectado(string area)
+    {
+        await InvokeAsync(async () =>
+        {
+            await CargarAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose() => Notificador.CambioDetectado -= OnCambioDetectado;
+
+    private IEnumerable<LogAuditoria> Filtrados()
+    {
+        if (string.IsNullOrWhiteSpace(_textoBusqueda))
+        {
+            return _logs;
+        }
+
+        var texto = _textoBusqueda.Trim();
+        return _logs.Where(l =>
+            l.Descripcion.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
+            l.UsuarioNombre.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
+            l.TipoAccion.Contains(texto, StringComparison.OrdinalIgnoreCase));
+    }
+}

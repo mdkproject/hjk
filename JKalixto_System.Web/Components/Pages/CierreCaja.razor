@@ -1,0 +1,147 @@
+@page "/cierre-caja"
+@using JKalixto_System.Application.Services
+@using JKalixto_System.Domain.Models
+@using JKalixto_System.Web.Services
+@inject ICierreCajaService CierreCajaService
+@inject SesionWebService Sesion
+@inject INotificadorCambios Notificador
+@implements IDisposable
+
+<PageTitle>Cierre de Caja</PageTitle>
+
+<div class="page" style="max-width:600px;">
+    <div class="page-header"><h1>Cierre de Caja</h1></div>
+
+    @if (_error is not null)
+    {
+        <div class="caja-error"><p>@_error</p></div>
+    }
+    @if (_mensajeExito is not null)
+    {
+        <div class="card" style="border-color:var(--ok); background:var(--ok-soft); margin-bottom:16px;"><p style="margin:0; color:var(--ok);">@_mensajeExito</p></div>
+    }
+
+    @if (_resumen is null)
+    {
+        <p class="empty-state">Cargando…</p>
+    }
+    else
+    {
+        <div class="section-title" style="margin-top:0;">Resumen del día</div>
+        <div class="kpi-grid" style="margin-bottom:20px;">
+            <div class="kpi-card">
+                <div class="kpi-label">Total Hotel</div>
+                <div class="kpi-value">@_resumen.TotalHotel.ToString("C")</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Total Sauna</div>
+                <div class="kpi-value">@_resumen.TotalSauna.ToString("C")</div>
+            </div>
+            <div class="kpi-card" style="border-color:var(--accent-border); background:var(--accent-soft);">
+                <div class="kpi-label">Total General</div>
+                <div class="kpi-value">@_resumen.TotalGeneral.ToString("C")</div>
+            </div>
+        </div>
+
+        <div class="section-title">Caja Chica</div>
+        <div class="card" style="margin-bottom:16px;">
+            <div style="display:flex; justify-content:space-between; padding:6px 0;">
+                <span style="color:var(--text-secondary);">Hotel — esperado (base @_resumen.MontoBaseCajaChicaHotel.ToString("C"))</span>
+                <strong>@_resumen.MontoEsperadoCajaChicaHotel.ToString("C")</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:6px 0; border-top:1px solid var(--border);">
+                <span style="color:var(--text-secondary);">Sauna — esperado (base @_resumen.MontoBaseCajaChicaSauna.ToString("C"))</span>
+                <strong>@_resumen.MontoEsperadoCajaChicaSauna.ToString("C")</strong>
+            </div>
+        </div>
+
+        @if (!_resumen.PuedeCerrar)
+        {
+            <div class="caja-error">
+                <p style="font-weight:600;">No se puede cerrar caja: hay @_resumen.ClientesSaunaAbiertos cliente(s) de Sauna todavía activos.</p>
+                <p style="margin-top:4px;">@string.Join(", ", _resumen.NombresClientesAbiertos)</p>
+            </div>
+        }
+
+        <div class="form-grupo" style="max-width:220px;">
+            <label>Turno</label>
+            <select @bind="_turno">
+                <option value="@TurnoCaja.Manana">Mañana</option>
+                <option value="@TurnoCaja.Tarde">Tarde</option>
+                <option value="@TurnoCaja.Noche">Noche</option>
+            </select>
+        </div>
+
+        <button class="btn" disabled="@(!_resumen.PuedeCerrar || _guardando)" @onclick="CerrarAsync">@(_guardando ? "Cerrando…" : "Cerrar Caja")</button>
+    }
+</div>
+
+@code {
+    private ResumenCierreCajaDto? _resumen;
+    private TurnoCaja _turno = TurnoCaja.Manana;
+    private string? _error;
+    private string? _mensajeExito;
+    private bool _guardando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAsync();
+        Notificador.CambioDetectado += OnCambioDetectado;
+    }
+
+    private async void OnCambioDetectado(string area)
+    {
+        if (area != "habitaciones" && area != "sauna")
+        {
+            return;
+        }
+
+        await InvokeAsync(async () =>
+        {
+            await CargarAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose() => Notificador.CambioDetectado -= OnCambioDetectado;
+
+    private async Task CargarAsync()
+    {
+        try
+        {
+            _resumen = await CierreCajaService.ObtenerResumenDelDiaAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo cargar el resumen: {ex.Message}";
+        }
+    }
+
+    private async Task CerrarAsync()
+    {
+        if (_guardando)
+        {
+            return;
+        }
+
+        _error = null;
+        _mensajeExito = null;
+        _guardando = true;
+        try
+        {
+            var usuario = await Sesion.ObtenerUsuarioActualAsync();
+            await CierreCajaService.CerrarCajaAsync(_turno, usuario.Id);
+            _mensajeExito = $"Caja cerrada correctamente — {DateTime.Now:dd/MM/yyyy HH:mm}.";
+            await CargarAsync();
+            Notificador.Avisar("caja");
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo cerrar la caja: {ex.Message}";
+        }
+        finally
+        {
+            _guardando = false;
+        }
+    }
+}
