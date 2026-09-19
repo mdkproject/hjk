@@ -612,28 +612,6 @@ h1, h2, h3, h4 {
     transition: transform var(--transition), box-shadow var(--transition);
 }
 
-/* Corte diagonal en el borde de entrada/salida de una estadía (ver
-   ClasesCorte en Calendario.razor) — el "diente" de 9px representa,
-   visualmente nada más, que el huésped entra a mediodía y sale antes de
-   las 11am del día que termina, no el día completo. Se saca el
-   border-radius del lado cortado porque una esquina redondeada y una
-   punta recta en el mismo lugar se ven en conflicto. */
-.cal-bloque-corte-inicio {
-    clip-path: polygon(9px 0, 100% 0, 100% 100%, 0 100%, 0 9px);
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
-}
-
-.cal-bloque-corte-fin {
-    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%);
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
-}
-
-.cal-bloque-corte-inicio.cal-bloque-corte-fin {
-    clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
-}
-
 .cal-celda-bloque:hover .cal-bloque {
     transform: translateY(-1px);
     box-shadow: var(--shadow-md);

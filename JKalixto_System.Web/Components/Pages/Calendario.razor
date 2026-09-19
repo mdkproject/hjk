@@ -194,7 +194,7 @@
                                                     tabindex="0" role="button" aria-label="@DescripcionBloque(columna, bloque)"
                                                     @onclick="() => AbrirBloque(columna, bloque)"
                                                     @onkeydown="e => OnActivarConTeclado(e, () => AbrirBloque(columna, bloque))">
-                                                    <div class="cal-bloque @ClaseBloque(bloque.Estado) @ClasesCorte(bloque)">
+                                                    <div class="cal-bloque @ClaseBloque(bloque.Estado)">
                                                         @if (!string.IsNullOrWhiteSpace(bloque.NombreCliente) && bloque.CantidadDias > 1)
                                                         {
                                                             <span class="cal-bloque-avatar">@Iniciales(bloque.NombreCliente)</span>
@@ -473,35 +473,6 @@
         var estado = EtiquetaEstadoBloque(bloque.Estado);
         var cliente = string.IsNullOrWhiteSpace(bloque.NombreCliente) ? "" : $", {bloque.NombreCliente}";
         return $"Habitación {columna.Numero}, {rango}, {estado}{cliente}";
-    }
-
-    /// <summary>Corte diagonal en el borde de inicio/fin de una barra — puramente
-    /// visual, para que de un vistazo se entienda cuándo entra y cuándo sale el
-    /// huésped (el "día hotelero" empieza a mediodía y termina a las 11am del día
-    /// siguiente, aunque acá no se calcula ninguna hora real, solo se marca el
-    /// borde). Solo tiene sentido para una estadía real (Ocupada/Reservada) — un
-    /// bloque de Mantenimiento no tiene "check-in". Tampoco se corta un borde que
-    /// coincide con el principio/fin del mes visible: ahí no hay forma de saber si
-    /// la estadía realmente arranca/termina ese día o si sigue fuera de pantalla.</summary>
-    private string ClasesCorte(BloqueCalendario bloque)
-    {
-        if (bloque.Estado is not (EstadoCeldaCalendario.Ocupada or EstadoCeldaCalendario.Reservada))
-        {
-            return string.Empty;
-        }
-
-        var clases = new List<string>();
-        if (bloque.DiaInicio > 1)
-        {
-            clases.Add("cal-bloque-corte-inicio");
-        }
-
-        if (bloque.DiaInicio + bloque.CantidadDias - 1 < (_calendario?.Dias.Count ?? 0))
-        {
-            clases.Add("cal-bloque-corte-fin");
-        }
-
-        return string.Join(' ', clases);
     }
 
     /// <summary>Reserva rápida desde una celda Disponible: mismo espíritu que
