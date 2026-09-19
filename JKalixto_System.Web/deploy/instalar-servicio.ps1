@@ -54,20 +54,35 @@ if ($servicioExistente) {
     Stop-Service $nombreServicio -Force -ErrorAction SilentlyContinue
 
     # Stop-Service a veces devuelve el control antes de que el proceso termine
-    # de verdad (o directamente no lo mata) -- ya paso una vez, y "dotnet
-    # publish" fallaba porque el .exe/.dll seguian bloqueados. Se espera hasta
-    # 10 segundos y, si sigue vivo, se lo mata a la fuerza por PID.
+    # de verdad (o directamente no lo mata) -- ya paso mas de una vez, y
+    # "dotnet publish" fallaba porque el .exe/.dll seguian bloqueados.
+    #
+    # BUG ya corregido una vez y que volvio a pasar: la version anterior de
+    # este bucle solo intentaba matar el proceso a la fuerza en el ULTIMO
+    # segundo de espera, y cortaba el bucle ahi mismo sin volver a comprobar
+    # si de verdad ya se habia cerrado -- el script seguia para adelante
+    # igual, sin ningun margen. Ahora: si a mitad de camino (5s) sigue vivo,
+    # se lo mata a la fuerza YA, se le siguen dando varios segundos mas para
+    # que el sistema operativo termine de soltar el archivo, y al final se
+    # vuelve a comprobar de verdad -- si sigue vivo, se corta el script con
+    # un error claro en vez de chocar contra la pared de "publish" fallando.
     $exeBuscado = "JKalixto_System.Web"
-    for ($intento = 1; $intento -le 10; $intento++) {
+    $maxEsperaSegundos = 15
+    for ($intento = 1; $intento -le $maxEsperaSegundos; $intento++) {
         $procesoViejo = Get-Process -Name $exeBuscado -ErrorAction SilentlyContinue
         if (-not $procesoViejo) {
             break
         }
-        if ($intento -eq 10) {
-            Write-Host "El proceso viejo no se cerro solo despues de 10s - lo cierro a la fuerza." -ForegroundColor Yellow
+        if ($intento -eq 5) {
+            Write-Host "El proceso viejo no se cerro solo - lo cierro a la fuerza." -ForegroundColor Yellow
             $procesoViejo | Stop-Process -Force -ErrorAction SilentlyContinue
         }
         Start-Sleep -Seconds 1
+    }
+
+    $procesoTodaviaVivo = Get-Process -Name $exeBuscado -ErrorAction SilentlyContinue
+    if ($procesoTodaviaVivo) {
+        throw "El proceso viejo (PID $($procesoTodaviaVivo.Id)) sigue corriendo despues de $maxEsperaSegundos segundos y no se pudo cerrar. Cerralo a mano con: Stop-Process -Id $($procesoTodaviaVivo.Id) -Force -- y volve a correr este script."
     }
 
     sc.exe delete $nombreServicio | Out-Null
