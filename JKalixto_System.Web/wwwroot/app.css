@@ -1236,4 +1236,12 @@ h1, h2, h3, h4 {
     .app-content {
         padding-top: 54px;
     }
+
+    /* El botón hamburguesa/cerrar queda fijo arriba a la izquierda (z-index
+       220, por encima del sidebar) y su caja de 38px cae justo sobre el
+       logo si el encabezado del sidebar no le deja lugar — se corre el
+       encabezado a la derecha lo suficiente para no superponerse. */
+    .app-sidebar-header {
+        padding-left: 60px;
+    }
 }
