@@ -125,7 +125,7 @@
                         <div style="display:flex; justify-content:space-between; align-items:start;">
                             <div>
                                 <div style="color:var(--text-secondary); font-size:0.82rem;">@habitacion.EtiquetaTipo</div>
-                                <span class="badge" style="background:@ColorParaClave(habitacion.ClaveColorEstado); color:white;">
+                                <span class="badge" style="background:@ColorParaClave(habitacion.ClaveColorEstado); color:@ContrasteParaClave(habitacion.ClaveColorEstado);">
                                     @habitacion.EtiquetaEstado
                                 </span>
                                 @if (habitacion.Estado == EstadoHabitacion.Ocupada)
@@ -482,6 +482,18 @@
         "ColorLimpieza" => "var(--warn)",
         "ColorMantenimiento" => "var(--danger)",
         _ => "var(--text-muted)"
+    };
+
+    /// <summary>Texto sobre el badge de ColorParaClave — los 4 colores de estado son
+    /// claros/pastel (heredados del tema oscuro de escritorio), blanco encima no
+    /// contrasta lo suficiente, especialmente en Limpieza (amarillo).</summary>
+    private static string ContrasteParaClave(string clave) => clave switch
+    {
+        "ColorDisponible" => "var(--ok-contrast)",
+        "ColorOcupada" => "var(--info-contrast)",
+        "ColorLimpieza" => "var(--warn-contrast)",
+        "ColorMantenimiento" => "var(--danger-contrast)",
+        _ => "white"
     };
 
     public void Dispose()

@@ -88,6 +88,27 @@ h1:focus {
     --violet: #d7aefb;
     --violet-soft: rgba(215, 174, 251, .16);
 
+    /* "Texto sobre fondo de color" — estos 5 tonos (ok/info/warn/danger/
+       accent) son todos claros/pastel (heredados del tema oscuro de
+       escritorio), así que texto BLANCO encima no tiene contraste
+       suficiente — se nota más en amarillo/dorado (warn, accent) pero
+       pasa en los 5. Un tono oscuro fijo por color, igual en los dos
+       temas (claro/oscuro) porque estos colores de marca/estado no
+       cambian entre temas, solo cambian los neutros (fondo/superficie/
+       texto). */
+    --ok-contrast: #0e3d1f;
+    --info-contrast: #0d2c5c;
+    --warn-contrast: #2b2408;
+    --danger-contrast: #4a120c;
+    --violet-contrast: #2d0d52;
+    --accent-contrast: #2b2408;
+
+    /* Texto de error dentro de .caja-error/.mensaje-error (que se apoyan en
+       fondos MUY sutiles — --danger-soft, casi transparente) — este SÍ
+       necesita cambiar entre temas, a diferencia de --danger: un rosado
+       claro se lee bien en oscuro pero desaparece en claro. */
+    --danger-text: #fca5a5;
+
     --radius-sm: 6px;
     --radius-md: 10px;
     --radius-lg: 14px;
@@ -95,6 +116,42 @@ h1:focus {
     --shadow-md: 0 6px 20px rgba(0, 0, 0, .35);
     --shadow-lg: 0 16px 40px rgba(0, 0, 0, .45);
     --transition: 120ms ease;
+
+    /* Tinte para "hoy"/fin de semana en el Calendario: en oscuro es un
+       blanco translúcido que ACLARA la superficie de abajo; en claro un
+       blanco translúcido no se notaría (blanco sobre blanco), así que
+       este token cambia de signo entre temas — ver [data-theme="light"]
+       más abajo. */
+    --finde-tint: rgba(255, 255, 255, .07);
+}
+
+/* ============================================================
+   TEMA CLARO — se activa agregando data-theme="light" a <html> (ver
+   theme.js). Solo se redefinen acá los NEUTROS (fondo/superficie/borde/
+   texto/sombra): los colores de marca y de estado (--accent, --ok,
+   --info, --warn, --danger, --violet y sus -soft/-contrast) quedan
+   IGUALES en los dos temas a propósito — son la identidad visual del
+   hotel y el significado de cada estado de habitación, no algo que
+   deba cambiar según el tema. */
+:root[data-theme="light"] {
+    --bg: #eef0f2;
+    --bg-sidebar: #ffffff;
+    --surface: #ffffff;
+    --surface-hover: #f1f3f4;
+    --surface-2: #f4f5f6;
+    --border: #dadce0;
+    --border-strong: #c4c7cb;
+
+    --text-primary: #1f2023;
+    --text-secondary: #5f6368;
+    --text-muted: #80868b;
+
+    --shadow-sm: 0 1px 2px rgba(32, 33, 36, .12);
+    --shadow-md: 0 6px 20px rgba(32, 33, 36, .14);
+    --shadow-lg: 0 16px 40px rgba(32, 33, 36, .18);
+
+    --finde-tint: rgba(32, 33, 36, .05);
+    --danger-text: #b3261e;
 }
 
 * {
@@ -352,7 +409,7 @@ h1, h2, h3, h4 {
 .filtro-chip.activo {
     background: var(--accent);
     border-color: var(--accent);
-    color: white;
+    color: var(--accent-contrast);
 }
 
 .filtro-chip-estado {
@@ -360,16 +417,16 @@ h1, h2, h3, h4 {
 }
 
 .filtro-chip-disponible { background: var(--ok-soft); color: var(--ok); }
-.filtro-chip-disponible.activo { background: var(--ok); color: white; }
+.filtro-chip-disponible.activo { background: var(--ok); color: var(--ok-contrast); }
 
 .filtro-chip-ocupada { background: var(--info-soft); color: var(--info); }
-.filtro-chip-ocupada.activo { background: var(--info); color: white; }
+.filtro-chip-ocupada.activo { background: var(--info); color: var(--info-contrast); }
 
 .filtro-chip-limpieza { background: var(--warn-soft); color: var(--warn); }
-.filtro-chip-limpieza.activo { background: var(--warn); color: white; }
+.filtro-chip-limpieza.activo { background: var(--warn); color: var(--warn-contrast); }
 
 .filtro-chip-mantenimiento { background: var(--danger-soft); color: var(--danger); }
-.filtro-chip-mantenimiento.activo { background: var(--danger); color: white; }
+.filtro-chip-mantenimiento.activo { background: var(--danger); color: var(--danger-contrast); }
 
 /* ---------- Calendario: grilla de habitaciones × días ----------
    Referencia visual: PMS tipo Little Hotelier/Hotelerian — barras que
@@ -491,7 +548,7 @@ h1, h2, h3, h4 {
 }
 
 .cal-finde {
-    background: linear-gradient(rgba(255, 255, 255, .025), rgba(255, 255, 255, .025)), var(--surface);
+    background: linear-gradient(var(--finde-tint), var(--finde-tint)), var(--surface);
 }
 
 .cal-fila-grupo {
@@ -596,7 +653,7 @@ h1, h2, h3, h4 {
    para poder quedar sticky — por eso .cal-finde se sigue aplicando ahí
    aparte (ver el <th> del encabezado de días). */
 .cal-col-finde {
-    background: rgba(255, 255, 255, .07);
+    background: var(--finde-tint);
 }
 
 .cal-bloque {
@@ -606,7 +663,6 @@ h1, h2, h3, h4 {
     height: 40px;
     padding: 4px 9px;
     border-radius: 7px;
-    color: white;
     overflow: hidden;
     box-shadow: var(--shadow-sm);
     transition: transform var(--transition), box-shadow var(--transition);
@@ -652,10 +708,10 @@ h1, h2, h3, h4 {
     white-space: nowrap;
 }
 
-.cal-bloque-ocupada { background: linear-gradient(135deg, #669df6, #3f6fd6); }
-.cal-bloque-reservada { background: linear-gradient(135deg, #d7aefb, #b57eef); }
-.cal-bloque-mantenimiento { background: linear-gradient(135deg, #f28b82, #dd6155); }
-.cal-bloque-limpieza { background: linear-gradient(135deg, #fdd663, #e0b93a); }
+.cal-bloque-ocupada { background: linear-gradient(135deg, #669df6, #3f6fd6); color: var(--info-contrast); }
+.cal-bloque-reservada { background: linear-gradient(135deg, #d7aefb, #b57eef); color: var(--violet-contrast); }
+.cal-bloque-mantenimiento { background: linear-gradient(135deg, #f28b82, #dd6155); color: var(--danger-contrast); }
+.cal-bloque-limpieza { background: linear-gradient(135deg, #fdd663, #e0b93a); color: var(--warn-contrast); }
 
 /* ---------- Tabla ---------- */
 
@@ -764,7 +820,7 @@ h1, h2, h3, h4 {
 }
 
 .mensaje-error {
-    color: #fca5a5;
+    color: var(--danger-text);
     font-size: 0.85rem;
     margin: -8px 0 12px;
 }
@@ -779,7 +835,7 @@ h1, h2, h3, h4 {
 
 .caja-error p {
     margin: 2px 0;
-    color: #fca5a5;
+    color: var(--danger-text);
     font-size: 0.88rem;
 }
 
@@ -792,7 +848,7 @@ h1, h2, h3, h4 {
     font-size: 0.88rem;
     font-weight: 600;
     cursor: pointer;
-    color: white;
+    color: var(--accent-contrast);
     background: var(--accent);
     margin: 4px 4px 4px 0;
     transition: background var(--transition), border-color var(--transition), opacity var(--transition), transform var(--transition);
@@ -826,6 +882,7 @@ h1, h2, h3, h4 {
 
 .btn-peligro {
     background: var(--danger);
+    color: var(--danger-contrast);
 }
 
 .btn-peligro:hover {

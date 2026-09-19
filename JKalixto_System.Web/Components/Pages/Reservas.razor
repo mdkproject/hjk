@@ -48,7 +48,7 @@
                     <div class="card card-clickable" style="margin-bottom:8px;" @onclick="() => _reservaSeleccionada = reserva">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
                             <strong>Hab. @reserva.NumeroHabitacion — @reserva.EtiquetaTipoHabitacion</strong>
-                            <span class="badge" style="background:@ColorParaEstadoReserva(reserva.Estado); color:white;">@EtiquetaEstadoReserva(reserva.Estado)</span>
+                            <span class="badge" style="background:@ColorParaEstadoReserva(reserva.Estado); color:@ContrasteParaEstadoReserva(reserva.Estado);">@EtiquetaEstadoReserva(reserva.Estado)</span>
                         </div>
                         <div style="margin-top:2px;">@reserva.NombreCliente — @reserva.Celular</div>
                         <div style="color:var(--text-secondary); font-size:0.85rem;">@reserva.FechaInicio.ToString("dd/MM/yyyy") → @reserva.FechaFin.ToString("dd/MM/yyyy")</div>
@@ -266,6 +266,15 @@
         EstadoReserva.CheckInRealizado => "var(--info)",
         EstadoReserva.Cancelada => "var(--text-muted)",
         _ => "var(--text-muted)"
+    };
+
+    /// <summary>Texto sobre el badge de ColorParaEstadoReserva — violeta e info son
+    /// claros/pastel, blanco encima no contrasta lo suficiente.</summary>
+    private static string ContrasteParaEstadoReserva(EstadoReserva estado) => estado switch
+    {
+        EstadoReserva.Confirmada => "var(--violet-contrast)",
+        EstadoReserva.CheckInRealizado => "var(--info-contrast)",
+        _ => "white"
     };
 
     private async Task ConvertirEnCheckInAsync(ReservaCardDto r)

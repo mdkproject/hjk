@@ -5,8 +5,22 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
+    <script>
+        // Aplica el tema guardado ANTES de que se pinte la página (si esto
+        // fuera parte de theme.js, cargado normalmente, se vería un
+        // parpadeo: un instante en oscuro y después el cambio a claro).
+        (function () {
+            try {
+                var tema = localStorage.getItem('jkalixto-tema');
+                if (tema === 'light' || tema === 'dark') {
+                    document.documentElement.setAttribute('data-theme', tema);
+                }
+            } catch (e) { }
+        })();
+    </script>
     <ResourcePreloader />
     <link rel="stylesheet" href="@Assets["app.css"]" />
+    <script src="@Assets["theme.js"]"></script>
     <link rel="stylesheet" href="@Assets["JKalixto_System.Web.styles.css"]" />
     <ImportMap />
     <HeadOutlet @rendermode="InteractiveServer" />

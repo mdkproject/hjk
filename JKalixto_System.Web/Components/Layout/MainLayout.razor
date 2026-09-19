@@ -2,6 +2,7 @@
 @implements IDisposable
 @inject AuthenticationStateProvider AuthProvider
 @inject NavigationManager Navegacion
+@inject IJSRuntime JS
 
 @* Menú lateral fijo — mismo orden que el FlyoutItem de AppShell.xaml en MAUI
    (de la pantalla que más se usa en el día a día, a la de uso puntual/
@@ -118,11 +119,23 @@
                     <div style="font-weight:600; font-size:0.85rem;">@_nombreUsuario</div>
                     <div style="color:var(--text-muted); font-size:0.75rem;">@_rolUsuario</div>
                 </div>
-                <form method="post" action="/account/logout">
-                    <button class="app-logout-btn" type="submit" title="Cerrar sesión" aria-label="Cerrar sesión">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></svg>
+                <div style="display:flex; gap:6px;">
+                    <button class="app-logout-btn" type="button" @onclick="AlternarTemaAsync" title="@(_temaClaro ? "Cambiar a tema oscuro" : "Cambiar a tema claro")" aria-label="Cambiar tema">
+                        @if (_temaClaro)
+                        {
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v1M12 20v1M4.2 4.2l.7.7M19.1 19.1l.7.7M3 12h1M20 12h1M4.2 19.8l.7-.7M19.1 4.9l.7-.7" /><circle cx="12" cy="12" r="4.5" /></svg>
+                        }
+                        else
+                        {
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z" /></svg>
+                        }
                     </button>
-                </form>
+                    <form method="post" action="/account/logout">
+                        <button class="app-logout-btn" type="submit" title="Cerrar sesión" aria-label="Cerrar sesión">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></svg>
+                        </button>
+                    </form>
+                </div>
             </div>
         }
     </nav>
@@ -146,6 +159,26 @@
     private string? _rolUsuario;
     private bool _puedeVerAuditoria;
     private bool _sidebarAbierto;
+    private bool _temaClaro;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // El servidor no sabe qué tema eligió este navegador la última vez
+            // (queda en localStorage, ver theme.js) — recién acá, después del
+            // primer render, ya hay una conexión de JS interop para preguntarlo.
+            var temaActual = await JS.InvokeAsync<string>("jkalixtoTema.obtenerActual");
+            _temaClaro = temaActual == "light";
+            StateHasChanged();
+        }
+    }
+
+    private async Task AlternarTemaAsync()
+    {
+        var nuevoTema = await JS.InvokeAsync<string>("jkalixtoTema.alternar");
+        _temaClaro = nuevoTema == "light";
+    }
 
     protected override void OnInitialized()
     {

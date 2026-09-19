@@ -96,7 +96,7 @@
         {
             <div class="card card-clickable" style="margin-bottom:8px; border-left:3px solid @ColorBorde(r);" @onclick="() => _seleccionado = r">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span class="badge" style="background:@(r.Tipo == TipoReclamoQueja.Reclamo ? "var(--danger)" : "var(--warn)"); color:white;">@r.EtiquetaTipo</span>
+                    <span class="badge" style="background:@(r.Tipo == TipoReclamoQueja.Reclamo ? "var(--danger)" : "var(--warn)"); color:@(r.Tipo == TipoReclamoQueja.Reclamo ? "var(--danger-contrast)" : "var(--warn-contrast)");">@r.EtiquetaTipo</span>
                     <span class="badge" style="background:@(r.Estado == EstadoReclamo.Respondido ? "var(--ok-soft)" : "var(--danger-soft)"); color:@(r.Estado == EstadoReclamo.Respondido ? "var(--ok)" : "#fca5a5");">@r.EtiquetaEstado</span>
                 </div>
                 <strong style="display:block; margin-top:6px;">@r.NombreCompleto</strong>
