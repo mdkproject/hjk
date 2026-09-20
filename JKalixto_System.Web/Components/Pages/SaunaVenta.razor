@@ -174,14 +174,19 @@
         try
         {
             var usuario = await Sesion.ObtenerUsuarioActualAsync();
+            int ventaId;
 
             if (EstadiaId is { } estadiaId)
             {
-                await SaunaService.RegistrarVentaHotelAsync(estadiaId, _carrito, usuario.Id, cargarAHabitacion, metodoPago);
+                ventaId = await SaunaService.RegistrarVentaHotelAsync(estadiaId, _carrito, usuario.Id, cargarAHabitacion, metodoPago);
             }
             else if (ClienteSaunaId is { } clienteSaunaId)
             {
-                await SaunaService.RegistrarVentaAsync(clienteSaunaId, _carrito, usuario.Id, cargarAHabitacion, metodoPago);
+                ventaId = await SaunaService.RegistrarVentaAsync(clienteSaunaId, _carrito, usuario.Id, cargarAHabitacion, metodoPago);
+            }
+            else
+            {
+                return;
             }
 
             Notificador.Avisar("sauna");
@@ -190,7 +195,12 @@
                 Notificador.Avisar("habitaciones");
             }
 
-            Navegacion.NavigateTo(EstadiaId.HasValue ? "/cafeteria" : "/sauna");
+            // Si se cobró ahora mismo, el comprobante ya tiene número y total
+            // definitivos — se imprime en el momento. Si se cargó a la habitación,
+            // recién se cobra e imprime junto con el resto al hacer Check-out.
+            Navegacion.NavigateTo(cargarAHabitacion
+                ? (EstadiaId.HasValue ? "/cafeteria" : "/sauna")
+                : $"/comprobante/venta/{ventaId}");
         }
         catch (Exception ex)
         {

@@ -27,6 +27,7 @@
        Program.cs (UseWindowsService) y deploy/instalar-servicio.ps1. No cambia
        nada cuando se sigue corriendo por consola con "dotnet run". -->
   <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.105.1" />
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.0" />
     <!-- Requerido por "dotnet ef" (herramienta de diseño) cuando este es el
          proyecto de arranque. Ver JKalixto_System.Infrastructure/Data/Migrations. -->

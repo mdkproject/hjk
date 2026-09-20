@@ -373,16 +373,38 @@
         await HabitacionService.RegistrarLimpiezaIntermediaAsync(h.HabitacionId, usuario.Id);
     });
 
-    private Task ConfirmarCheckoutAsync(HabitacionCardDto h, MetodoPago metodo) => EjecutarAccionAsync(async () =>
+    /// <summary>No usa EjecutarAccionAsync como el resto de las acciones porque, a
+    /// diferencia de ellas, el Check-out termina navegando a otra página (el
+    /// comprobante para imprimir) en vez de quedarse en Registro Hotel.</summary>
+    private async Task ConfirmarCheckoutAsync(HabitacionCardDto h, MetodoPago metodo)
     {
+        if (_guardando)
+        {
+            return;
+        }
         if (h.EstadiaId is not { } estadiaId)
         {
-            throw new InvalidOperationException("Esta habitación no tiene una estadía activa.");
+            _errorModal = "Esta habitación no tiene una estadía activa.";
+            return;
         }
 
-        var usuario = await Sesion.ObtenerUsuarioActualAsync();
-        await HabitacionService.CheckOutAsync(estadiaId, usuario.Id, metodo);
-    });
+        _guardando = true;
+        try
+        {
+            var usuario = await Sesion.ObtenerUsuarioActualAsync();
+            await HabitacionService.CheckOutAsync(estadiaId, usuario.Id, metodo);
+            Notificador.Avisar("habitaciones");
+            Navegacion.NavigateTo($"/comprobante/hotel/{estadiaId}");
+        }
+        catch (Exception ex)
+        {
+            _errorModal = ex.Message;
+        }
+        finally
+        {
+            _guardando = false;
+        }
+    }
 
     private Task ConfirmarFinalizarLimpiezaAsync(HabitacionCardDto h) => EjecutarAccionAsync(async () =>
     {

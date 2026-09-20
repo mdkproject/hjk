@@ -1,0 +1,94 @@
+@page "/comprobante/venta/{VentaId:int}"
+@using JKalixto_System.Application.Services
+@using JKalixto_System.Domain.Models
+@inject ISaunaService SaunaService
+
+<PageTitle>Comprobante</PageTitle>
+
+<div class="page" style="max-width:480px;">
+    <a href="/sauna" class="volver no-imprimir">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+        Volver
+    </a>
+
+    @if (_error is not null)
+    {
+        <div class="caja-error"><p>@_error</p></div>
+    }
+    else if (_recibo is null)
+    {
+        <p class="empty-state">Cargando…</p>
+    }
+    else
+    {
+        <div class="comprobante">
+            <div class="comprobante-header">
+                <img src="/images/logo-transparente.png" alt="HJK" />
+                <div>
+                    <strong>HKX — Hotel &amp; Sauna System</strong>
+                    <span>Comprobante de venta</span>
+                </div>
+            </div>
+
+            <div class="comprobante-fila"><span>N° comprobante</span><strong>@_recibo.NumeroComprobante</strong></div>
+            <div class="comprobante-fila"><span>Tipo</span><strong>@(_recibo.TipoComprobante == TipoComprobante.Factura ? "Factura" : "Boleta")</strong></div>
+            <div class="comprobante-fila"><span>Fecha</span><strong>@_recibo.Fecha.ToString("dd/MM/yyyy HH:mm")</strong></div>
+
+            <div class="comprobante-seccion">
+                <div class="comprobante-fila"><span>Cliente</span><strong>@_recibo.NombreCliente</strong></div>
+                <div class="comprobante-fila"><span>@_recibo.TipoDocumento</span><strong>@_recibo.NumeroDocumento</strong></div>
+                @if (_recibo.NumeroHabitacion is { } numeroHabitacion)
+                {
+                    <div class="comprobante-fila"><span>Habitación</span><strong>N° @numeroHabitacion</strong></div>
+                }
+                @if (_recibo.TipoComprobante == TipoComprobante.Factura)
+                {
+                    <div class="comprobante-fila"><span>RUC</span><strong>@_recibo.RUC</strong></div>
+                    <div class="comprobante-fila"><span>Razón social</span><strong>@_recibo.RazonSocial</strong></div>
+                }
+            </div>
+
+            <table class="comprobante-tabla">
+                <thead>
+                    <tr><th>Descripción</th><th>Cant.</th><th>P. Unit.</th><th>Subtotal</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in _recibo.Items)
+                    {
+                        <tr>
+                            <td>@item.Descripcion</td>
+                            <td>@item.Cantidad</td>
+                            <td>@item.PrecioUnitario.ToString("C")</td>
+                            <td>@item.Subtotal.ToString("C")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            <div class="comprobante-total"><span>Total</span><span>@_recibo.Total.ToString("C")</span></div>
+            <div class="comprobante-fila" style="margin-top:10px;"><span>Método de pago</span><strong>@_recibo.MetodoPago</strong></div>
+        </div>
+
+        <div class="comprobante-acciones no-imprimir">
+            <button class="btn" type="button" onclick="window.print()">Imprimir / Guardar PDF</button>
+            <a class="btn btn-secundario" href="/sauna">Volver</a>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int VentaId { get; set; }
+
+    private VentaReciboDto? _recibo;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _recibo = await SaunaService.ObtenerReciboVentaAsync(VentaId);
+        if (_recibo is null)
+        {
+            _error = "No se encontró el comprobante — la venta no existe o fue cargada a una habitación (se imprime recién al Check-out).";
+        }
+    }
+}

@@ -291,6 +291,11 @@ public interface IHabitacionService
     Task FinalizarMantenimientoAsync(int habitacionId, int usuarioId);
     Task FinalizarLimpiezaAsync(int habitacionId, int usuarioId);
     Task RegistrarLimpiezaIntermediaAsync(int habitacionId, int usuarioId);
+
+    /// <summary>Datos de una Estadia ya cerrada (Check-out hecho), listos para
+    /// imprimir el comprobante. Null si la estadía no existe o todavía está Activa
+    /// (el total y el número de comprobante recién quedan definitivos al Check-out).</summary>
+    Task<EstadiaReciboDto?> ObtenerReciboEstadiaAsync(int estadiaId);
 }
 
 /// <summary>
@@ -659,6 +664,64 @@ public class HabitacionService : IHabitacionService
             $"Se solicitó limpieza intermedia para la habitación {habitacion.Numero} (sin cambio de estado).",
             usuarioId, "Habitacion", habitacion.Id);
     }
+
+    public async Task<EstadiaReciboDto?> ObtenerReciboEstadiaAsync(int estadiaId)
+    {
+        var estadia = await _context.Estadias
+            .Include(e => e.Habitacion)
+            .Include(e => e.Acompanantes)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(e => e.Id == estadiaId);
+
+        if (estadia is null || estadia.Estado != EstadoEstadia.Finalizada || estadia.FechaCheckOut is null)
+        {
+            return null;
+        }
+
+        var noches = Math.Max(1, (estadia.FechaCheckOut.Value.Date - estadia.FechaCheckIn.Date).Days);
+
+        return new EstadiaReciboDto
+        {
+            EstadiaId = estadia.Id,
+            NumeroComprobante = estadia.NumeroComprobante ?? "—",
+            TipoComprobante = estadia.TipoComprobante,
+            FechaCheckIn = estadia.FechaCheckIn,
+            FechaCheckOut = estadia.FechaCheckOut.Value,
+            Noches = noches,
+            NumeroHabitacion = estadia.Habitacion?.Numero ?? 0,
+            TipoHabitacion = estadia.Habitacion?.Tipo ?? TipoHabitacion.Simple,
+            NombreHuesped = estadia.NombreCompleto,
+            TipoDocumento = estadia.TipoDocumento,
+            NumeroDocumento = estadia.NumeroDocumento,
+            RUC = estadia.RUC,
+            RazonSocial = estadia.RazonSocial,
+            MetodoPago = estadia.MetodoPago,
+            Total = estadia.TotalAcumulado,
+            Acompanantes = estadia.Acompanantes.Select(a => a.NombreCompleto).ToList()
+        };
+    }
+}
+
+/// <summary>Datos listos para imprimir el comprobante de una Estadia ya cerrada —
+/// ver IHabitacionService.ObtenerReciboEstadiaAsync.</summary>
+public class EstadiaReciboDto
+{
+    public int EstadiaId { get; set; }
+    public string NumeroComprobante { get; set; } = string.Empty;
+    public TipoComprobante TipoComprobante { get; set; }
+    public DateTime FechaCheckIn { get; set; }
+    public DateTime FechaCheckOut { get; set; }
+    public int Noches { get; set; }
+    public int NumeroHabitacion { get; set; }
+    public TipoHabitacion TipoHabitacion { get; set; }
+    public string NombreHuesped { get; set; } = string.Empty;
+    public TipoDocumento TipoDocumento { get; set; }
+    public string NumeroDocumento { get; set; } = string.Empty;
+    public string? RUC { get; set; }
+    public string? RazonSocial { get; set; }
+    public MetodoPago? MetodoPago { get; set; }
+    public decimal Total { get; set; }
+    public List<string> Acompanantes { get; set; } = new();
 }
 
 // ============================================================
@@ -2114,15 +2177,23 @@ public interface ISaunaService
     Task<int> RegistrarClienteAsync(NuevoClienteSaunaDto dto, int usuarioId);
     Task<List<HabitacionCardDto>> BuscarHuespedesActivosAsync();
     /// <summary>metodoPago es obligatorio cuando cargarAHabitacion es false (se está
-    /// cobrando ahora mismo); se ignora cuando es true (se cobra recién al Check-out).</summary>
-    Task RegistrarVentaAsync(int clienteSaunaId, List<ItemCarritoDto> items, int usuarioId, bool cargarAHabitacion, MetodoPago? metodoPago);
+    /// cobrando ahora mismo); se ignora cuando es true (se cobra recién al Check-out).
+    /// Devuelve el Id de la VentaSauna creada, para poder abrir su comprobante
+    /// imprimible (ver ObtenerReciboVentaAsync) cuando se cobró en el momento.</summary>
+    Task<int> RegistrarVentaAsync(int clienteSaunaId, List<ItemCarritoDto> items, int usuarioId, bool cargarAHabitacion, MetodoPago? metodoPago);
 
     /// <summary>Venta de Cafetería/servicios DIRECTA a un huésped de hotel, sin pasar
     /// por un registro de ClienteSauna — para el caso de un huésped que solo quiere
-    /// un café o un servicio adicional, sin haber ido al Sauna. Ver CafeteriaPage.</summary>
-    Task RegistrarVentaHotelAsync(int estadiaId, List<ItemCarritoDto> items, int usuarioId, bool cargarAHabitacion, MetodoPago? metodoPago);
+    /// un café o un servicio adicional, sin haber ido al Sauna. Ver CafeteriaPage.
+    /// Devuelve el Id de la VentaSauna creada, igual que RegistrarVentaAsync.</summary>
+    Task<int> RegistrarVentaHotelAsync(int estadiaId, List<ItemCarritoDto> items, int usuarioId, bool cargarAHabitacion, MetodoPago? metodoPago);
 
     Task FinalizarSesionAsync(int clienteSaunaId, int usuarioId);
+
+    /// <summary>Datos de una VentaSauna ya cobrada (no cargada a habitación), listos
+    /// para imprimir el comprobante. Null si la venta no existe o todavía está
+    /// CargadaAHabitacion (esas se imprimen recién al Check-out, con el total final).</summary>
+    Task<VentaReciboDto?> ObtenerReciboVentaAsync(int ventaId);
 }
 
 /// <summary>
@@ -2262,7 +2333,7 @@ public class SaunaService : ISaunaService
         }
     }
 
-    public async Task RegistrarVentaAsync(int clienteSaunaId, List<ItemCarritoDto> items, int usuarioId, bool cargarAHabitacion, MetodoPago? metodoPago)
+    public async Task<int> RegistrarVentaAsync(int clienteSaunaId, List<ItemCarritoDto> items, int usuarioId, bool cargarAHabitacion, MetodoPago? metodoPago)
     {
         ValidarCarrito(items);
 
@@ -2348,9 +2419,11 @@ public class SaunaService : ISaunaService
                 $"Venta POS de S/ {venta.Total:0.00} a {cliente.NombreCompleto} ({items.Count} ítem(s)).",
                 usuarioId, "VentaSauna", venta.Id);
         }
+
+        return venta.Id;
     }
 
-    public async Task RegistrarVentaHotelAsync(int estadiaId, List<ItemCarritoDto> items, int usuarioId, bool cargarAHabitacion, MetodoPago? metodoPago)
+    public async Task<int> RegistrarVentaHotelAsync(int estadiaId, List<ItemCarritoDto> items, int usuarioId, bool cargarAHabitacion, MetodoPago? metodoPago)
     {
         ValidarCarrito(items);
 
@@ -2413,6 +2486,8 @@ public class SaunaService : ISaunaService
                 ? $"Consumo de Cafetería de {estadia.NombreCompleto} (S/ {venta.Total:0.00}) cargado a la habitación {estadia.Habitacion?.Numero}."
                 : $"Venta de Cafetería de S/ {venta.Total:0.00} a {estadia.NombreCompleto} (habitación {estadia.Habitacion?.Numero}), cobrada directamente.",
             usuarioId, "VentaSauna", venta.Id);
+
+        return venta.Id;
     }
 
     public async Task FinalizarSesionAsync(int clienteSaunaId, int usuarioId)
@@ -2434,6 +2509,108 @@ public class SaunaService : ISaunaService
             $"{cliente.NombreCompleto} finalizó su sesión de Sauna.",
             usuarioId, "ClienteSauna", cliente.Id);
     }
+
+    public async Task<VentaReciboDto?> ObtenerReciboVentaAsync(int ventaId)
+    {
+        var venta = await _context.VentasSauna
+            .Include(v => v.Detalles)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(v => v.Id == ventaId);
+
+        if (venta is null || venta.Estado != EstadoVenta.Pagada)
+        {
+            return null;
+        }
+
+        string nombreCliente;
+        TipoDocumento tipoDocumento;
+        string numeroDocumento;
+        TipoComprobante tipoComprobante;
+        string? ruc = null;
+        string? razonSocial = null;
+        int? numeroHabitacion = null;
+
+        if (venta.ClienteSaunaId is { } clienteSaunaId)
+        {
+            var cliente = await _context.ClientesSauna.AsNoTracking().FirstOrDefaultAsync(c => c.Id == clienteSaunaId);
+            nombreCliente = cliente?.NombreCompleto ?? "—";
+            tipoDocumento = cliente?.TipoDocumento ?? TipoDocumento.DNI;
+            numeroDocumento = cliente?.NumeroDocumento ?? "—";
+            tipoComprobante = cliente?.TipoComprobante ?? TipoComprobante.Boleta;
+            ruc = cliente?.RUC;
+            razonSocial = cliente?.RazonSocial;
+        }
+        else if (venta.EstadiaHotelDestinoId is { } estadiaId)
+        {
+            var estadia = await _context.Estadias.Include(e => e.Habitacion).AsNoTracking().FirstOrDefaultAsync(e => e.Id == estadiaId);
+            nombreCliente = estadia?.NombreCompleto ?? "—";
+            tipoDocumento = estadia?.TipoDocumento ?? TipoDocumento.DNI;
+            numeroDocumento = estadia?.NumeroDocumento ?? "—";
+            tipoComprobante = estadia?.TipoComprobante ?? TipoComprobante.Boleta;
+            ruc = estadia?.RUC;
+            razonSocial = estadia?.RazonSocial;
+            numeroHabitacion = estadia?.Habitacion?.Numero;
+        }
+        else
+        {
+            nombreCliente = "—";
+            tipoDocumento = TipoDocumento.DNI;
+            numeroDocumento = "—";
+            tipoComprobante = TipoComprobante.Boleta;
+        }
+
+        return new VentaReciboDto
+        {
+            VentaId = venta.Id,
+            NumeroComprobante = venta.NumeroComprobante ?? "—",
+            TipoComprobante = tipoComprobante,
+            Fecha = venta.Fecha,
+            NombreCliente = nombreCliente,
+            TipoDocumento = tipoDocumento,
+            NumeroDocumento = numeroDocumento,
+            RUC = ruc,
+            RazonSocial = razonSocial,
+            NumeroHabitacion = numeroHabitacion,
+            MetodoPago = venta.MetodoPago,
+            Total = venta.Total,
+            Items = venta.Detalles.Select(d => new ItemReciboDto
+            {
+                Descripcion = d.Descripcion,
+                Cantidad = d.Cantidad,
+                PrecioUnitario = d.PrecioUnitario,
+                Subtotal = d.Subtotal
+            }).ToList()
+        };
+    }
+}
+
+/// <summary>Un renglón de comprobante (hotel o sauna/cafetería) — ver EstadiaReciboDto
+/// y VentaReciboDto.</summary>
+public class ItemReciboDto
+{
+    public string Descripcion { get; set; } = string.Empty;
+    public int Cantidad { get; set; }
+    public decimal PrecioUnitario { get; set; }
+    public decimal Subtotal { get; set; }
+}
+
+/// <summary>Datos listos para imprimir el comprobante de una venta de Sauna o
+/// Cafetería ya cobrada — ver ISaunaService.ObtenerReciboVentaAsync.</summary>
+public class VentaReciboDto
+{
+    public int VentaId { get; set; }
+    public string NumeroComprobante { get; set; } = string.Empty;
+    public TipoComprobante TipoComprobante { get; set; }
+    public DateTime Fecha { get; set; }
+    public string NombreCliente { get; set; } = string.Empty;
+    public TipoDocumento TipoDocumento { get; set; }
+    public string NumeroDocumento { get; set; } = string.Empty;
+    public string? RUC { get; set; }
+    public string? RazonSocial { get; set; }
+    public int? NumeroHabitacion { get; set; }
+    public MetodoPago? MetodoPago { get; set; }
+    public decimal Total { get; set; }
+    public List<ItemReciboDto> Items { get; set; } = new();
 }
 
 // ============================================================

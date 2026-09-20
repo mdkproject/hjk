@@ -1,5 +1,6 @@
 using System.IO;
 using System.Security.Claims;
+using ClosedXML.Excel;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -220,6 +221,83 @@ app.MapPost("/account/logout", async (HttpContext http) =>
     await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
     return Results.Redirect("/login");
 }).AllowAnonymous();
+
+// ------------------------------------------------------------------
+// EXPORTAR REPORTES A EXCEL — endpoint mínimo, no una página Blazor, porque
+// una descarga de archivo es una respuesta HTTP normal (Results.File), no
+// algo que un componente interactivo sobre SignalR pueda devolver. Requiere
+// sesión (el FallbackPolicy de arriba ya lo exige) y, dentro de esa sesión,
+// repite el mismo chequeo de rol que ya hace Dashboard.razor para decidir
+// qué ve un Recepcionista: la app nunca manda montos de dinero en el Excel
+// a quien no los vería tampoco en la pantalla.
+// ------------------------------------------------------------------
+app.MapGet("/reportes/exportar-excel", async (HttpContext http, IDashboardService dashboardService) =>
+{
+    var rol = http.User.FindFirst(ClaimTypes.Role)?.Value;
+    var puedeVerFinanzas = rol is "Gerencia" or "Desarrollador";
+
+    var resumen = await dashboardService.ObtenerResumenAsync();
+    string Monto(decimal valor) => puedeVerFinanzas ? valor.ToString("C") : "***";
+
+    using var libro = new XLWorkbook();
+    var hoja = libro.Worksheets.Add("Reporte");
+
+    hoja.Cell(1, 1).Value = "Reporte gerencial — " + DateTime.Now.ToString("dd/MM/yyyy HH:mm");
+    hoja.Cell(1, 1).Style.Font.Bold = true;
+    hoja.Cell(1, 1).Style.Font.FontSize = 14;
+
+    var fila = 3;
+    void Kpi(string etiqueta, string valor)
+    {
+        hoja.Cell(fila, 1).Value = etiqueta;
+        hoja.Cell(fila, 2).Value = valor;
+        fila++;
+    }
+
+    Kpi("Total Hoy", Monto(resumen.IngresosTotalHoy));
+    Kpi("Ingresos Hotel", Monto(resumen.IngresosHotelHoy));
+    Kpi("Ingresos Sauna", Monto(resumen.IngresosSaunaHoy));
+    Kpi("Ocupación", $"{resumen.TasaOcupacion:0.0}%");
+    Kpi("Tarifa Promedio (ADR)", Monto(resumen.TarifaPromedioDiaria));
+    Kpi("RevPAR", Monto(resumen.IngresoPorHabitacionDisponible));
+    Kpi("Clientes Sauna Hoy", resumen.ClientesSaunaHoy.ToString());
+
+    fila++;
+    hoja.Cell(fila, 1).Value = "Estado de habitaciones";
+    hoja.Cell(fila, 1).Style.Font.Bold = true;
+    fila++;
+    foreach (var estado in resumen.ResumenEstados)
+    {
+        hoja.Cell(fila, 1).Value = estado.Etiqueta;
+        hoja.Cell(fila, 2).Value = estado.Cantidad;
+        fila++;
+    }
+
+    fila++;
+    hoja.Cell(fila, 1).Value = "Últimos eventos";
+    hoja.Cell(fila, 1).Style.Font.Bold = true;
+    fila++;
+    hoja.Cell(fila, 1).Value = "Fecha/Hora";
+    hoja.Cell(fila, 2).Value = "Descripción";
+    hoja.Range(fila, 1, fila, 2).Style.Font.Bold = true;
+    fila++;
+    foreach (var log in resumen.UltimosEventos)
+    {
+        hoja.Cell(fila, 1).Value = log.Timestamp.ToString("dd/MM/yyyy HH:mm");
+        hoja.Cell(fila, 2).Value = log.Descripcion;
+        fila++;
+    }
+
+    hoja.Columns(1, 2).AdjustToContents();
+
+    using var stream = new MemoryStream();
+    libro.SaveAs(stream);
+
+    return Results.File(
+        stream.ToArray(),
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        $"reporte-{DateTime.Now:yyyyMMdd-HHmm}.xlsx");
+});
 
 app.Run();
 

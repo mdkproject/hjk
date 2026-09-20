@@ -1,8 +1,12 @@
+@using JKalixto_System.Application.Services
+@using JKalixto_System.Web.Services
 @inherits LayoutComponentBase
 @implements IDisposable
 @inject AuthenticationStateProvider AuthProvider
 @inject NavigationManager Navegacion
 @inject IJSRuntime JS
+@inject IInventarioService InventarioService
+@inject INotificadorCambios Notificador
 
 @* Menú lateral fijo — mismo orden que el FlyoutItem de AppShell.xaml en MAUI
    (de la pantalla que más se usa en el día a día, a la de uso puntual/
@@ -86,6 +90,10 @@
             <NavLink class="app-nav-link" href="/almacen" Match="NavLinkMatch.Prefix">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8z" /><path d="M3 8l9 5 9-5M12 13v8" /></svg>
                 <span>Almacén</span>
+                @if (_stockBajoCount > 0)
+                {
+                    <span class="app-nav-badge" title="@_stockBajoCount insumo(s) con stock bajo">@_stockBajoCount</span>
+                }
             </NavLink>
 
             <NavLink class="app-nav-link" href="/registro-huespedes" Match="NavLinkMatch.Prefix">
@@ -160,6 +168,7 @@
     private bool _puedeVerAuditoria;
     private bool _sidebarAbierto;
     private bool _temaClaro;
+    private int _stockBajoCount;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -187,6 +196,31 @@
         // padre — por eso el menú se cierra acá, escuchando el cambio de ruta en
         // vez de depender de que el clic burbujee.
         Navegacion.LocationChanged += OnLocationChanged;
+        Notificador.CambioDetectado += OnCambioDetectado;
+    }
+
+    /// <summary>El sidebar es visible en TODAS las páginas, así que el conteo de
+    /// stock bajo se recalcula acá (no en Almacen.razor) para que el aviso se vea
+    /// sin necesidad de entrar a esa pantalla — y se actualiza solo cuando cambia
+    /// el área "almacen", igual que ya hacen el resto de las páginas suscritas.</summary>
+    private async void OnCambioDetectado(string area)
+    {
+        if (area != "almacen")
+        {
+            return;
+        }
+
+        await InvokeAsync(async () =>
+        {
+            await CargarStockBajoAsync();
+            StateHasChanged();
+        });
+    }
+
+    private async Task CargarStockBajoAsync()
+    {
+        var insumos = await InventarioService.ObtenerInsumosAsync();
+        _stockBajoCount = insumos.Count(i => i.StockBajo);
     }
 
     private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
@@ -202,7 +236,11 @@
 
     private void CerrarSidebar() => _sidebarAbierto = false;
 
-    public void Dispose() => Navegacion.LocationChanged -= OnLocationChanged;
+    public void Dispose()
+    {
+        Navegacion.LocationChanged -= OnLocationChanged;
+        Notificador.CambioDetectado -= OnCambioDetectado;
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -219,6 +257,8 @@
             // este mismo chequeo del lado del servidor, así que nadie puede saltárselo
             // escribiendo la URL a mano.
             _puedeVerAuditoria = _rolUsuario is "Gerencia" or "Desarrollador";
+
+            await CargarStockBajoAsync();
         }
     }
 }

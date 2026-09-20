@@ -235,10 +235,10 @@
         try
         {
             var usuario = await Sesion.ObtenerUsuarioActualAsync();
-            await HabitacionService.CheckOutAsync(d.EstadiaIdParaVenta!.Value, usuario.Id, metodo);
-            _detalle = null;
-            await CargarAsync();
+            var estadiaId = d.EstadiaIdParaVenta!.Value;
+            await HabitacionService.CheckOutAsync(estadiaId, usuario.Id, metodo);
             Notificador.Avisar("habitaciones");
+            Navegacion.NavigateTo($"/comprobante/hotel/{estadiaId}");
         }
         catch (Exception ex)
         {

@@ -1247,3 +1247,152 @@ h1, h2, h3, h4 {
         padding-left: 60px;
     }
 }
+
+/* ---------- Insignia de aviso en el menú lateral (ej. stock bajo) ----------
+   Mismo patrón de contraste que el resto de la app: fondo de color semántico
+   + texto oscuro (ver --danger-contrast), nunca blanco sobre un color claro. */
+.app-nav-badge {
+    margin-left: auto;
+    background: var(--danger);
+    color: var(--danger-contrast);
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1;
+    padding: 3px 7px;
+    border-radius: 999px;
+    flex-shrink: 0;
+}
+
+/* ---------- Impresión (comprobantes y Reportes) ----------
+   Un comprobante o un reporte se manda a imprimir con el botón "Imprimir"
+   (window.print()) de cada página — el navegador es quien ofrece "Guardar
+   como PDF" en ese mismo diálogo, así que no hace falta generar el PDF acá.
+   Al imprimir se oculta todo lo que no sea el contenido (sidebar, botones,
+   reloj) y se fuerza fondo blanco/texto negro sin importar el tema activo,
+   porque un fondo oscuro en una impresora gasta tinta y no es legible en
+   papel. */
+@media print {
+
+    .app-sidebar,
+    .app-mobile-toggle,
+    .app-sidebar-backdrop,
+    .app-topbar,
+    .no-imprimir {
+        display: none !important;
+    }
+
+    .app-content {
+        padding-top: 0 !important;
+    }
+
+    body,
+    .page {
+        background: #fff !important;
+        color: #000 !important;
+    }
+}
+
+/* ---------- Comprobantes imprimibles (Check-out de Hotel, venta de Sauna/Cafetería) ----------
+   Formato de recibo angosto, centrado, pensado para imprimirse en una hoja
+   A4 o en una impresora térmica de punto de venta. */
+.comprobante {
+    max-width: 420px;
+    margin: 0 auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 24px;
+}
+
+.comprobante-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 14px;
+    border-bottom: 1px dashed var(--border-strong);
+    margin-bottom: 14px;
+}
+
+.comprobante-header img {
+    width: 42px;
+    height: 42px;
+    object-fit: contain;
+}
+
+.comprobante-header strong {
+    display: block;
+    font-size: 1rem;
+}
+
+.comprobante-header span {
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+}
+
+.comprobante-fila {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    font-size: 0.88rem;
+}
+
+.comprobante-fila span:first-child {
+    color: var(--text-secondary);
+}
+
+.comprobante-seccion {
+    margin: 14px 0;
+    padding-top: 14px;
+    border-top: 1px dashed var(--border-strong);
+}
+
+.comprobante-tabla {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+    font-size: 0.85rem;
+}
+
+.comprobante-tabla th {
+    text-align: left;
+    color: var(--text-secondary);
+    font-weight: 600;
+    padding: 6px 4px;
+    border-bottom: 1px solid var(--border);
+}
+
+.comprobante-tabla td {
+    padding: 6px 4px;
+    border-bottom: 1px solid var(--border);
+}
+
+.comprobante-tabla th:last-child,
+.comprobante-tabla td:last-child {
+    text-align: right;
+}
+
+.comprobante-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 2px solid var(--border-strong);
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+
+.comprobante-acciones {
+    max-width: 420px;
+    margin: 16px auto 0;
+    display: flex;
+    gap: 10px;
+}
+
+@media print {
+    .comprobante {
+        border: none;
+        padding: 0;
+        max-width: 100%;
+    }
+}
