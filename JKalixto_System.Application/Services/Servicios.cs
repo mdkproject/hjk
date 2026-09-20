@@ -29,6 +29,34 @@ internal static class ClaveDeColorEstado
     };
 }
 
+/// <summary>Un solo lugar para el texto de cada categoría de movimiento de caja —
+/// lo usan tanto MovimientoCajaCardDto (pantalla de Gastos) como el Informe
+/// Mensual, para no repetir el mismo switch dos veces y arriesgar que queden
+/// desincronizados.</summary>
+internal static class EtiquetaCategoriaMovimiento
+{
+    public static string Etiqueta(CategoriaMovimientoCaja categoria) => categoria switch
+    {
+        CategoriaMovimientoCaja.PagoPersonal => "Pago del Personal",
+        CategoriaMovimientoCaja.GastosDiarios => "Gastos diarios",
+        CategoriaMovimientoCaja.AjusteCaja => "Ajuste de Caja",
+        CategoriaMovimientoCaja.ConsumoPersonal => "Consumo de Personal",
+        CategoriaMovimientoCaja.Cafeteria => "Cafetería",
+        CategoriaMovimientoCaja.Mantenimiento => "Mantenimiento",
+        CategoriaMovimientoCaja.Servicios => "Servicios",
+        CategoriaMovimientoCaja.Sueldos => "Sueldos",
+        CategoriaMovimientoCaja.Limpieza => "Limpieza",
+        CategoriaMovimientoCaja.Lavanderia => "Lavandería",
+        CategoriaMovimientoCaja.Recepcion => "Recepción",
+        CategoriaMovimientoCaja.Vitrina => "Vitrina",
+        CategoriaMovimientoCaja.Impuestos => "Impuestos",
+        CategoriaMovimientoCaja.Comisiones => "Comisiones",
+        CategoriaMovimientoCaja.Deposito => "Depósito",
+        CategoriaMovimientoCaja.Otros => "Otros",
+        _ => categoria.ToString()
+    };
+}
+
 /// <summary>
 /// Resultado de un intento de inicio de sesión. Se usa "Exito" en vez de excepciones
 /// para que el ViewModel pueda mostrar un mensaje claro al recepcionista/gerente.
@@ -886,6 +914,323 @@ public class DashboardService : IDashboardService
 }
 
 // ============================================================
+// INFORME MENSUAL — DTOs + Servicio
+// ============================================================
+// Replica el informe mensual en Excel que el negocio ya llevaba a mano
+// (ver conversación de referencia): resumen Ingreso/Egreso/Saldo del mes,
+// desglose por método de pago y por categoría (con el detalle de
+// movimientos debajo de cada categoría), el libro diario completo del
+// mes, y la evolución mes a mes para los gráficos anuales.
+
+public class MontoPorMetodoDto
+{
+    public string Etiqueta { get; set; } = string.Empty;
+    public decimal Monto { get; set; }
+}
+
+/// <summary>Un renglón del libro diario — igual a la columna "Concepto" del Excel:
+/// mezcla check-outs de Hotel, ventas de Sauna/Cafetería cobradas al contado, y
+/// movimientos de caja manuales, todo en una sola línea de tiempo.</summary>
+public class MovimientoLibroDiarioDto
+{
+    public DateTime Fecha { get; set; }
+    public string Concepto { get; set; } = string.Empty;
+    public decimal? Ingreso { get; set; }
+    public decimal? Salida { get; set; }
+    public string Medio { get; set; } = string.Empty;
+    public string Responsable { get; set; } = string.Empty;
+}
+
+public class MontoPorCategoriaDto
+{
+    public string Etiqueta { get; set; } = string.Empty;
+    public decimal Monto { get; set; }
+
+    /// <summary>Los movimientos que componen este total — para poder expandir una
+    /// categoría (ej. "Servicios") y ver el detalle, igual que el Excel mostraba
+    /// Agua/Electricidad/Cable/etc. debajo del total de Servicios.</summary>
+    public List<MovimientoLibroDiarioDto> Detalle { get; set; } = new();
+}
+
+public class InformeMensualDto
+{
+    public int Anio { get; set; }
+    public int Mes { get; set; }
+    public string NombreMes { get; set; } = string.Empty;
+
+    public decimal IngresoTotal { get; set; }
+    public decimal EgresoTotal { get; set; }
+    public decimal Saldo => IngresoTotal - EgresoTotal;
+
+    /// <summary>Saldo acumulado de TODA la historia hasta antes de este mes — igual
+    /// a "SALDO ANTERIOR" del Excel.</summary>
+    public decimal SaldoAnterior { get; set; }
+
+    public List<MontoPorMetodoDto> IngresosPorMetodo { get; set; } = new();
+    public List<MontoPorCategoriaDto> IngresosPorCategoria { get; set; } = new();
+
+    public List<MontoPorMetodoDto> EgresosPorMetodo { get; set; } = new();
+    public List<MontoPorCategoriaDto> EgresosPorCategoria { get; set; } = new();
+
+    public List<MovimientoLibroDiarioDto> LibroDiario { get; set; } = new();
+}
+
+/// <summary>Un punto de la serie mensual — para los 2 gráficos "anuales" del Excel
+/// (barras Ingreso/Egreso por mes, y tendencia del Saldo neto).</summary>
+public class EvolucionMesDto
+{
+    public int Anio { get; set; }
+    public int Mes { get; set; }
+    public string Etiqueta { get; set; } = string.Empty;
+    public decimal Ingreso { get; set; }
+    public decimal Egreso { get; set; }
+    public decimal Saldo => Ingreso - Egreso;
+}
+
+public interface IInformeMensualService
+{
+    Task<InformeMensualDto> ObtenerInformeMensualAsync(int anio, int mes);
+
+    /// <summary>Los últimos "cantidadMeses" meses, terminando en el mes actual.</summary>
+    Task<List<EvolucionMesDto>> ObtenerEvolucionAsync(int cantidadMeses);
+}
+
+public class InformeMensualService : IInformeMensualService
+{
+    private readonly AppDbContext _context;
+
+    private static readonly string[] NombresMeses =
+    {
+        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    };
+
+    public InformeMensualService(AppDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<InformeMensualDto> ObtenerInformeMensualAsync(int anio, int mes)
+    {
+        var inicio = new DateTime(anio, mes, 1);
+        var finExclusivo = inicio.AddMonths(1);
+
+        var (ingresoAnterior, egresoAnterior) = await CalcularTotalesAsync(DateTime.MinValue, inicio);
+
+        // --- Ingresos "reales" del período: cuándo se cobró la plata de verdad. ---
+        // Check-out (no Check-in): recién ahí se cobra el total real de la estadía
+        // (noches + consumos cargados a la habitación). Venta de Sauna/Cafetería
+        // SOLO si se pagó al contado (Pagada) — la que se cargó a la habitación ya
+        // está adentro del total de la estadía, contarla de nuevo sería duplicar.
+        var estadias = await _context.Estadias
+            .Include(e => e.Habitacion)
+            .Where(e => e.FechaCheckOut != null && e.FechaCheckOut >= inicio && e.FechaCheckOut < finExclusivo)
+            .ToListAsync();
+
+        var ventas = await _context.VentasSauna
+            .Where(v => v.Estado == EstadoVenta.Pagada && v.Fecha >= inicio && v.Fecha < finExclusivo)
+            .ToListAsync();
+
+        var clienteIds = ventas.Where(v => v.ClienteSaunaId != null).Select(v => v.ClienteSaunaId!.Value).Distinct().ToList();
+        var clientes = await _context.ClientesSauna.Where(c => clienteIds.Contains(c.Id)).ToListAsync();
+        var estadiaVentaIds = ventas.Where(v => v.ClienteSaunaId == null && v.EstadiaHotelDestinoId != null)
+            .Select(v => v.EstadiaHotelDestinoId!.Value).Distinct().ToList();
+        var estadiasDeVenta = await _context.Estadias.Where(e => estadiaVentaIds.Contains(e.Id)).ToListAsync();
+
+        var movimientos = await _context.MovimientosCaja
+            .Where(m => m.FechaHora >= inicio && m.FechaHora < finExclusivo)
+            .ToListAsync();
+        var usuarioIds = movimientos.Select(m => m.UsuarioId).Distinct().ToList();
+        var usuarios = await _context.Usuarios.Where(u => usuarioIds.Contains(u.Id)).ToListAsync();
+        string NombreUsuario(int id) => usuarios.FirstOrDefault(u => u.Id == id)?.NombreCompleto ?? "—";
+
+        // --- Libro diario: las 3 fuentes, mezcladas y ordenadas por fecha ---
+        var libro = new List<MovimientoLibroDiarioDto>();
+
+        foreach (var e in estadias)
+        {
+            libro.Add(new MovimientoLibroDiarioDto
+            {
+                Fecha = e.FechaCheckOut!.Value,
+                Concepto = $"Check-out {e.NombreCompleto} — Hab. {e.Habitacion?.Numero}",
+                Ingreso = e.TotalAcumulado,
+                Medio = e.MetodoPago.HasValue ? EtiquetaMetodo(e.MetodoPago.Value) : "—",
+                Responsable = "—"
+            });
+        }
+
+        foreach (var v in ventas)
+        {
+            var nombre = v.ClienteSaunaId is { } clienteId
+                ? clientes.FirstOrDefault(c => c.Id == clienteId)?.NombreCompleto ?? "—"
+                : estadiasDeVenta.FirstOrDefault(e => e.Id == v.EstadiaHotelDestinoId)?.NombreCompleto ?? "—";
+
+            libro.Add(new MovimientoLibroDiarioDto
+            {
+                Fecha = v.Fecha,
+                Concepto = $"Venta POS — {nombre}",
+                Ingreso = v.Total,
+                Medio = v.MetodoPago.HasValue ? EtiquetaMetodo(v.MetodoPago.Value) : "—",
+                Responsable = "—"
+            });
+        }
+
+        foreach (var m in movimientos)
+        {
+            libro.Add(new MovimientoLibroDiarioDto
+            {
+                Fecha = m.FechaHora,
+                Concepto = m.Descripcion,
+                Ingreso = m.Direccion == DireccionMovimiento.Ingreso ? m.Monto : null,
+                Salida = m.Direccion == DireccionMovimiento.Salida ? m.Monto : null,
+                Medio = EtiquetaMetodo(m.MetodoPago),
+                Responsable = !string.IsNullOrWhiteSpace(m.PersonalRelacionado) ? m.PersonalRelacionado : NombreUsuario(m.UsuarioId)
+            });
+        }
+
+        libro = libro.OrderBy(l => l.Fecha).ToList();
+
+        var detalleCheckOuts = libro.Where(l => l.Concepto.StartsWith("Check-out")).ToList();
+        var detalleVentas = libro.Where(l => l.Concepto.StartsWith("Venta POS")).ToList();
+
+        decimal ingresoHabitacion = estadias.Sum(e => e.TotalAcumulado);
+        decimal ingresoVentas = ventas.Sum(v => v.Total);
+        decimal ingresoMovimientos = movimientos.Where(m => m.Direccion == DireccionMovimiento.Ingreso).Sum(m => m.Monto);
+        decimal egresoTotal = movimientos.Where(m => m.Direccion == DireccionMovimiento.Salida).Sum(m => m.Monto);
+
+        var ingresosPorCategoria = new List<MontoPorCategoriaDto>();
+        if (ingresoHabitacion > 0)
+        {
+            ingresosPorCategoria.Add(new MontoPorCategoriaDto { Etiqueta = "Habitación", Monto = ingresoHabitacion, Detalle = detalleCheckOuts });
+        }
+        if (ingresoVentas > 0)
+        {
+            ingresosPorCategoria.Add(new MontoPorCategoriaDto { Etiqueta = "Otras ventas", Monto = ingresoVentas, Detalle = detalleVentas });
+        }
+        ingresosPorCategoria.AddRange(
+            movimientos.Where(m => m.Direccion == DireccionMovimiento.Ingreso)
+                .GroupBy(m => m.Categoria)
+                .Select(g => new MontoPorCategoriaDto
+                {
+                    Etiqueta = EtiquetaCategoriaMovimiento.Etiqueta(g.Key),
+                    Monto = g.Sum(m => m.Monto),
+                    Detalle = g.Select(m => new MovimientoLibroDiarioDto
+                    {
+                        Fecha = m.FechaHora,
+                        Concepto = m.Descripcion,
+                        Ingreso = m.Monto,
+                        Medio = EtiquetaMetodo(m.MetodoPago),
+                        Responsable = !string.IsNullOrWhiteSpace(m.PersonalRelacionado) ? m.PersonalRelacionado : NombreUsuario(m.UsuarioId)
+                    }).ToList()
+                }));
+
+        var egresosPorCategoria = movimientos
+            .Where(m => m.Direccion == DireccionMovimiento.Salida)
+            .GroupBy(m => m.Categoria)
+            .Select(g => new MontoPorCategoriaDto
+            {
+                Etiqueta = EtiquetaCategoriaMovimiento.Etiqueta(g.Key),
+                Monto = g.Sum(m => m.Monto),
+                Detalle = g.Select(m => new MovimientoLibroDiarioDto
+                {
+                    Fecha = m.FechaHora,
+                    Concepto = m.Descripcion,
+                    Salida = m.Monto,
+                    Medio = EtiquetaMetodo(m.MetodoPago),
+                    Responsable = !string.IsNullOrWhiteSpace(m.PersonalRelacionado) ? m.PersonalRelacionado : NombreUsuario(m.UsuarioId)
+                }).ToList()
+            })
+            .OrderByDescending(c => c.Monto)
+            .ToList();
+
+        List<MontoPorMetodoDto> AgruparPorMetodo(IEnumerable<(MetodoPago metodo, decimal monto)> items) =>
+            items.GroupBy(i => i.metodo)
+                .Select(g => new MontoPorMetodoDto { Etiqueta = EtiquetaMetodo(g.Key), Monto = g.Sum(i => i.monto) })
+                .OrderByDescending(m => m.Monto)
+                .ToList();
+
+        var ingresosPorMetodo = AgruparPorMetodo(
+            estadias.Where(e => e.MetodoPago.HasValue).Select(e => (e.MetodoPago!.Value, e.TotalAcumulado))
+                .Concat(ventas.Where(v => v.MetodoPago.HasValue).Select(v => (v.MetodoPago!.Value, v.Total)))
+                .Concat(movimientos.Where(m => m.Direccion == DireccionMovimiento.Ingreso).Select(m => (m.MetodoPago, m.Monto))));
+
+        var egresosPorMetodo = AgruparPorMetodo(
+            movimientos.Where(m => m.Direccion == DireccionMovimiento.Salida).Select(m => (m.MetodoPago, m.Monto)));
+
+        return new InformeMensualDto
+        {
+            Anio = anio,
+            Mes = mes,
+            NombreMes = $"{NombresMeses[mes - 1]} {anio}",
+            IngresoTotal = ingresoHabitacion + ingresoVentas + ingresoMovimientos,
+            EgresoTotal = egresoTotal,
+            SaldoAnterior = ingresoAnterior - egresoAnterior,
+            IngresosPorMetodo = ingresosPorMetodo,
+            IngresosPorCategoria = ingresosPorCategoria.OrderByDescending(c => c.Monto).ToList(),
+            EgresosPorMetodo = egresosPorMetodo,
+            EgresosPorCategoria = egresosPorCategoria,
+            LibroDiario = libro
+        };
+    }
+
+    public async Task<List<EvolucionMesDto>> ObtenerEvolucionAsync(int cantidadMeses)
+    {
+        var resultado = new List<EvolucionMesDto>();
+        var mesActual = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+
+        for (var i = cantidadMeses - 1; i >= 0; i--)
+        {
+            var mes = mesActual.AddMonths(-i);
+            var (ingreso, egreso) = await CalcularTotalesAsync(mes, mes.AddMonths(1));
+            resultado.Add(new EvolucionMesDto
+            {
+                Anio = mes.Year,
+                Mes = mes.Month,
+                Etiqueta = $"{NombresMeses[mes.Month - 1][..3].ToLower()}-{mes:yy}",
+                Ingreso = ingreso,
+                Egreso = egreso
+            });
+        }
+
+        return resultado;
+    }
+
+    /// <summary>Mismo criterio de ingreso/egreso "real" que ObtenerInformeMensualAsync,
+    /// pero sumado directo en SQL (sin traer entidades a memoria) — se usa tanto para
+    /// el Saldo Anterior como para cada punto de ObtenerEvolucionAsync.</summary>
+    private async Task<(decimal ingreso, decimal egreso)> CalcularTotalesAsync(DateTime desde, DateTime hastaExclusivo)
+    {
+        var ingresoHabitacion = await _context.Estadias
+            .Where(e => e.FechaCheckOut != null && e.FechaCheckOut >= desde && e.FechaCheckOut < hastaExclusivo)
+            .SumAsync(e => (decimal?)e.TotalAcumulado) ?? 0m;
+
+        var ingresoVentas = await _context.VentasSauna
+            .Where(v => v.Estado == EstadoVenta.Pagada && v.Fecha >= desde && v.Fecha < hastaExclusivo)
+            .SumAsync(v => (decimal?)v.Total) ?? 0m;
+
+        var ingresoMovimientos = await _context.MovimientosCaja
+            .Where(m => m.Direccion == DireccionMovimiento.Ingreso && m.FechaHora >= desde && m.FechaHora < hastaExclusivo)
+            .SumAsync(m => (decimal?)m.Monto) ?? 0m;
+
+        var egreso = await _context.MovimientosCaja
+            .Where(m => m.Direccion == DireccionMovimiento.Salida && m.FechaHora >= desde && m.FechaHora < hastaExclusivo)
+            .SumAsync(m => (decimal?)m.Monto) ?? 0m;
+
+        return (ingresoHabitacion + ingresoVentas + ingresoMovimientos, egreso);
+    }
+
+    private static string EtiquetaMetodo(MetodoPago metodo) => metodo switch
+    {
+        MetodoPago.Efectivo => "Efectivo",
+        MetodoPago.Tarjeta => "Tarjeta",
+        MetodoPago.Yape => "Yape",
+        MetodoPago.Plin => "Plin",
+        MetodoPago.Transferencia => "Transferencia",
+        _ => metodo.ToString()
+    };
+}
+
+// ============================================================
 // MÓDULO CLIENTES (vista unificada Hotel + Sauna) — DTOs + Servicio
 // ============================================================
 
@@ -1185,14 +1530,7 @@ public class MovimientoCajaCardDto
 
     public string EtiquetaDireccion => Direccion == DireccionMovimiento.Ingreso ? "Ingreso de dinero" : "Salida de dinero";
 
-    public string EtiquetaCategoria => Categoria switch
-    {
-        CategoriaMovimientoCaja.PagoPersonal => "Pago del Personal",
-        CategoriaMovimientoCaja.GastosDiarios => "Gastos diarios",
-        CategoriaMovimientoCaja.AjusteCaja => "Ajuste de Caja",
-        CategoriaMovimientoCaja.ConsumoPersonal => "Consumo de Personal",
-        _ => Categoria.ToString()
-    };
+    public string EtiquetaCategoria => EtiquetaCategoriaMovimiento.Etiqueta(Categoria);
 
     /// <summary>Ej: "(Salida de dinero / Pago del Personal)" — mismo estilo que pediste.</summary>
     public string TipoCompletoTexto => $"({EtiquetaDireccion} / {EtiquetaCategoria})";

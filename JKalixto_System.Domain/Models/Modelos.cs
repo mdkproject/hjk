@@ -423,13 +423,37 @@ public enum DireccionMovimiento
 }
 
 /// <summary>Categorías de movimiento de caja, basadas en cómo se usa en la operación
-/// diaria real (adelantos al personal, gastos del día a día, ajustes manuales).</summary>
+/// diaria real (adelantos al personal, gastos del día a día, ajustes manuales).
+///
+/// Las primeras 4 son las originales; las de abajo se agregaron después para
+/// igualar la taxonomía real del informe mensual en Excel que ya llevaba el
+/// negocio (Servicios, Sueldos, Limpieza, Impuestos, etc. — ver Informe
+/// Mensual). Se agregan AL FINAL a propósito: como el enum se guarda como
+/// número entero en la base, insertar un valor en el medio correría los
+/// números de todos los que ya existen y cambiaría en silencio la categoría
+/// de movimientos históricos ya guardados.</summary>
 public enum CategoriaMovimientoCaja
 {
     PagoPersonal,
     GastosDiarios,
     AjusteCaja,
-    ConsumoPersonal
+    ConsumoPersonal,
+    Cafeteria,
+    Mantenimiento,
+    Servicios,
+    Sueldos,
+    Limpieza,
+    Lavanderia,
+    Recepcion,
+    Vitrina,
+    Impuestos,
+    Comisiones,
+
+    /// <summary>Cubre tanto "Depósito" (Ingreso: se llevó efectivo al banco) como
+    /// "Retiro para depósito" (Salida: se sacó de la caja chica para depositar) —
+    /// la Dirección del movimiento ya distingue cuál de las dos es.</summary>
+    Deposito,
+    Otros
 }
 
 public enum OrigenCajaChica
