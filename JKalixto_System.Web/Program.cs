@@ -386,6 +386,25 @@ app.MapGet("/reportes/mensual/exportar-excel", async (HttpContext http, IInforme
         $"informe-mensual-{anio:0000}-{mes:00}.xlsx");
 });
 
+// ------------------------------------------------------------------
+// DEMO -- simulación visual de un año de operación (ver
+// Services/SimulacionVisualTemporal.cs). SOLO existe en modo Desarrollo:
+// el servicio real de producción arranca sin ASPNETCORE_ENVIRONMENT=
+// Development (ver deploy/instalar-servicio.ps1), así que esta ruta ni
+// siquiera se registra ahí -- no hay forma de dispararla por accidente
+// sobre los datos reales del hotel. Para usarla: arrancar el servidor a
+// mano con RutaBaseDeDatos apuntando a una COPIA de la base (nunca la
+// real) y ASPNETCORE_ENVIRONMENT=Development, y entrar a esta URL.
+// ------------------------------------------------------------------
+if (app.Environment.IsDevelopment())
+{
+    app.MapGet("/__demo/simular-timelapse", (IServiceScopeFactory scopeFactory) =>
+    {
+        _ = SimulacionVisualTemporal.EjecutarAsync(scopeFactory);
+        return Results.Ok("Simulación de 1 año iniciada -- mirá /recepcion, /calendario, /reservas, /cafeteria, /reclamos, /almacen, /reportes/mensual...");
+    });
+}
+
 app.Run();
 
 /// <summary>
