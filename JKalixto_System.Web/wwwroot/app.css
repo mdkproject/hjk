@@ -780,6 +780,7 @@ h1, h2, h3, h4 {
 .form-grupo input[type=date],
 .form-grupo input[type=email],
 .form-grupo input[type=tel],
+.form-grupo input[type=password],
 .form-grupo select,
 .form-grupo textarea {
     background: var(--surface-2);
@@ -796,6 +797,7 @@ h1, h2, h3, h4 {
 .form-grupo input[type=date]:focus,
 .form-grupo input[type=email]:focus,
 .form-grupo input[type=tel]:focus,
+.form-grupo input[type=password]:focus,
 .form-grupo select:focus,
 .form-grupo textarea:focus {
     outline: none;
