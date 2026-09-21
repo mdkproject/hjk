@@ -1,0 +1,527 @@
+@page "/calendario"
+@using JKalixto_System.Application.Services
+@using JKalixto_System.Domain.Models
+@using JKalixto_System.Web.Services
+@inject ICalendarioService CalendarioService
+@inject INotificadorCambios Notificador
+@inject NavigationManager Navegacion
+@implements IDisposable
+
+<PageTitle>Calendario</PageTitle>
+
+<div class="page">
+    <div class="page-header">
+        <div>
+            <h1>Calendario</h1>
+            <p class="page-subtitle">Vista mensual de ocupación, reservas y disponibilidad</p>
+        </div>
+    </div>
+
+    @if (_error is not null)
+    {
+        <div class="caja-error">
+            <p>@_error</p>
+            <button class="btn btn-secundario" style="margin-top:8px;" @onclick="CargarAsync">Reintentar</button>
+        </div>
+    }
+
+    @{
+        var columnasPorPisoYTipo = ColumnasPorPisoYTipo();
+        var contDisponible = columnasPorPisoYTipo.Count(c => c.EstadoActual == EstadoHabitacion.Disponible);
+        var contOcupada = columnasPorPisoYTipo.Count(c => c.EstadoActual == EstadoHabitacion.Ocupada);
+        var contLimpieza = columnasPorPisoYTipo.Count(c => c.EstadoActual == EstadoHabitacion.LimpiezaSalida);
+        var contMantenimiento = columnasPorPisoYTipo.Count(c => c.EstadoActual == EstadoHabitacion.Mantenimiento);
+        var totalFiltrado = columnasPorPisoYTipo.Count;
+        var pctOcupacion = totalFiltrado == 0 ? 0 : (int)Math.Round(100m * contOcupada / totalFiltrado);
+        var reservasDelMes = columnasPorPisoYTipo.Sum(c => AgruparCeldas(c.Celdas).Count(b => b.Estado == EstadoCeldaCalendario.Reservada));
+    }
+
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-label">Ocupación hoy</div>
+            <div class="kpi-value">@pctOcupacion%</div>
+            <div style="color:var(--text-muted); font-size:0.78rem; margin-top:2px;">@contOcupada de @totalFiltrado habitaciones</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Disponibles hoy</div>
+            <div class="kpi-value" style="color:var(--ok);">@contDisponible</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Reservas confirmadas (mes)</div>
+            <div class="kpi-value" style="color:var(--violet);">@reservasDelMes</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">En mantenimiento</div>
+            <div class="kpi-value" style="color:var(--danger);">@contMantenimiento</div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-bottom:20px;">
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <div class="cal-nav-group">
+                <button class="cal-nav-btn" disabled="@_cargando" @onclick="MesAnteriorAsync" title="Mes anterior">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+                </button>
+                <strong style="min-width:150px; text-align:center; font-size:0.95rem;">@(_calendario?.NombreMesTexto ?? "")</strong>
+                <button class="cal-nav-btn" disabled="@_cargando" @onclick="MesSiguienteAsync" title="Mes siguiente">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+                </button>
+            </div>
+            <button class="btn btn-secundario" disabled="@_cargando" @onclick="IrAHoyAsync">Hoy</button>
+            @if (_cargando)
+            {
+                <span style="color:var(--text-muted); font-size:0.8rem;">Actualizando…</span>
+            }
+
+            <div class="search-input" style="min-width:240px; margin-left:auto;">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+                <input placeholder="Buscar habitación o huésped…" value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+            </div>
+        </div>
+
+        <div style="height:1px; background:var(--border); margin:14px 0;"></div>
+
+        <div class="filtro-grupo">
+            <span class="filtro-grupo-label">Piso</span>
+            <div class="filtro-chips">
+                <button type="button" class="filtro-chip @(_filtroPiso == 0 ? "activo" : "")" @onclick="() => _filtroPiso = 0">Todos</button>
+                <button type="button" class="filtro-chip @(_filtroPiso == 1 ? "activo" : "")" @onclick="() => _filtroPiso = 1">Piso 1</button>
+                <button type="button" class="filtro-chip @(_filtroPiso == 2 ? "activo" : "")" @onclick="() => _filtroPiso = 2">Piso 2</button>
+                <button type="button" class="filtro-chip @(_filtroPiso == 3 ? "activo" : "")" @onclick="() => _filtroPiso = 3">Piso 3</button>
+                <button type="button" class="filtro-chip @(_filtroPiso == 4 ? "activo" : "")" @onclick="() => _filtroPiso = 4">Piso 4</button>
+            </div>
+        </div>
+
+        <div class="filtro-grupo">
+            <span class="filtro-grupo-label">Tipo</span>
+            <div class="filtro-chips">
+                <button type="button" class="filtro-chip @(_filtroTipo == "" ? "activo" : "")" @onclick='() => _filtroTipo = ""'>Todos</button>
+                @foreach (var tipo in Enum.GetValues<TipoHabitacion>())
+                {
+                    <button type="button" class="filtro-chip @(_filtroTipo == tipo.ToString() ? "activo" : "")" @onclick="() => _filtroTipo = tipo.ToString()">@tipo</button>
+                }
+            </div>
+        </div>
+
+        <div class="filtro-grupo" style="margin-bottom:0;">
+            <span class="filtro-grupo-label">Estado</span>
+            <div class="filtro-chips">
+                <button type="button" class="filtro-chip @(_filtroEstado == "" ? "activo" : "")" @onclick='() => _filtroEstado = ""'>Todos</button>
+                <button type="button" class="filtro-chip filtro-chip-estado filtro-chip-disponible @(_filtroEstado == "Disponible" ? "activo" : "")" @onclick='() => _filtroEstado = "Disponible"'>Disponible (@contDisponible)</button>
+                <button type="button" class="filtro-chip filtro-chip-estado filtro-chip-ocupada @(_filtroEstado == "Ocupada" ? "activo" : "")" @onclick='() => _filtroEstado = "Ocupada"'>Ocupada (@contOcupada)</button>
+                <button type="button" class="filtro-chip filtro-chip-estado filtro-chip-limpieza @(_filtroEstado == "LimpiezaSalida" ? "activo" : "")" @onclick='() => _filtroEstado = "LimpiezaSalida"'>Limpieza (@contLimpieza)</button>
+                <button type="button" class="filtro-chip filtro-chip-estado filtro-chip-mantenimiento @(_filtroEstado == "Mantenimiento" ? "activo" : "")" @onclick='() => _filtroEstado = "Mantenimiento"'>Mantenimiento (@contMantenimiento)</button>
+            </div>
+        </div>
+    </div>
+
+    @if (_calendario is null)
+    {
+        <p class="empty-state">Cargando…</p>
+    }
+    else
+    {
+        var columnasVisibles = ColumnasFiltradas().ToList();
+        @if (columnasVisibles.Count == 0)
+        {
+            <p class="empty-state">No hay habitaciones con este filtro.</p>
+        }
+        else
+        {
+            <div class="table-wrap cal-table-wrap">
+                <table class="cal-tabla">
+                    <colgroup>
+                        <col />
+                        @foreach (var dia in _calendario.Dias)
+                        {
+                            <col class="@(EsFinDeSemana(dia) ? "cal-col-finde" : "")" />
+                        }
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th class="cal-col-sticky cal-corner-sticky" style="padding:6px 12px; color:var(--text-muted); font-size:0.7rem; text-transform:uppercase;">Habitación</th>
+                            @foreach (var dia in _calendario.Dias)
+                            {
+                                <th class="cal-dia-header @(EsFinDeSemana(dia) ? "cal-finde" : "") @(EsHoyDia(dia) ? "cal-dia-header-hoy" : "")">
+                                    <div style="font-size:0.6rem; text-transform:uppercase; opacity:0.85;">@(EsHoyDia(dia) ? "HOY" : EtiquetaDiaSemana(dia))</div>
+                                    <div>@dia</div>
+                                </th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var grupoTipo in columnasVisibles.GroupBy(c => c.Tipo).OrderBy(g => (int)g.Key))
+                        {
+                            var colapsado = _gruposColapsados.Contains(grupoTipo.Key);
+                            <tr>
+                                <td colspan="@(_calendario.Dias.Count + 1)" class="cal-fila-grupo" tabindex="0" role="button"
+                                    aria-expanded="@(!colapsado)" aria-label="@($"Habitación {grupoTipo.Key}, {grupoTipo.Count()} habitaciones")"
+                                    @onclick="() => ToggleGrupo(grupoTipo.Key)" @onkeydown="e => OnActivarConTeclado(e, () => ToggleGrupo(grupoTipo.Key))">
+                                    <div class="cal-fila-grupo-inner">
+                                        <span class="cal-fila-grupo-chevron @(colapsado ? "colapsado" : "")">
+                                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                                        </span>
+                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6" /><path d="M3 18v2M21 18v2" /><path d="M3 12V6a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v4" /></svg>
+                                        <span>Habitación @grupoTipo.Key</span>
+                                        <span class="cal-fila-grupo-count">@grupoTipo.Count() habitaciones</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            @if (!colapsado)
+                            {
+                                @foreach (var columna in grupoTipo.OrderBy(c => c.Numero))
+                                {
+                                    <tr>
+                                        <td class="cal-col-sticky cal-col-habitacion">
+                                            <div class="cal-col-habitacion-numero">@columna.Numero</div>
+                                            <div class="cal-col-habitacion-tipo">@columna.EtiquetaTipo</div>
+                                            <div class="cal-col-habitacion-tarifa">@columna.TarifaNoche.ToString("C0")/noche</div>
+                                        </td>
+                                        @foreach (var bloque in AgruparCeldas(columna.Celdas))
+                                        {
+                                            @if (bloque.Estado == EstadoCeldaCalendario.Disponible)
+                                            {
+                                                <td colspan="@bloque.CantidadDias"
+                                                    class="cal-celda-vacia"
+                                                    tabindex="0" role="button" aria-label="@DescripcionBloque(columna, bloque)"
+                                                    @onclick="() => AbrirBloque(columna, bloque)"
+                                                    @onkeydown="e => OnActivarConTeclado(e, () => AbrirBloque(columna, bloque))"></td>
+                                            }
+                                            else
+                                            {
+                                                <td colspan="@bloque.CantidadDias"
+                                                    class="cal-celda-bloque"
+                                                    tabindex="0" role="button" aria-label="@DescripcionBloque(columna, bloque)"
+                                                    @onclick="() => AbrirBloque(columna, bloque)"
+                                                    @onkeydown="e => OnActivarConTeclado(e, () => AbrirBloque(columna, bloque))">
+                                                    <div class="cal-bloque @ClaseBloque(bloque.Estado)">
+                                                        @if (!string.IsNullOrWhiteSpace(bloque.NombreCliente) && bloque.CantidadDias > 1)
+                                                        {
+                                                            <span class="cal-bloque-avatar">@Iniciales(bloque.NombreCliente)</span>
+                                                        }
+                                                        <div class="cal-bloque-texto">
+                                                            <span class="cal-bloque-nombre" title="@(bloque.NombreCliente ?? EtiquetaEstadoBloque(bloque.Estado))">@(bloque.NombreCliente ?? EtiquetaEstadoBloque(bloque.Estado))</span>
+                                                            @if (bloque.CantidadDias > 1)
+                                                            {
+                                                                <span class="cal-bloque-noches">@bloque.CantidadDias noches</span>
+                                                            }
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            }
+                                        }
+                                    </tr>
+                                }
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="margin-top:14px; display:flex; gap:16px; flex-wrap:wrap; font-size:0.85rem; color:var(--text-secondary);">
+                <span><span style="display:inline-block; width:11px; height:11px; border-radius:3px; background:var(--info); margin-right:5px; vertical-align:-1px;"></span>Ocupada</span>
+                <span><span style="display:inline-block; width:11px; height:11px; border-radius:3px; background:var(--violet); margin-right:5px; vertical-align:-1px;"></span>Reservada</span>
+                <span><span style="display:inline-block; width:11px; height:11px; border-radius:3px; background:var(--danger); margin-right:5px; vertical-align:-1px;"></span>Mantenimiento</span>
+                <span><span style="display:inline-block; width:11px; height:11px; border-radius:3px; background:var(--warn); margin-right:5px; vertical-align:-1px;"></span>Limpieza (solo hoy)</span>
+                <span><span style="display:inline-block; width:11px; height:11px; border-radius:3px; border:1px solid var(--border-strong); margin-right:5px; vertical-align:-1px;"></span>Casilla en blanco = Disponible</span>
+            </div>
+        }
+    }
+</div>
+
+@if (_bloqueSeleccionado is { } info)
+{
+    var rango = info.bloque.CantidadDias == 1
+        ? $"día {info.bloque.DiaInicio}"
+        : $"días {info.bloque.DiaInicio}–{info.bloque.DiaInicio + info.bloque.CantidadDias - 1}";
+
+    <ModalBase Titulo="@($"Habitación {info.columna.Numero} — {rango}")" OnCerrar="() => _bloqueSeleccionado = null">
+        <p>Estado: @EtiquetaEstadoBloque(info.bloque.Estado)</p>
+        @if (!string.IsNullOrWhiteSpace(info.bloque.NombreCliente))
+        {
+            <p>Cliente: @info.bloque.NombreCliente</p>
+        }
+        @if (info.bloque.CantidadDias > 1)
+        {
+            <p>@info.bloque.CantidadDias noches</p>
+        }
+
+        @if (info.bloque.Estado == EstadoCeldaCalendario.Disponible)
+        {
+            <button class="btn btn-bloque" @onclick="() => IrAReservaRapida(info.columna, info.bloque)">Reservar esta habitación</button>
+        }
+    </ModalBase>
+}
+
+@code {
+    /// <summary>Un tramo de días consecutivos con el mismo estado+cliente dentro de la
+    /// fila de una habitación — se dibuja como una sola barra que abarca esos días
+    /// (igual que Little Hotelier/Hotelerian), en vez de una celda de color por día.</summary>
+    private sealed record BloqueCalendario(int DiaInicio, int CantidadDias, EstadoCeldaCalendario Estado, string? NombreCliente);
+
+    private static readonly string[] DiasSemana = { "Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb" };
+
+    private CalendarioMensualDto? _calendario;
+    private string? _error;
+    private int _anio = DateTime.Today.Year;
+    private int _mes = DateTime.Today.Month;
+    private int _filtroPiso;
+    private string _filtroTipo = string.Empty;
+    private string _filtroEstado = string.Empty;
+    private string _textoBusqueda = string.Empty;
+    private readonly HashSet<TipoHabitacion> _gruposColapsados = new();
+    private (ColumnaHabitacionCalendarioDto columna, BloqueCalendario bloque)? _bloqueSeleccionado;
+    private bool _cargando;
+    private int _cargaToken;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAsync();
+        Notificador.CambioDetectado += OnCambioDetectado;
+    }
+
+    /// <summary>Usa un token de secuencia porque el usuario puede navegar de mes
+    /// varias veces antes de que la primera carga responda (o el notificador puede
+    /// disparar una recarga mientras ya hay una en curso): sin esto, una respuesta
+    /// vieja que llega tarde podría pisar a una más nueva y dejar el calendario
+    /// mostrando un mes distinto al que indican los botones de navegación. Devuelve
+    /// si la carga tuvo éxito para que quien navegó pueda deshacer el cambio de mes
+    /// si falló (ver MesAnteriorAsync/MesSiguienteAsync/IrAHoyAsync).</summary>
+    private async Task<bool> CargarAsync()
+    {
+        var token = ++_cargaToken;
+        _cargando = true;
+        try
+        {
+            var resultado = await CalendarioService.ObtenerCalendarioMensualAsync(_anio, _mes);
+            if (token != _cargaToken)
+            {
+                return false;
+            }
+
+            _error = null;
+            _calendario = resultado;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            if (token != _cargaToken)
+            {
+                return false;
+            }
+
+            _error = $"No se pudo cargar el calendario: {ex.Message}";
+            return false;
+        }
+        finally
+        {
+            if (token == _cargaToken)
+            {
+                _cargando = false;
+            }
+        }
+    }
+
+    private async void OnCambioDetectado(string area)
+    {
+        if (area != "habitaciones" && area != "reservas")
+        {
+            return;
+        }
+
+        await InvokeAsync(async () =>
+        {
+            await CargarAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose() => Notificador.CambioDetectado -= OnCambioDetectado;
+
+    private async Task MesAnteriorAsync()
+    {
+        var (anioPrevio, mesPrevio) = (_anio, _mes);
+        var fecha = new DateTime(_anio, _mes, 1).AddMonths(-1);
+        _anio = fecha.Year;
+        _mes = fecha.Month;
+        if (!await CargarAsync())
+        {
+            (_anio, _mes) = (anioPrevio, mesPrevio);
+        }
+    }
+
+    private async Task MesSiguienteAsync()
+    {
+        var (anioPrevio, mesPrevio) = (_anio, _mes);
+        var fecha = new DateTime(_anio, _mes, 1).AddMonths(1);
+        _anio = fecha.Year;
+        _mes = fecha.Month;
+        if (!await CargarAsync())
+        {
+            (_anio, _mes) = (anioPrevio, mesPrevio);
+        }
+    }
+
+    private async Task IrAHoyAsync()
+    {
+        var (anioPrevio, mesPrevio) = (_anio, _mes);
+        _anio = DateTime.Today.Year;
+        _mes = DateTime.Today.Month;
+        if (!await CargarAsync())
+        {
+            (_anio, _mes) = (anioPrevio, mesPrevio);
+        }
+    }
+
+    private void ToggleGrupo(TipoHabitacion tipo)
+    {
+        if (!_gruposColapsados.Add(tipo))
+        {
+            _gruposColapsados.Remove(tipo);
+        }
+    }
+
+    /// <summary>Columnas filtradas solo por piso+tipo — base para los contadores
+    /// (que ignoran el filtro de estado, igual que en MAUI) y para ColumnasFiltradas.</summary>
+    private List<ColumnaHabitacionCalendarioDto> ColumnasPorPisoYTipo()
+    {
+        if (_calendario is null)
+        {
+            return new List<ColumnaHabitacionCalendarioDto>();
+        }
+
+        var query = _calendario.Columnas.AsEnumerable();
+        if (_filtroPiso != 0)
+        {
+            query = query.Where(c => c.Piso == _filtroPiso);
+        }
+
+        if (!string.IsNullOrEmpty(_filtroTipo) && Enum.TryParse<TipoHabitacion>(_filtroTipo, out var tipo))
+        {
+            query = query.Where(c => c.Tipo == tipo);
+        }
+
+        return query.ToList();
+    }
+
+    private IEnumerable<ColumnaHabitacionCalendarioDto> ColumnasFiltradas()
+    {
+        var query = ColumnasPorPisoYTipo().AsEnumerable();
+
+        if (!string.IsNullOrEmpty(_filtroEstado) && Enum.TryParse<EstadoHabitacion>(_filtroEstado, out var estado))
+        {
+            query = query.Where(c => c.EstadoActual == estado);
+        }
+
+        if (!string.IsNullOrWhiteSpace(_textoBusqueda))
+        {
+            var texto = _textoBusqueda.Trim();
+            query = query.Where(c =>
+                c.Numero.ToString().Contains(texto) ||
+                c.Celdas.Any(cel => (cel.NombreCliente ?? string.Empty).Contains(texto, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        return query.OrderBy(c => c.Numero);
+    }
+
+    /// <summary>Agrupa los días consecutivos de una fila que comparten estado+cliente en
+    /// un solo bloque (colspan), para dibujar una barra continua en vez de 28-31 celdas
+    /// sueltas — el mismo dato de siempre (Celdas), solo una forma distinta de dibujarlo.</summary>
+    private static List<BloqueCalendario> AgruparCeldas(List<CeldaCalendarioDto> celdas)
+    {
+        var ordenadas = celdas.OrderBy(c => c.Dia).ToList();
+        var bloques = new List<BloqueCalendario>();
+
+        var i = 0;
+        while (i < ordenadas.Count)
+        {
+            var inicio = ordenadas[i];
+            var j = i;
+            while (j + 1 < ordenadas.Count &&
+                   ordenadas[j + 1].Estado == inicio.Estado &&
+                   ordenadas[j + 1].NombreCliente == inicio.NombreCliente)
+            {
+                j++;
+            }
+
+            bloques.Add(new BloqueCalendario(inicio.Dia, j - i + 1, inicio.Estado, inicio.NombreCliente));
+            i = j + 1;
+        }
+
+        return bloques;
+    }
+
+    private void AbrirBloque(ColumnaHabitacionCalendarioDto columna, BloqueCalendario bloque) => _bloqueSeleccionado = (columna, bloque);
+
+    /// <summary>Las celdas del calendario son &lt;td&gt; con @onclick, no controles
+    /// nativos — sin esto, un usuario que navega con teclado (o con lector de
+    /// pantalla) no podría abrir ni una sola habitación ni expandir/colapsar un
+    /// grupo. Enter y Espacio son las teclas de activación estándar para role="button".</summary>
+    private static void OnActivarConTeclado(KeyboardEventArgs e, Action accion)
+    {
+        if (e.Key is "Enter" or " ")
+        {
+            accion();
+        }
+    }
+
+    private static string DescripcionBloque(ColumnaHabitacionCalendarioDto columna, BloqueCalendario bloque)
+    {
+        var rango = bloque.CantidadDias == 1
+            ? $"día {bloque.DiaInicio}"
+            : $"días {bloque.DiaInicio} a {bloque.DiaInicio + bloque.CantidadDias - 1}";
+        var estado = EtiquetaEstadoBloque(bloque.Estado);
+        var cliente = string.IsNullOrWhiteSpace(bloque.NombreCliente) ? "" : $", {bloque.NombreCliente}";
+        return $"Habitación {columna.Numero}, {rango}, {estado}{cliente}";
+    }
+
+    /// <summary>Reserva rápida desde una celda Disponible: mismo espíritu que
+    /// AbrirReservaRapidaAsync en MAUI (llegar al formulario con la habitación y la
+    /// fecha ya elegidas, sin tener que reconfigurar nada) — adaptado al selector de
+    /// Nueva Reserva en web, que precarga y preselecciona en vez de bloquear la
+    /// habitación, así el usuario todavía puede elegir otra del mismo tipo si
+    /// necesita ajustar algo.</summary>
+    private void IrAReservaRapida(ColumnaHabitacionCalendarioDto columna, BloqueCalendario bloque)
+    {
+        var fechaInicio = new DateTime(_anio, _mes, bloque.DiaInicio);
+        Navegacion.NavigateTo($"/reservas/nuevo?habitacionId={columna.HabitacionId}&tipo={columna.Tipo}&fechaInicio={fechaInicio:yyyy-MM-dd}");
+    }
+
+    private bool EsFinDeSemana(int dia) => new DateTime(_anio, _mes, dia).DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
+
+    private bool EsHoyDia(int dia) => new DateTime(_anio, _mes, dia).Date == DateTime.Today;
+
+    private string EtiquetaDiaSemana(int dia) => DiasSemana[(int)new DateTime(_anio, _mes, dia).DayOfWeek];
+
+    /// <summary>Iniciales para el avatar de la barra (ej. "Alberto Cárdenas" → "AC") —
+    /// solo decorativo, no es un dato del dominio.</summary>
+    private static string Iniciales(string nombre)
+    {
+        var partes = nombre.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return partes.Length switch
+        {
+            0 => "?",
+            1 => partes[0][..Math.Min(2, partes[0].Length)].ToUpperInvariant(),
+            _ => string.Concat(partes[0][0], partes[1][0]).ToUpperInvariant()
+        };
+    }
+
+    private static string EtiquetaEstadoBloque(EstadoCeldaCalendario estado) => estado switch
+    {
+        EstadoCeldaCalendario.Disponible => "Disponible",
+        EstadoCeldaCalendario.Ocupada => "Ocupada",
+        EstadoCeldaCalendario.Reservada => "Reservada",
+        EstadoCeldaCalendario.Mantenimiento => "Mantenimiento",
+        EstadoCeldaCalendario.Limpieza => "Limpieza",
+        _ => estado.ToString()
+    };
+
+    private static string ClaseBloque(EstadoCeldaCalendario estado) => estado switch
+    {
+        EstadoCeldaCalendario.Ocupada => "cal-bloque-ocupada",
+        EstadoCeldaCalendario.Reservada => "cal-bloque-reservada",
+        EstadoCeldaCalendario.Mantenimiento => "cal-bloque-mantenimiento",
+        EstadoCeldaCalendario.Limpieza => "cal-bloque-limpieza",
+        _ => ""
+    };
+}

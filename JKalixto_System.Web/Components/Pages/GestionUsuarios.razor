@@ -1,0 +1,356 @@
+@page "/usuarios"
+@using JKalixto_System.Application.Services
+@using JKalixto_System.Domain.Models
+@using JKalixto_System.Web.Services
+@inject IUsuarioAdminService UsuarioAdminService
+@inject SesionWebService Sesion
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>Gestión de Usuarios</PageTitle>
+
+<div class="page">
+    <div class="page-header">
+        <div>
+            <h1>Gestión de Usuarios</h1>
+            <p class="page-subtitle">Altas, edición y contraseñas del personal con acceso al sistema</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn" @onclick="AbrirNuevo">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                Nuevo Usuario
+            </button>
+        </div>
+    </div>
+
+    @if (!_puedeAdministrar)
+    {
+        <div class="caja-error"><p>No tenés permiso para ver esta pantalla.</p></div>
+    }
+    else
+    {
+        @if (_error is not null)
+        {
+            <div class="caja-error"><p>@_error</p></div>
+        }
+
+        @if (_usuarios is null)
+        {
+            <p class="empty-state">Cargando…</p>
+        }
+        else
+        {
+            <div class="card">
+                <table class="table-pro">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Usuario</th>
+                            <th>Rol</th>
+                            <th>Estado</th>
+                            <th>Creado</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var u in _usuarios)
+                        {
+                            <tr>
+                                <td>@u.NombreCompleto</td>
+                                <td>@u.Username</td>
+                                <td>@u.Rol</td>
+                                <td>
+                                    @if (!u.Activo)
+                                    {
+                                        <span class="filtro-chip" style="background:var(--danger); color:var(--danger-contrast);">Inactivo</span>
+                                    }
+                                    else if (u.Bloqueado)
+                                    {
+                                        <span class="filtro-chip" style="background:var(--warn); color:var(--warn-contrast);">Bloqueado</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="filtro-chip" style="background:var(--ok); color:var(--ok-contrast);">Activo</span>
+                                    }
+                                    @if (u.DebeCambiarPassword)
+                                    {
+                                        <span class="filtro-chip" style="background:var(--info); color:var(--info-contrast); margin-left:6px;">Debe cambiar clave</span>
+                                    }
+                                </td>
+                                <td>@u.FechaCreacion.ToString("dd/MM/yyyy")</td>
+                                <td style="text-align:right; white-space:nowrap;">
+                                    <button class="btn btn-secundario" style="padding:6px 12px; font-size:0.8rem;" @onclick="() => AbrirEditar(u)">Editar</button>
+                                    <button class="btn btn-secundario" style="padding:6px 12px; font-size:0.8rem;" @onclick="() => AbrirResetPassword(u)">Resetear clave</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+</div>
+
+@if (_vista == Vista.Nuevo)
+{
+    <div class="modal-backdrop" @onclick="Cerrar">
+        <div class="modal-card" @onclick:stopPropagation="true">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3>Nuevo Usuario</h3>
+                <button class="modal-close" @onclick="Cerrar">✕</button>
+            </div>
+
+            @if (_errorModal is not null)
+            {
+                <div class="caja-error"><p>@_errorModal</p></div>
+            }
+
+            <div class="form-grupo">
+                <label>Usuario (para iniciar sesión)</label>
+                <input type="text" @bind="_nuevoUsername" @bind:event="oninput" placeholder="ej. luis.torres" />
+            </div>
+            <div class="form-grupo">
+                <label>Nombre completo</label>
+                <input type="text" @bind="_nuevoNombre" @bind:event="oninput" />
+            </div>
+            <div class="form-grupo">
+                <label>Rol</label>
+                <select @bind="_nuevoRol">
+                    <option value="@RolUsuario.Recepcionista">Recepcionista</option>
+                    <option value="@RolUsuario.Gerencia">Gerencia</option>
+                    <option value="@RolUsuario.Desarrollador">Desarrollador</option>
+                </select>
+            </div>
+            <div class="form-grupo">
+                <label>Contraseña inicial (mínimo 8 caracteres, con una letra y un número)</label>
+                <input type="text" @bind="_nuevoPassword" @bind:event="oninput" placeholder="Se la vas a decir vos a la persona" />
+                <span style="font-size:0.78rem; color:var(--text-muted);">Va a tener que cambiarla apenas inicie sesión por primera vez.</span>
+            </div>
+
+            <button class="btn btn-bloque" disabled="@_guardando" @onclick="GuardarNuevoAsync">@(_guardando ? "Guardando…" : "Crear usuario")</button>
+        </div>
+    </div>
+}
+
+@if (_vista == Vista.Editar && _editando is not null)
+{
+    <div class="modal-backdrop" @onclick="Cerrar">
+        <div class="modal-card" @onclick:stopPropagation="true">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3>Editar — @_editando.Username</h3>
+                <button class="modal-close" @onclick="Cerrar">✕</button>
+            </div>
+
+            @if (_errorModal is not null)
+            {
+                <div class="caja-error"><p>@_errorModal</p></div>
+            }
+
+            <div class="form-grupo">
+                <label>Nombre completo</label>
+                <input type="text" @bind="_editNombre" @bind:event="oninput" />
+            </div>
+            <div class="form-grupo">
+                <label>Rol</label>
+                <select @bind="_editRol">
+                    <option value="@RolUsuario.Recepcionista">Recepcionista</option>
+                    <option value="@RolUsuario.Gerencia">Gerencia</option>
+                    <option value="@RolUsuario.Desarrollador">Desarrollador</option>
+                </select>
+            </div>
+            <div class="form-grupo" style="display:flex; align-items:center; gap:8px; flex-direction:row;">
+                <input type="checkbox" id="editActivo" @bind="_editActivo" style="width:auto;" />
+                <label for="editActivo" style="margin:0;">Cuenta activa (puede iniciar sesión)</label>
+            </div>
+
+            <button class="btn btn-bloque" disabled="@_guardando" @onclick="GuardarEdicionAsync">@(_guardando ? "Guardando…" : "Guardar cambios")</button>
+        </div>
+    </div>
+}
+
+@if (_vista == Vista.ResetPassword && _editando is not null)
+{
+    <div class="modal-backdrop" @onclick="Cerrar">
+        <div class="modal-card" @onclick:stopPropagation="true">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3>Resetear clave — @_editando.Username</h3>
+                <button class="modal-close" @onclick="Cerrar">✕</button>
+            </div>
+
+            @if (_errorModal is not null)
+            {
+                <div class="caja-error"><p>@_errorModal</p></div>
+            }
+
+            <p style="font-size:0.85rem; color:var(--text-secondary);">Se va a cerrar cualquier sesión abierta de este usuario en otros dispositivos, y va a tener que elegir una contraseña nueva la próxima vez que entre.</p>
+
+            <div class="form-grupo">
+                <label>Contraseña temporal (mínimo 8 caracteres, con una letra y un número)</label>
+                <input type="text" @bind="_resetPassword" @bind:event="oninput" />
+            </div>
+
+            <button class="btn btn-bloque" disabled="@_guardando" @onclick="GuardarResetAsync">@(_guardando ? "Guardando…" : "Resetear contraseña")</button>
+        </div>
+    </div>
+}
+
+@code {
+    private enum Vista { Ninguna, Nuevo, Editar, ResetPassword }
+
+    private List<UsuarioListaDto>? _usuarios;
+    private string? _error;
+    private string? _errorModal;
+    private bool _guardando;
+    private bool _puedeAdministrar;
+    private Vista _vista = Vista.Ninguna;
+    private UsuarioListaDto? _editando;
+
+    private string _nuevoUsername = string.Empty;
+    private string _nuevoNombre = string.Empty;
+    private RolUsuario _nuevoRol = RolUsuario.Recepcionista;
+    private string _nuevoPassword = string.Empty;
+
+    private string _editNombre = string.Empty;
+    private RolUsuario _editRol;
+    private bool _editActivo;
+
+    private string _resetPassword = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var estadoAuth = await AuthProvider.GetAuthenticationStateAsync();
+        var rol = estadoAuth.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+        _puedeAdministrar = rol is "Gerencia" or "Desarrollador";
+
+        if (_puedeAdministrar)
+        {
+            await CargarAsync();
+        }
+    }
+
+    private async Task CargarAsync()
+    {
+        try
+        {
+            _error = null;
+            await Sesion.ObtenerUsuarioActualAsync();
+            _usuarios = await UsuarioAdminService.ObtenerTodosAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo cargar la lista de usuarios: {ex.Message}";
+        }
+    }
+
+    private void AbrirNuevo()
+    {
+        _nuevoUsername = string.Empty;
+        _nuevoNombre = string.Empty;
+        _nuevoRol = RolUsuario.Recepcionista;
+        _nuevoPassword = string.Empty;
+        _errorModal = null;
+        _vista = Vista.Nuevo;
+    }
+
+    private void AbrirEditar(UsuarioListaDto u)
+    {
+        _editando = u;
+        _editNombre = u.NombreCompleto;
+        _editRol = u.Rol;
+        _editActivo = u.Activo;
+        _errorModal = null;
+        _vista = Vista.Editar;
+    }
+
+    private void AbrirResetPassword(UsuarioListaDto u)
+    {
+        _editando = u;
+        _resetPassword = string.Empty;
+        _errorModal = null;
+        _vista = Vista.ResetPassword;
+    }
+
+    private void Cerrar()
+    {
+        _vista = Vista.Ninguna;
+        _editando = null;
+        _errorModal = null;
+    }
+
+    private async Task GuardarNuevoAsync()
+    {
+        if (_guardando) return;
+        _guardando = true;
+        try
+        {
+            var usuario = await Sesion.ObtenerUsuarioActualAsync();
+            await UsuarioAdminService.CrearAsync(new NuevoUsuarioDto
+            {
+                Username = _nuevoUsername.Trim(),
+                NombreCompleto = _nuevoNombre.Trim(),
+                Rol = _nuevoRol,
+                PasswordInicial = _nuevoPassword
+            }, usuario.Id);
+
+            Cerrar();
+            await CargarAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorModal = ex.Message;
+        }
+        finally
+        {
+            _guardando = false;
+        }
+    }
+
+    private async Task GuardarEdicionAsync()
+    {
+        if (_guardando || _editando is null) return;
+        _guardando = true;
+        try
+        {
+            var usuario = await Sesion.ObtenerUsuarioActualAsync();
+            await UsuarioAdminService.ActualizarAsync(new EditarUsuarioDto
+            {
+                Id = _editando.Id,
+                NombreCompleto = _editNombre.Trim(),
+                Rol = _editRol,
+                Activo = _editActivo
+            }, usuario.Id);
+
+            Cerrar();
+            await CargarAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorModal = ex.Message;
+        }
+        finally
+        {
+            _guardando = false;
+        }
+    }
+
+    private async Task GuardarResetAsync()
+    {
+        if (_guardando || _editando is null) return;
+        _guardando = true;
+        try
+        {
+            var usuario = await Sesion.ObtenerUsuarioActualAsync();
+            await UsuarioAdminService.ResetearPasswordAsync(_editando.Id, _resetPassword, usuario.Id);
+
+            Cerrar();
+            await CargarAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorModal = ex.Message;
+        }
+        finally
+        {
+            _guardando = false;
+        }
+    }
+}

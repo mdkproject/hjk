@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "jkalixto-web",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "JKalixto_System.Web", "--urls", "http://0.0.0.0:5078"],
+      "port": 5078
+    }
+  ]
+}

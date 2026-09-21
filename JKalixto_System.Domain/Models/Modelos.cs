@@ -37,6 +37,30 @@ public class Usuario
     public bool Activo { get; set; } = true;
 
     public DateTime FechaCreacion { get; set; }
+
+    // --- Seguridad de acceso (agregado en la jornada de seguridad) ---
+
+    /// <summary>Intentos de contraseña incorrecta consecutivos desde el último login
+    /// exitoso. Se resetea a 0 en cada login exitoso. Ver IAuthService — al llegar a
+    /// 5, la cuenta se bloquea temporalmente (BloqueadoHasta).</summary>
+    public int IntentosFallidos { get; set; }
+
+    /// <summary>Mientras esta fecha sea futura, el login se rechaza sin siquiera
+    /// verificar la contraseña, aunque sea la correcta — es el bloqueo temporal por
+    /// fuerza bruta.</summary>
+    public DateTime? BloqueadoHasta { get; set; }
+
+    /// <summary>True fuerza a este usuario a elegir una contraseña nueva antes de
+    /// poder usar el sistema — se activa al sembrar una cuenta con contraseña
+    /// conocida (ej. "1234") y se apaga sola la primera vez que la cambia.</summary>
+    public bool DebeCambiarPassword { get; set; }
+
+    /// <summary>Cambia cada vez que se actualiza la contraseña. La cookie de sesión
+    /// guarda el valor vigente al momento del login; si no coincide con el actual,
+    /// la sesión se da por vencida — es lo que permite "cerrar sesión en todos los
+    /// dispositivos" con solo cambiar la contraseña, sin llevar una lista de
+    /// sesiones activas.</summary>
+    public string SecurityStamp { get; set; } = Guid.NewGuid().ToString("N");
 }
 
 // ============================================================
@@ -82,6 +106,26 @@ public class Habitacion
     public string? MotivoMantenimiento { get; set; }
 
     public DateTime? FechaInicioMantenimiento { get; set; }
+}
+
+/// <summary>
+/// Historial de cada ciclo de limpieza de salida (post check-out) de una
+/// habitación — Id, cuándo empezó, cuándo terminó (nulo mientras sigue en
+/// curso) y quién hizo cada parte. Existe para poder reportar qué tan seguido
+/// se limpia cada habitación (frecuencia), no para redibujar el calendario en
+/// días pasados — el Calendario solo usa Habitacion.Estado (el estado actual)
+/// para marcar limpieza, y únicamente en la columna de HOY, igual que ya hace
+/// con Mantenimiento. Ver HabitacionService.CheckOutAsync (abre el registro)
+/// y FinalizarLimpiezaAsync (lo cierra).
+/// </summary>
+public class RegistroLimpieza
+{
+    public int Id { get; set; }
+    public int HabitacionId { get; set; }
+    public DateTime FechaInicio { get; set; }
+    public DateTime? FechaFin { get; set; }
+    public int UsuarioInicioId { get; set; }
+    public int? UsuarioFinId { get; set; }
 }
 
 public enum EstadoEstadia
@@ -403,13 +447,37 @@ public enum DireccionMovimiento
 }
 
 /// <summary>Categorías de movimiento de caja, basadas en cómo se usa en la operación
-/// diaria real (adelantos al personal, gastos del día a día, ajustes manuales).</summary>
+/// diaria real (adelantos al personal, gastos del día a día, ajustes manuales).
+///
+/// Las primeras 4 son las originales; las de abajo se agregaron después para
+/// igualar la taxonomía real del informe mensual en Excel que ya llevaba el
+/// negocio (Servicios, Sueldos, Limpieza, Impuestos, etc. — ver Informe
+/// Mensual). Se agregan AL FINAL a propósito: como el enum se guarda como
+/// número entero en la base, insertar un valor en el medio correría los
+/// números de todos los que ya existen y cambiaría en silencio la categoría
+/// de movimientos históricos ya guardados.</summary>
 public enum CategoriaMovimientoCaja
 {
     PagoPersonal,
     GastosDiarios,
     AjusteCaja,
-    ConsumoPersonal
+    ConsumoPersonal,
+    Cafeteria,
+    Mantenimiento,
+    Servicios,
+    Sueldos,
+    Limpieza,
+    Lavanderia,
+    Recepcion,
+    Vitrina,
+    Impuestos,
+    Comisiones,
+
+    /// <summary>Cubre tanto "Depósito" (Ingreso: se llevó efectivo al banco) como
+    /// "Retiro para depósito" (Salida: se sacó de la caja chica para depositar) —
+    /// la Dirección del movimiento ya distingue cuál de las dos es.</summary>
+    Deposito,
+    Otros
 }
 
 public enum OrigenCajaChica

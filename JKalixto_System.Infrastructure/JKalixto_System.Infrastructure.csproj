@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!--
+		Acceso a datos (EF Core + SQLite) — AppDbContext, el sembrador de datos de
+		prueba y los repositorios. Sin dependencias de UI, para poder compartirse
+		entre la app de escritorio (MAUI) y el futuro proyecto web (Blazor Server).
+	-->
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<RootNamespace>JKalixto_System.Infrastructure</RootNamespace>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.10" />
+		<!-- Solo hace falta en tiempo de diseño, para "dotnet ef migrations add" —
+		     ver JKalixto_System.Web/Data/Migrations. No se usa en tiempo de
+		     ejecución. -->
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<!-- Overrides directos de dependencias TRANSITIVAS de
+		     Microsoft.EntityFrameworkCore.Sqlite que NuGet reportaba con
+		     vulnerabilidades conocidas (NU1903) en cada build. Fijar acá una
+		     versión más nueva y compatible hace que NuGet la use en todo el
+		     árbol de dependencias en vez de la que trae EF Core 10.0.10 por
+		     defecto. Revisar si se puede quitar este override cuando
+		     Microsoft.EntityFrameworkCore.Sqlite actualice su propia referencia. -->
+		<PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.13" />
+		<PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.12" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\JKalixto_System.Domain\JKalixto_System.Domain.csproj" />
+	</ItemGroup>
+
+</Project>

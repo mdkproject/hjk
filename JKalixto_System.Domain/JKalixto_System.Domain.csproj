@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!--
+		Librería de clases pura (sin MAUI, sin ASP.NET) — las entidades y enums del
+		negocio (Habitación, Estadía, Reclamo, etc.). Al no depender de ningún
+		framework de UI, la puede referenciar tanto la app de escritorio (MAUI) como
+		el futuro proyecto web (Blazor Server), sin duplicar código.
+	-->
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<RootNamespace>JKalixto_System.Domain</RootNamespace>
+	</PropertyGroup>
+
+</Project>

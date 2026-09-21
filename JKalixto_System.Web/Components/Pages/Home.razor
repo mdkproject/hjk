@@ -1,0 +1,19 @@
+@page "/"
+@inject NavigationManager Navegacion
+
+<PageTitle>JKalixto Web</PageTitle>
+
+<div class="page" style="max-width:640px;">
+    <div class="app-logo" style="width:52px; height:52px; border-radius:14px; margin-bottom:16px;">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z" /></svg>
+    </div>
+    <h1 style="font-size:1.8rem;">HKX — Hotel &amp; Sauna System</h1>
+    <p class="page-subtitle" style="font-size:0.95rem; margin-bottom:24px;">
+        Versión web — todos los equipos conectados a este servidor ven el mismo
+        registro actualizarse en vivo, sin recargar la página.
+    </p>
+    <button class="btn" @onclick='() => Navegacion.NavigateTo("/recepcion")'>
+        Ir a Registro Hotel
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+    </button>
+</div>

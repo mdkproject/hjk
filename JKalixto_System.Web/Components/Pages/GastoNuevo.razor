@@ -1,0 +1,176 @@
+@page "/gastos/nuevo"
+@using System.Globalization
+@using JKalixto_System.Application.Services
+@using JKalixto_System.Domain.Models
+@using JKalixto_System.Web.Services
+@inject IGastosService GastosService
+@inject SesionWebService Sesion
+@inject INotificadorCambios Notificador
+@inject NavigationManager Navegacion
+
+<PageTitle>Nuevo movimiento</PageTitle>
+
+<div class="page" style="max-width:480px;">
+    <a href="/gastos" class="volver">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+        Volver a Gastos
+    </a>
+    <div class="page-header"><h1>Nuevo movimiento de caja</h1></div>
+
+    @if (_errores.Count > 0)
+    {
+        <div class="caja-error">
+            @foreach (var error in _errores)
+            {
+                <p>@error</p>
+            }
+        </div>
+    }
+
+    <div class="card">
+        <div class="form-grid-2">
+            <div class="form-grupo">
+                <label>Dirección</label>
+                <select @bind="_direccion">
+                    <option value="@DireccionMovimiento.Salida">Salida</option>
+                    <option value="@DireccionMovimiento.Ingreso">Ingreso</option>
+                </select>
+            </div>
+
+            <div class="form-grupo">
+                <label>Categoría</label>
+                <select @bind="_categoria">
+                    <option value="@CategoriaMovimientoCaja.GastosDiarios">Gastos diarios</option>
+                    <option value="@CategoriaMovimientoCaja.PagoPersonal">Pago del Personal</option>
+                    <option value="@CategoriaMovimientoCaja.ConsumoPersonal">Consumo de Personal</option>
+                    <option value="@CategoriaMovimientoCaja.AjusteCaja">Ajuste de Caja</option>
+                    <option value="@CategoriaMovimientoCaja.Cafeteria">Cafetería</option>
+                    <option value="@CategoriaMovimientoCaja.Mantenimiento">Mantenimiento</option>
+                    <option value="@CategoriaMovimientoCaja.Servicios">Servicios (agua, luz, internet, etc.)</option>
+                    <option value="@CategoriaMovimientoCaja.Sueldos">Sueldos</option>
+                    <option value="@CategoriaMovimientoCaja.Limpieza">Limpieza</option>
+                    <option value="@CategoriaMovimientoCaja.Lavanderia">Lavandería</option>
+                    <option value="@CategoriaMovimientoCaja.Recepcion">Recepción</option>
+                    <option value="@CategoriaMovimientoCaja.Vitrina">Vitrina</option>
+                    <option value="@CategoriaMovimientoCaja.Impuestos">Impuestos</option>
+                    <option value="@CategoriaMovimientoCaja.Comisiones">Comisiones</option>
+                    <option value="@CategoriaMovimientoCaja.Deposito">Depósito / Retiro para depósito</option>
+                    <option value="@CategoriaMovimientoCaja.Otros">Otros</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-grid-2">
+            <div class="form-grupo">
+                <label>Afecta la Caja Chica de</label>
+                <select @bind="_origenCaja">
+                    <option value="@OrigenCajaChica.Hotel">Hotel</option>
+                    <option value="@OrigenCajaChica.Sauna">Sauna</option>
+                </select>
+            </div>
+
+            <div class="form-grupo">
+                <label>Método de pago</label>
+                <select @bind="_metodoPago">
+                    @foreach (var metodo in Enum.GetValues<MetodoPago>())
+                    {
+                        <option value="@metodo">@metodo</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <div class="form-grupo">
+            <label>Descripción *</label>
+            <input type="text" @bind="_descripcion" @bind:event="oninput" />
+        </div>
+
+        <div class="form-grid-2">
+            <div class="form-grupo">
+                <label>Personal relacionado</label>
+                <input type="text" @bind="_personalRelacionado" @bind:event="oninput" />
+            </div>
+
+            <div class="form-grupo">
+                <label>Monto (S/) *</label>
+                <input type="text" @bind="_montoTexto" @bind:event="oninput" />
+            </div>
+        </div>
+    </div>
+
+    <button class="btn" disabled="@_guardando" @onclick="ConfirmarAsync">@(_guardando ? "Guardando…" : "Registrar movimiento")</button>
+</div>
+
+@code {
+    private readonly List<string> _errores = new();
+    private bool _guardando;
+    private DireccionMovimiento _direccion = DireccionMovimiento.Salida;
+    private CategoriaMovimientoCaja _categoria = CategoriaMovimientoCaja.GastosDiarios;
+    private OrigenCajaChica _origenCaja = OrigenCajaChica.Hotel;
+    private MetodoPago _metodoPago = MetodoPago.Efectivo;
+    private string _descripcion = string.Empty;
+    private string _personalRelacionado = string.Empty;
+    private string _montoTexto = string.Empty;
+
+    private async Task ConfirmarAsync()
+    {
+        if (_guardando)
+        {
+            return;
+        }
+
+        _errores.Clear();
+
+        if (string.IsNullOrWhiteSpace(_descripcion))
+        {
+            _errores.Add("La descripción es obligatoria.");
+        }
+
+        // CultureInfo.InvariantCulture a propósito: un <input type="text"> no
+        // garantiza qué separador decimal escribe el usuario, y decimal.TryParse
+        // sin cultura explícita depende de la configuración regional de Windows del
+        // servidor — en una PC con separador decimal "," (como suele venir por
+        // defecto en Perú), "150.50" se leería como 15050, un error de caja
+        // silencioso y peligroso. Con InvariantCulture el punto es siempre decimal,
+        // sin importar cómo esté configurada la PC del hotel.
+        if (!decimal.TryParse(_montoTexto, NumberStyles.Number, CultureInfo.InvariantCulture, out var monto) || monto <= 0)
+        {
+            _errores.Add("El monto debe ser un número mayor a 0 (usá punto para los decimales, ej. 150.50).");
+        }
+
+        if (_errores.Count > 0)
+        {
+            return;
+        }
+
+        var usuario = await Sesion.ObtenerUsuarioActualAsync();
+
+        var dto = new NuevoMovimientoCajaDto
+        {
+            Direccion = _direccion,
+            Categoria = _categoria,
+            Descripcion = _descripcion.Trim(),
+            PersonalRelacionado = string.IsNullOrWhiteSpace(_personalRelacionado) ? null : _personalRelacionado.Trim(),
+            Monto = monto,
+            OrigenCaja = _origenCaja,
+            MetodoPago = _metodoPago,
+            UsuarioId = usuario.Id
+        };
+
+        _guardando = true;
+        try
+        {
+            await GastosService.RegistrarMovimientoAsync(dto);
+            Notificador.Avisar("gastos");
+            Navegacion.NavigateTo("/gastos");
+        }
+        catch (Exception ex)
+        {
+            _errores.Add($"No se pudo registrar el movimiento: {ex.Message}");
+        }
+        finally
+        {
+            _guardando = false;
+        }
+    }
+}

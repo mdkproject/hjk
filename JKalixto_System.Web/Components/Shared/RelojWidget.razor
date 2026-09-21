@@ -1,0 +1,52 @@
+@*
+    Equivalente web de Presentation/Controls/BarraRelojTemaView.xaml (MAUI):
+    hora en vivo (HH:mm:ss) + fecha en español, con el mismo formato exacto
+    que BaseViewModel.ActualizarReloj() en escritorio. Vive UNA sola vez en
+    MainLayout (no en cada página) — mismo dato en las mismas coordenadas en
+    todas las pantallas, sin repetir el timer por página.
+
+    No incluye el botón de alternar tema de MAUI: la web todavía no tiene un
+    tema claro/oscuro para alternar, así que ese botón no tendría ninguna
+    función real — mejor omitirlo que dejar un ícono que no hace nada.
+
+    Oculto en mobile por CSS (.reloj-widget, ver app.css) — el espacio es más
+    valioso ahí, y el reloj del propio celular ya cumple esa función.
+*@
+@implements IDisposable
+
+<div class="reloj-widget">
+    <div class="reloj-hora">@_horaTexto</div>
+    <div class="reloj-fecha">@_fechaTexto</div>
+</div>
+
+@code {
+    private static readonly string[] DiasSemana =
+        { "Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado" };
+
+    private static readonly string[] Meses =
+        { "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio",
+          "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre" };
+
+    private Timer? _timer;
+    private string _horaTexto = string.Empty;
+    private string _fechaTexto = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        Actualizar();
+        _timer = new Timer(_ => InvokeAsync(() =>
+        {
+            Actualizar();
+            StateHasChanged();
+        }), null, 1000, 1000);
+    }
+
+    private void Actualizar()
+    {
+        var ahora = DateTime.Now;
+        _horaTexto = ahora.ToString("HH:mm:ss");
+        _fechaTexto = $"{DiasSemana[(int)ahora.DayOfWeek]} {ahora.Day:00} de {Meses[ahora.Month]} del {ahora.Year}";
+    }
+
+    public void Dispose() => _timer?.Dispose();
+}

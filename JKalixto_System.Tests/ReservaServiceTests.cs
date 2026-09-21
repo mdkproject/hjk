@@ -99,7 +99,7 @@ public class ReservaServiceTests
 
         // Mientras tanto, otra persona hizo Check-in directo en esa misma habitación
         // (por ejemplo, un huésped walk-in) antes de que se procese la reserva.
-        var servicioHabitacion = new HabitacionService(bd.Contexto, new AuditoriaService(bd.Contexto, new SessionService()), new ComprobanteNumeracionService(bd.Contexto));
+        var servicioHabitacion = new HabitacionService(bd.Contexto, new AuditoriaService(bd.Contexto, new SessionService()), new ComprobanteNumeracionService(bd.Contexto), new SessionService());
         await servicioHabitacion.CheckInAsync(new NuevoCheckInDto
         {
             HabitacionId = habitacion.Id,
@@ -110,5 +110,84 @@ public class ReservaServiceTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => servicioReserva.ConvertirEnCheckInAsync(reservaId, 1));
+    }
+
+    [Fact]
+    public async Task ModificarReservaAsync_NuevasFechasSinConflicto_ActualizaLaReserva()
+    {
+        using var bd = new BaseDeDatosDePrueba();
+        var habitacionId = (await bd.Contexto.Habitaciones.FirstAsync()).Id;
+        var servicio = NuevoServicio(bd.Contexto);
+
+        var inicio = DateTime.Now.Date.AddDays(5);
+        var fin = DateTime.Now.Date.AddDays(8);
+        var reservaId = await servicio.CrearReservaAsync(DtoBase(habitacionId, inicio, fin));
+
+        var nuevoInicio = inicio.AddDays(10);
+        var nuevoFin = fin.AddDays(10);
+        await servicio.ModificarReservaAsync(new ModificarReservaDto
+        {
+            ReservaId = reservaId,
+            FechaInicio = nuevoInicio,
+            FechaFin = nuevoFin,
+            Celular = "988888888",
+            Observaciones = "Movida a pedido del huésped"
+        }, usuarioId: 1);
+
+        var reserva = await bd.Contexto.Reservas.FindAsync(reservaId);
+        Assert.Equal(nuevoInicio, reserva!.FechaInicio);
+        Assert.Equal(nuevoFin, reserva.FechaFin);
+        Assert.Equal("988888888", reserva.Celular);
+        Assert.Equal("Movida a pedido del huésped", reserva.Observaciones);
+    }
+
+    [Fact]
+    public async Task ModificarReservaAsync_NuevasFechasSeCruzanConOtraReservaConfirmada_LanzaExcepcionYNoModificaNada()
+    {
+        using var bd = new BaseDeDatosDePrueba();
+        var habitacionId = (await bd.Contexto.Habitaciones.FirstAsync()).Id;
+        var servicio = NuevoServicio(bd.Contexto);
+
+        var inicio1 = DateTime.Now.Date.AddDays(5);
+        var fin1 = DateTime.Now.Date.AddDays(8);
+        var reservaId = await servicio.CrearReservaAsync(DtoBase(habitacionId, inicio1, fin1));
+
+        var inicio2 = DateTime.Now.Date.AddDays(20);
+        var fin2 = DateTime.Now.Date.AddDays(23);
+        await servicio.CrearReservaAsync(DtoBase(habitacionId, inicio2, fin2));
+
+        // Intenta mover la primera reserva para que se cruce con la segunda.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => servicio.ModificarReservaAsync(new ModificarReservaDto
+        {
+            ReservaId = reservaId,
+            FechaInicio = inicio2.AddDays(1),
+            FechaFin = fin2.AddDays(1),
+            Celular = "999999999"
+        }, usuarioId: 1));
+
+        var reserva = await bd.Contexto.Reservas.FindAsync(reservaId);
+        Assert.Equal(inicio1, reserva!.FechaInicio);
+        Assert.Equal(fin1, reserva.FechaFin);
+    }
+
+    [Fact]
+    public async Task ModificarReservaAsync_ReservaYaCancelada_LanzaExcepcion()
+    {
+        using var bd = new BaseDeDatosDePrueba();
+        var habitacionId = (await bd.Contexto.Habitaciones.FirstAsync()).Id;
+        var servicio = NuevoServicio(bd.Contexto);
+
+        var inicio = DateTime.Now.Date.AddDays(5);
+        var fin = DateTime.Now.Date.AddDays(8);
+        var reservaId = await servicio.CrearReservaAsync(DtoBase(habitacionId, inicio, fin));
+        await servicio.CancelarReservaAsync(reservaId, usuarioId: 1);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => servicio.ModificarReservaAsync(new ModificarReservaDto
+        {
+            ReservaId = reservaId,
+            FechaInicio = inicio.AddDays(1),
+            FechaFin = fin.AddDays(1),
+            Celular = "999999999"
+        }, usuarioId: 1));
     }
 }

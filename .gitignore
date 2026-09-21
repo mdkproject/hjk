@@ -3,6 +3,10 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+# Lock de sesión de Claude Code (runtime, no config) — .claude/launch.json sí
+# se versiona (es el config del dev-server para el proyecto Web).
+.claude/scheduled_tasks.lock
+
 # User-specific files
 *.rsuser
 *.suo
@@ -179,6 +183,11 @@ DocProject/Help/html
 # Click-Once directory
 publish/
 
+# Salida de "dotnet publish" para el Servicio de Windows de JKalixto (ver
+# JKalixto_System.Web/deploy/instalar-servicio.ps1) -- a proposito fuera del
+# proyecto, nunca debe versionarse.
+/publish-jkalixto-web/
+
 # Publish Web Output
 *.[Pp]ublish.xml
 *.azurePubxml
@@ -228,6 +237,18 @@ _pkginfo.txt
 *.[Cc]ache
 # but keep track of directories ending in .cache
 !?*.[Cc]ache/
+
+# Base de datos SQLite en tiempo de ejecución (JKalixto_System.Web/Data/jkalixto.db
+# y sus archivos WAL/SHM) — se genera sola al levantar el servidor la primera vez,
+# nunca debe versionarse.
+*.db
+*.db-shm
+*.db-wal
+
+# Claves de Data Protection (cookie de sesión) generadas en tiempo de
+# ejecución — ver Program.cs. Son secretas y específicas de cada
+# instalación; nunca deben versionarse.
+/JKalixto_System.Web/Data/dpkeys/
 
 # Others
 ClientBin/

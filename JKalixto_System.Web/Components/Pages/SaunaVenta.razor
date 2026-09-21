@@ -1,0 +1,330 @@
+@page "/sauna/venta"
+@using JKalixto_System.Application.Services
+@using JKalixto_System.Domain.Models
+@using JKalixto_System.Web.Services
+@inject ISaunaService SaunaService
+@inject INotificadorCambios Notificador
+@inject SesionWebService Sesion
+@inject AuthenticationStateProvider AuthProvider
+@inject NavigationManager Navegacion
+
+<PageTitle>Venta</PageTitle>
+
+<div class="page">
+    <a href="@(EstadiaId.HasValue ? "/cafeteria" : "/sauna")" class="volver">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+        Volver
+    </a>
+    <div class="page-header">
+        <h1>@(EstadiaId.HasValue ? $"Cafetería — Hab. {Numero}" : $"Venta — {Nombre}")</h1>
+        @if (_puedeEditarPrecios)
+        {
+            <div class="page-actions">
+                <button class="btn btn-secundario" @onclick="() => _vistaModal = VistaModal.EditarPrecios">Editar precios</button>
+            </div>
+        }
+    </div>
+
+    @if (_error is not null)
+    {
+        <div class="caja-error"><p>@_error</p></div>
+    }
+
+    <div style="display:flex; gap:24px; flex-wrap:wrap;">
+        <div style="flex:2; min-width:300px;">
+            <div class="search-input" style="margin-bottom:14px;">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+                <input placeholder="Buscar producto…" value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+            </div>
+
+            <div class="card-grid">
+                @foreach (var producto in CatalogoFiltrado())
+                {
+                    <div class="card card-clickable" style="width:150px;" @onclick="() => AgregarAlCarrito(producto)">
+                        <div style="font-size:1.4rem;">@producto.Icono</div>
+                        <div style="font-weight:600; margin-top:2px;">@producto.Nombre</div>
+                        <div style="color:var(--text-secondary); font-size:0.85rem;">@producto.PrecioTexto</div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="card" style="flex:1; min-width:260px; align-self:flex-start;">
+            <h3 style="margin-top:0;">Carrito</h3>
+            @if (_carrito.Count == 0)
+            {
+                <p class="empty-state" style="padding:8px 0;">Sin productos todavía.</p>
+            }
+            @foreach (var item in _carrito)
+            {
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding:8px 0;">
+                    <div>
+                        <div>@item.Descripcion</div>
+                        <div style="color:var(--text-secondary); font-size:0.85rem;">@item.Cantidad × @item.PrecioUnitario.ToString("C") = @item.Subtotal.ToString("C")</div>
+                    </div>
+                    <button class="btn btn-secundario" style="padding:4px 9px;" @onclick="() => _carrito.Remove(item)">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
+                    </button>
+                </div>
+            }
+            <p style="font-size:1.2rem; font-weight:700; margin-top:12px;">Total: @_carrito.Sum(i => i.Subtotal).ToString("C")</p>
+            <button class="btn btn-bloque" disabled="@(_carrito.Count == 0)" @onclick="() => _vistaModal = _esHuespedHotel ? VistaModal.ElegirCargoOCobro : VistaModal.ElegirMetodoPago">Confirmar Venta</button>
+        </div>
+    </div>
+</div>
+
+@switch (_vistaModal)
+{
+    case VistaModal.ElegirAlquilerOVenta when _productoAlquilerVenta is { } p:
+        <ModalBase Titulo="@p.Nombre" OnCerrar="() => _vistaModal = VistaModal.Ninguno">
+            <button class="btn btn-bloque" @onclick="() => ConfirmarAlquilerVenta(p, esAlquiler: true)">Alquiler — @p.PrecioAlquiler.ToString("C")</button>
+            <button class="btn btn-secundario btn-bloque" @onclick="() => ConfirmarAlquilerVenta(p, esAlquiler: false)">Venta — @p.PrecioVenta.ToString("C")</button>
+        </ModalBase>
+        break;
+
+    case VistaModal.ElegirCargoOCobro:
+        <ModalBase Titulo="¿Cómo se cobra?" OnCerrar="() => _vistaModal = VistaModal.Ninguno">
+            <button class="btn btn-bloque" disabled="@_guardando" @onclick="() => ConfirmarVentaAsync(cargarAHabitacion: true, metodoPago: null)">@(_guardando ? "Guardando…" : "Cargar a la habitación")</button>
+            <button class="btn btn-secundario btn-bloque" disabled="@_guardando" @onclick="() => _vistaModal = VistaModal.ElegirMetodoPago">Cobrar ahora</button>
+        </ModalBase>
+        break;
+
+    case VistaModal.ElegirMetodoPago:
+        <ModalBase Titulo="Método de pago" OnCerrar="() => _vistaModal = VistaModal.Ninguno">
+            @foreach (var metodo in Enum.GetValues<MetodoPago>())
+            {
+                <button class="btn btn-secundario btn-bloque" disabled="@_guardando" @onclick="() => ConfirmarVentaAsync(cargarAHabitacion: false, metodoPago: metodo)">@(_guardando ? "Guardando…" : metodo.ToString())</button>
+            }
+        </ModalBase>
+        break;
+
+    case VistaModal.EditarPrecios:
+        <ModalBase Titulo="Editar precios del catálogo" OnCerrar="() => _vistaModal = VistaModal.Ninguno">
+            @if (_errorPrecios is not null)
+            {
+                <div class="caja-error"><p>@_errorPrecios</p></div>
+            }
+            <div style="max-height:60vh; overflow-y:auto;">
+                @foreach (var producto in _catalogo)
+                {
+                    <div style="display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--border); padding:10px 0;">
+                        <div style="flex:1; min-width:0;">
+                            <div style="font-weight:600;">@producto.Icono @producto.Nombre</div>
+                        </div>
+                        @if (producto.EsAlquilerVenta)
+                        {
+                            <input type="text" style="width:80px;" placeholder="Alquiler" value="@PrecioTextoEdicion(producto.ProductoId, alquiler: true)" @oninput="e => ActualizarPrecioEdicion(producto.ProductoId, alquiler: true, e.Value?.ToString())" />
+                            <input type="text" style="width:80px;" placeholder="Venta" value="@PrecioTextoEdicion(producto.ProductoId, alquiler: false)" @oninput="e => ActualizarPrecioEdicion(producto.ProductoId, alquiler: false, e.Value?.ToString())" />
+                        }
+                        else
+                        {
+                            <input type="text" style="width:80px;" value="@PrecioTextoEdicion(producto.ProductoId, alquiler: false)" @oninput="e => ActualizarPrecioEdicion(producto.ProductoId, alquiler: false, e.Value?.ToString())" />
+                        }
+                        <button class="btn btn-secundario" style="padding:6px 12px; font-size:0.8rem;" disabled="@_guardandoPrecios" @onclick="() => GuardarPrecioAsync(producto)">Guardar</button>
+                    </div>
+                }
+            </div>
+        </ModalBase>
+        break;
+}
+
+@code {
+    private enum VistaModal { Ninguno, ElegirAlquilerOVenta, ElegirCargoOCobro, ElegirMetodoPago, EditarPrecios }
+
+    [SupplyParameterFromQuery] public int? ClienteSaunaId { get; set; }
+    [SupplyParameterFromQuery] public int? EstadiaId { get; set; }
+    [SupplyParameterFromQuery] public string? Nombre { get; set; }
+    [SupplyParameterFromQuery] public bool EsHuespedHotel { get; set; }
+    [SupplyParameterFromQuery] public int? Numero { get; set; }
+
+    private List<ProductoCatalogoDto> _catalogo = new();
+    private readonly List<ItemCarritoDto> _carrito = new();
+    private string _textoBusqueda = string.Empty;
+    private string? _error;
+    private VistaModal _vistaModal;
+    private ProductoCatalogoDto? _productoAlquilerVenta;
+    private bool _esHuespedHotel;
+    private bool _guardando;
+    private bool _puedeEditarPrecios;
+    private string? _errorPrecios;
+    private bool _guardandoPrecios;
+    private readonly Dictionary<(int ProductoId, bool Alquiler), string> _edicionPrecios = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _esHuespedHotel = EstadiaId.HasValue || EsHuespedHotel;
+        try
+        {
+            _catalogo = await SaunaService.ObtenerCatalogoAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo cargar el catálogo: {ex.Message}";
+        }
+
+        var estadoAuth = await AuthProvider.GetAuthenticationStateAsync();
+        var rol = estadoAuth.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+        _puedeEditarPrecios = rol is "Gerencia" or "Desarrollador";
+    }
+
+    private string PrecioTextoEdicion(int productoId, bool alquiler)
+    {
+        if (_edicionPrecios.TryGetValue((productoId, alquiler), out var texto))
+        {
+            return texto;
+        }
+
+        var producto = _catalogo.First(p => p.ProductoId == productoId);
+        return (alquiler ? producto.PrecioAlquiler : (producto.EsAlquilerVenta ? producto.PrecioVenta : producto.Precio)).ToString("0.00");
+    }
+
+    private void ActualizarPrecioEdicion(int productoId, bool alquiler, string? valor)
+    {
+        _edicionPrecios[(productoId, alquiler)] = valor ?? string.Empty;
+    }
+
+    private async Task GuardarPrecioAsync(ProductoCatalogoDto producto)
+    {
+        if (_guardandoPrecios)
+        {
+            return;
+        }
+
+        decimal precio = producto.Precio;
+        decimal precioAlquiler = producto.PrecioAlquiler;
+        decimal precioVenta = producto.PrecioVenta;
+
+        if (producto.EsAlquilerVenta)
+        {
+            if (!decimal.TryParse(PrecioTextoEdicion(producto.ProductoId, alquiler: true), out precioAlquiler) ||
+                !decimal.TryParse(PrecioTextoEdicion(producto.ProductoId, alquiler: false), out precioVenta))
+            {
+                _errorPrecios = $"Precio inválido para '{producto.Nombre}'.";
+                return;
+            }
+        }
+        else if (!decimal.TryParse(PrecioTextoEdicion(producto.ProductoId, alquiler: false), out precio))
+        {
+            _errorPrecios = $"Precio inválido para '{producto.Nombre}'.";
+            return;
+        }
+
+        _guardandoPrecios = true;
+        _errorPrecios = null;
+        try
+        {
+            var usuario = await Sesion.ObtenerUsuarioActualAsync();
+            await SaunaService.EditarPrecioProductoAsync(new EditarPrecioProductoDto
+            {
+                ProductoId = producto.ProductoId,
+                Precio = precio,
+                PrecioAlquiler = precioAlquiler,
+                PrecioVenta = precioVenta
+            }, usuario.Id);
+
+            _catalogo = await SaunaService.ObtenerCatalogoAsync();
+            _edicionPrecios.Remove((producto.ProductoId, true));
+            _edicionPrecios.Remove((producto.ProductoId, false));
+        }
+        catch (Exception ex)
+        {
+            _errorPrecios = ex.Message;
+        }
+        finally
+        {
+            _guardandoPrecios = false;
+        }
+    }
+
+    private IEnumerable<ProductoCatalogoDto> CatalogoFiltrado() => string.IsNullOrWhiteSpace(_textoBusqueda)
+        ? _catalogo
+        : _catalogo.Where(p => p.Nombre.Contains(_textoBusqueda, StringComparison.OrdinalIgnoreCase));
+
+    private void AgregarAlCarrito(ProductoCatalogoDto producto)
+    {
+        if (producto.EsAlquilerVenta)
+        {
+            _productoAlquilerVenta = producto;
+            _vistaModal = VistaModal.ElegirAlquilerOVenta;
+            return;
+        }
+
+        var existente = _carrito.FirstOrDefault(i => i.ProductoId == producto.ProductoId && i.Descripcion == producto.Nombre);
+        if (existente is not null)
+        {
+            existente.Cantidad++;
+        }
+        else
+        {
+            _carrito.Add(new ItemCarritoDto { ProductoId = producto.ProductoId, Descripcion = producto.Nombre, Cantidad = 1, PrecioUnitario = producto.Precio });
+        }
+    }
+
+    private void ConfirmarAlquilerVenta(ProductoCatalogoDto producto, bool esAlquiler)
+    {
+        var descripcion = $"{producto.Nombre} ({(esAlquiler ? "Alquiler" : "Venta")})";
+        var precio = esAlquiler ? producto.PrecioAlquiler : producto.PrecioVenta;
+        var existente = _carrito.FirstOrDefault(i => i.ProductoId == producto.ProductoId && i.Descripcion == descripcion);
+        if (existente is not null)
+        {
+            existente.Cantidad++;
+        }
+        else
+        {
+            _carrito.Add(new ItemCarritoDto { ProductoId = producto.ProductoId, Descripcion = descripcion, Cantidad = 1, PrecioUnitario = precio });
+        }
+
+        _vistaModal = VistaModal.Ninguno;
+        _productoAlquilerVenta = null;
+    }
+
+    private async Task ConfirmarVentaAsync(bool cargarAHabitacion, MetodoPago? metodoPago)
+    {
+        if (_guardando)
+        {
+            return;
+        }
+
+        _guardando = true;
+        try
+        {
+            var usuario = await Sesion.ObtenerUsuarioActualAsync();
+            int ventaId;
+
+            if (EstadiaId is { } estadiaId)
+            {
+                ventaId = await SaunaService.RegistrarVentaHotelAsync(estadiaId, _carrito, usuario.Id, cargarAHabitacion, metodoPago);
+            }
+            else if (ClienteSaunaId is { } clienteSaunaId)
+            {
+                ventaId = await SaunaService.RegistrarVentaAsync(clienteSaunaId, _carrito, usuario.Id, cargarAHabitacion, metodoPago);
+            }
+            else
+            {
+                return;
+            }
+
+            Notificador.Avisar("sauna");
+            if (cargarAHabitacion)
+            {
+                Notificador.Avisar("habitaciones");
+            }
+
+            // Si se cobró ahora mismo, el comprobante ya tiene número y total
+            // definitivos — se imprime en el momento. Si se cargó a la habitación,
+            // recién se cobra e imprime junto con el resto al hacer Check-out.
+            Navegacion.NavigateTo(cargarAHabitacion
+                ? (EstadiaId.HasValue ? "/cafeteria" : "/sauna")
+                : $"/comprobante/venta/{ventaId}");
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo registrar la venta: {ex.Message}";
+            _vistaModal = VistaModal.Ninguno;
+        }
+        finally
+        {
+            _guardando = false;
+        }
+    }
+}

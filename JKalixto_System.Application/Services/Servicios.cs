@@ -3,13 +3,88 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Maui.Controls;
-using Microsoft.Maui.Graphics;
 using JKalixto_System.Domain.Models;
 using JKalixto_System.Infrastructure.Data;
 using JKalixto_System.Infrastructure.Repositories;
 
 namespace JKalixto_System.Application.Services;
+
+/// <summary>
+/// Traduce un EstadoHabitacion a la CLAVE (string) del color de tema asociado — NO al
+/// color en sí, para que esta capa (Application) no dependa de ningún tipo de UI (MAUI,
+/// Blazor, etc.) y pueda vivir en una librería compartida entre la app de escritorio y
+/// el futuro proyecto web. Las claves son las mismas que usa TemaService como llaves de
+/// Application.Current.Resources en MAUI. Compartida entre HabitacionCardDto y
+/// DashboardService para no repetir el mismo switch dos veces.
+/// </summary>
+internal static class ClaveDeColorEstado
+{
+    public static string ParaEstadoHabitacion(EstadoHabitacion estado) => estado switch
+    {
+        EstadoHabitacion.Disponible => "ColorDisponible",
+        EstadoHabitacion.Ocupada => "ColorOcupada",
+        EstadoHabitacion.LimpiezaSalida => "ColorLimpieza",
+        EstadoHabitacion.Mantenimiento => "ColorMantenimiento",
+        _ => string.Empty
+    };
+}
+
+/// <summary>Un solo lugar para el texto de cada categoría de movimiento de caja —
+/// lo usan tanto MovimientoCajaCardDto (pantalla de Gastos) como el Informe
+/// Mensual, para no repetir el mismo switch dos veces y arriesgar que queden
+/// desincronizados.</summary>
+internal static class EtiquetaCategoriaMovimiento
+{
+    public static string Etiqueta(CategoriaMovimientoCaja categoria) => categoria switch
+    {
+        CategoriaMovimientoCaja.PagoPersonal => "Pago del Personal",
+        CategoriaMovimientoCaja.GastosDiarios => "Gastos diarios",
+        CategoriaMovimientoCaja.AjusteCaja => "Ajuste de Caja",
+        CategoriaMovimientoCaja.ConsumoPersonal => "Consumo de Personal",
+        CategoriaMovimientoCaja.Cafeteria => "Cafetería",
+        CategoriaMovimientoCaja.Mantenimiento => "Mantenimiento",
+        CategoriaMovimientoCaja.Servicios => "Servicios",
+        CategoriaMovimientoCaja.Sueldos => "Sueldos",
+        CategoriaMovimientoCaja.Limpieza => "Limpieza",
+        CategoriaMovimientoCaja.Lavanderia => "Lavandería",
+        CategoriaMovimientoCaja.Recepcion => "Recepción",
+        CategoriaMovimientoCaja.Vitrina => "Vitrina",
+        CategoriaMovimientoCaja.Impuestos => "Impuestos",
+        CategoriaMovimientoCaja.Comisiones => "Comisiones",
+        CategoriaMovimientoCaja.Deposito => "Depósito",
+        CategoriaMovimientoCaja.Otros => "Otros",
+        _ => categoria.ToString()
+    };
+}
+
+/// <summary>
+/// Un solo lugar para la regla de "contraseña válida" — usado por el cambio de
+/// contraseña propio (Program.cs), la creación de usuarios y el reseteo de
+/// contraseña (UsuarioAdminService), para que las 3 pantallas exijan exactamente lo
+/// mismo. Mínimo 8 caracteres + al menos una letra y un número (no exige mayúsculas
+/// ni símbolos a propósito: personal de hotel sin mucha costumbre con sistemas, una
+/// regla más estricta termina en contraseñas anotadas en un papel al lado de la PC,
+/// que es peor que la que se busca evitar).
+/// </summary>
+public static class PoliticaPassword
+{
+    public static string? Validar(string password)
+    {
+        if (password.Length < 8)
+        {
+            return "La contraseña debe tener al menos 8 caracteres.";
+        }
+        if (!password.Any(char.IsLetter))
+        {
+            return "La contraseña debe incluir al menos una letra.";
+        }
+        if (!password.Any(char.IsDigit))
+        {
+            return "La contraseña debe incluir al menos un número.";
+        }
+        return null;
+    }
+}
 
 /// <summary>
 /// Resultado de un intento de inicio de sesión. Se usa "Exito" en vez de excepciones
@@ -31,14 +106,23 @@ public interface IAuthService
 /// <summary>
 /// Implementación del login. Compara la contraseña ingresada contra el hash
 /// guardado en BD usando BCrypt (nunca se compara texto plano contra texto plano).
+///
+/// Además bloquea la cuenta temporalmente después de varios intentos fallidos
+/// seguidos (fuerza bruta) y deja constancia en auditoría de cada intento sobre
+/// una cuenta real — agregado en la jornada de seguridad.
 /// </summary>
 public class AuthService : IAuthService
 {
     private readonly IUsuarioRepository _usuarioRepository;
+    private readonly IAuditoriaService _auditoriaService;
 
-    public AuthService(IUsuarioRepository usuarioRepository)
+    private const int MaxIntentosFallidos = 5;
+    private static readonly TimeSpan DuracionBloqueo = TimeSpan.FromMinutes(15);
+
+    public AuthService(IUsuarioRepository usuarioRepository, IAuditoriaService auditoriaService)
     {
         _usuarioRepository = usuarioRepository;
+        _auditoriaService = auditoriaService;
     }
 
     public async Task<ResultadoLogin> IniciarSesionAsync(string username, string password)
@@ -47,10 +131,27 @@ public class AuthService : IAuthService
 
         if (usuario is null)
         {
+            // No hay auditoría para este caso a propósito: LogAuditoria.UsuarioId tiene
+            // una clave foránea real a Usuario (ver AppDbContext), y un username que no
+            // existe no tiene ningún Id válido al cual atribuirle el intento.
             return new ResultadoLogin
             {
                 Exito = false,
                 Mensaje = "Usuario o contraseña incorrectos."
+            };
+        }
+
+        if (usuario.BloqueadoHasta.HasValue && usuario.BloqueadoHasta.Value > DateTime.Now)
+        {
+            var minutosRestantes = Math.Max(1, (int)Math.Ceiling((usuario.BloqueadoHasta.Value - DateTime.Now).TotalMinutes));
+            await _auditoriaService.RegistrarAsync(
+                "LOGIN_BLOQUEADO",
+                $"Intento de inicio de sesión de '{usuario.Username}' mientras la cuenta estaba bloqueada temporalmente por intentos fallidos.",
+                usuario.Id, "Usuario", usuario.Id);
+            return new ResultadoLogin
+            {
+                Exito = false,
+                Mensaje = $"Cuenta bloqueada temporalmente por demasiados intentos fallidos. Probá de nuevo en {minutosRestantes} minuto(s)."
             };
         }
 
@@ -67,12 +168,33 @@ public class AuthService : IAuthService
 
         if (!passwordValida)
         {
-            return new ResultadoLogin
+            usuario.IntentosFallidos++;
+            var mensaje = "Usuario o contraseña incorrectos.";
+
+            if (usuario.IntentosFallidos >= MaxIntentosFallidos)
             {
-                Exito = false,
-                Mensaje = "Usuario o contraseña incorrectos."
-            };
+                usuario.BloqueadoHasta = DateTime.Now.Add(DuracionBloqueo);
+                mensaje = $"Demasiados intentos fallidos. La cuenta quedó bloqueada por {(int)DuracionBloqueo.TotalMinutes} minutos.";
+            }
+
+            await _usuarioRepository.ActualizarAsync(usuario);
+            await _auditoriaService.RegistrarAsync(
+                "LOGIN_FALLIDO",
+                $"Contraseña incorrecta para '{usuario.Username}' (intento {usuario.IntentosFallidos} de {MaxIntentosFallidos}).",
+                usuario.Id, "Usuario", usuario.Id);
+
+            return new ResultadoLogin { Exito = false, Mensaje = mensaje };
         }
+
+        // Login correcto: resetea el contador de intentos y cualquier bloqueo vigente.
+        usuario.IntentosFallidos = 0;
+        usuario.BloqueadoHasta = null;
+        await _usuarioRepository.ActualizarAsync(usuario);
+
+        await _auditoriaService.RegistrarAsync(
+            "LOGIN_EXITOSO",
+            $"Inicio de sesión de '{usuario.Username}'.",
+            usuario.Id, "Usuario", usuario.Id);
 
         return new ResultadoLogin
         {
@@ -103,6 +225,187 @@ public class SessionService : ISessionService
     public void CerrarSesion()
     {
         UsuarioActual = null;
+    }
+}
+
+// ============================================================
+// GESTIÓN DE USUARIOS (implementación pendiente #3 de la jornada de
+// seguridad: antes solo se podían crear/editar usuarios a mano en la base).
+// ============================================================
+
+public class UsuarioListaDto
+{
+    public int Id { get; set; }
+    public string Username { get; set; } = string.Empty;
+    public string NombreCompleto { get; set; } = string.Empty;
+    public RolUsuario Rol { get; set; }
+    public bool Activo { get; set; }
+    public bool DebeCambiarPassword { get; set; }
+    public bool Bloqueado { get; set; }
+    public DateTime FechaCreacion { get; set; }
+}
+
+public class NuevoUsuarioDto
+{
+    public string Username { get; set; } = string.Empty;
+    public string NombreCompleto { get; set; } = string.Empty;
+    public RolUsuario Rol { get; set; }
+    public string PasswordInicial { get; set; } = string.Empty;
+}
+
+public class EditarUsuarioDto
+{
+    public int Id { get; set; }
+    public string NombreCompleto { get; set; } = string.Empty;
+    public RolUsuario Rol { get; set; }
+    public bool Activo { get; set; }
+}
+
+public interface IUsuarioAdminService
+{
+    Task<List<UsuarioListaDto>> ObtenerTodosAsync();
+    Task<int> CrearAsync(NuevoUsuarioDto dto, int usuarioQueCreaId);
+    Task ActualizarAsync(EditarUsuarioDto dto, int usuarioQueEditaId);
+
+    /// <summary>Gerencia/Desarrollador resetean la clave de alguien que la
+    /// olvidó — la cuenta queda obligada a elegir una nueva en el próximo login
+    /// (igual que las 3 cuentas sembradas) y se invalidan sus sesiones activas
+    /// en cualquier dispositivo (SecurityStamp nuevo).</summary>
+    Task ResetearPasswordAsync(int usuarioId, string passwordTemporal, int usuarioQueReseteaId);
+}
+
+/// <summary>
+/// CRUD de usuarios para la pantalla de administración — solo Gerencia/
+/// Desarrollador pueden usarlo (mismo criterio que ObtenerRecientesAsync en
+/// AuditoriaService: el chequeo de rol vive en el servicio, no solo en la UI,
+/// para que nadie lo salte llamando al método directo).
+/// </summary>
+public class UsuarioAdminService : IUsuarioAdminService
+{
+    private readonly IUsuarioRepository _usuarioRepository;
+    private readonly IAuditoriaService _auditoriaService;
+    private readonly ISessionService _sessionService;
+
+    public UsuarioAdminService(IUsuarioRepository usuarioRepository, IAuditoriaService auditoriaService, ISessionService sessionService)
+    {
+        _usuarioRepository = usuarioRepository;
+        _auditoriaService = auditoriaService;
+        _sessionService = sessionService;
+    }
+
+    private void ExigirPermiso()
+    {
+        var rol = _sessionService.UsuarioActual?.Rol;
+        if (rol != RolUsuario.Gerencia && rol != RolUsuario.Desarrollador)
+        {
+            throw new UnauthorizedAccessException("No tenés permiso para administrar usuarios.");
+        }
+    }
+
+    public async Task<List<UsuarioListaDto>> ObtenerTodosAsync()
+    {
+        ExigirPermiso();
+        var usuarios = await _usuarioRepository.ObtenerTodosAsync();
+        return usuarios.Select(u => new UsuarioListaDto
+        {
+            Id = u.Id,
+            Username = u.Username,
+            NombreCompleto = u.NombreCompleto,
+            Rol = u.Rol,
+            Activo = u.Activo,
+            DebeCambiarPassword = u.DebeCambiarPassword,
+            Bloqueado = u.BloqueadoHasta.HasValue && u.BloqueadoHasta.Value > DateTime.Now,
+            FechaCreacion = u.FechaCreacion
+        }).ToList();
+    }
+
+    public async Task<int> CrearAsync(NuevoUsuarioDto dto, int usuarioQueCreaId)
+    {
+        ExigirPermiso();
+
+        if (string.IsNullOrWhiteSpace(dto.Username) || string.IsNullOrWhiteSpace(dto.NombreCompleto))
+        {
+            throw new InvalidOperationException("Usuario y nombre completo son obligatorios.");
+        }
+        if (PoliticaPassword.Validar(dto.PasswordInicial) is { } errorPassword)
+        {
+            throw new InvalidOperationException(errorPassword);
+        }
+        if (await _usuarioRepository.ExisteUsernameAsync(dto.Username))
+        {
+            throw new InvalidOperationException($"Ya existe un usuario con el nombre '{dto.Username}'.");
+        }
+
+        var usuario = new Usuario
+        {
+            Username = dto.Username.Trim(),
+            NombreCompleto = dto.NombreCompleto.Trim(),
+            Rol = dto.Rol,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.PasswordInicial),
+            Activo = true,
+            FechaCreacion = DateTime.Now,
+            // Un admin eligió esta contraseña por la persona -- se la hace elegir
+            // una propia apenas entre, mismo criterio que las cuentas sembradas.
+            DebeCambiarPassword = true,
+            SecurityStamp = Guid.NewGuid().ToString("N")
+        };
+
+        var id = await _usuarioRepository.CrearAsync(usuario);
+
+        await _auditoriaService.RegistrarAsync(
+            "USUARIO_CREADO",
+            $"Se creó el usuario '{usuario.Username}' ({usuario.NombreCompleto}, rol {usuario.Rol}).",
+            usuarioQueCreaId, "Usuario", id);
+
+        return id;
+    }
+
+    public async Task ActualizarAsync(EditarUsuarioDto dto, int usuarioQueEditaId)
+    {
+        ExigirPermiso();
+
+        var usuario = await _usuarioRepository.ObtenerPorIdAsync(dto.Id)
+            ?? throw new InvalidOperationException("El usuario no existe.");
+
+        if (string.IsNullOrWhiteSpace(dto.NombreCompleto))
+        {
+            throw new InvalidOperationException("El nombre completo es obligatorio.");
+        }
+
+        usuario.NombreCompleto = dto.NombreCompleto.Trim();
+        usuario.Rol = dto.Rol;
+        usuario.Activo = dto.Activo;
+        await _usuarioRepository.ActualizarAsync(usuario);
+
+        await _auditoriaService.RegistrarAsync(
+            "USUARIO_EDITADO",
+            $"Se editó el usuario '{usuario.Username}' (rol {usuario.Rol}, {(usuario.Activo ? "activo" : "desactivado")}).",
+            usuarioQueEditaId, "Usuario", usuario.Id);
+    }
+
+    public async Task ResetearPasswordAsync(int usuarioId, string passwordTemporal, int usuarioQueReseteaId)
+    {
+        ExigirPermiso();
+
+        if (PoliticaPassword.Validar(passwordTemporal) is { } errorPassword)
+        {
+            throw new InvalidOperationException(errorPassword);
+        }
+
+        var usuario = await _usuarioRepository.ObtenerPorIdAsync(usuarioId)
+            ?? throw new InvalidOperationException("El usuario no existe.");
+
+        usuario.PasswordHash = BCrypt.Net.BCrypt.HashPassword(passwordTemporal);
+        usuario.DebeCambiarPassword = true;
+        usuario.IntentosFallidos = 0;
+        usuario.BloqueadoHasta = null;
+        usuario.SecurityStamp = Guid.NewGuid().ToString("N");
+        await _usuarioRepository.ActualizarAsync(usuario);
+
+        await _auditoriaService.RegistrarAsync(
+            "USUARIO_PASSWORD_RESETEADA",
+            $"Se reseteó la contraseña de '{usuario.Username}' — va a tener que elegir una nueva en el próximo login.",
+            usuarioQueReseteaId, "Usuario", usuario.Id);
     }
 }
 
@@ -201,14 +504,14 @@ public class HabitacionCardDto
         ? "Sin acompañantes"
         : string.Join(", ", AcompanantesHuesped);
 
-    public Color ColorEstado => Estado switch
-    {
-        EstadoHabitacion.Disponible => (Color)Microsoft.Maui.Controls.Application.Current!.Resources["ColorDisponible"],
-        EstadoHabitacion.Ocupada => (Color)Microsoft.Maui.Controls.Application.Current!.Resources["ColorOcupada"],
-        EstadoHabitacion.LimpiezaSalida => (Color)Microsoft.Maui.Controls.Application.Current!.Resources["ColorLimpieza"],
-        EstadoHabitacion.Mantenimiento => (Color)Microsoft.Maui.Controls.Application.Current!.Resources["ColorMantenimiento"],
-        _ => Colors.Gray
-    };
+    /// <summary>
+    /// Clave del color de tema asociado al estado (ej. "ColorDisponible"), NO un Color
+    /// de MAUI — esta capa (Application) tiene que poder compilar sin MAUI para poder
+    /// vivir en una librería compartida con el futuro proyecto web. Cada UI (MAUI hoy,
+    /// Blazor Server más adelante) traduce esta clave a su propio tipo de color; en MAUI
+    /// eso lo hace Presentation/Converters/ClaveColorConverters.cs.
+    /// </summary>
+    public string ClaveColorEstado => ClaveDeColorEstado.ParaEstadoHabitacion(Estado);
 
     public string EtiquetaEstado => Estado switch
     {
@@ -232,12 +535,6 @@ public class HabitacionCardDto
     public string TarifaTexto => $"S/ {TarifaNoche:0.00} / noche";
     public string FechaCheckInTexto => FechaCheckInHuesped?.ToString("dd/MM HH:mm") ?? "-";
 
-    /// <summary>
-    /// Igual que ColorEstado pero como Brush. Border.Stroke es de tipo Brush (no Color),
-    /// así que se expone esta versión aparte para el borde de la tarjeta — evita depender
-    /// de una conversión implícita Color→Brush en el binding.
-    /// </summary>
-    public Brush BrushEstado => new SolidColorBrush(ColorEstado);
 }
 
 /// <summary>Datos que llegan desde CheckInPage para crear una nueva Estadia.</summary>
@@ -263,6 +560,28 @@ public class NuevoCheckInDto
     public List<string> Acompanantes { get; set; } = new();
     public string? Observaciones { get; set; }
     public int UsuarioId { get; set; }
+
+    /// <summary>Fecha/hora de Check-in a registrar en vez de "ahora" — para corregir un
+    /// huésped que ya estaba alojado y recién se está cargando en el sistema, o un
+    /// error de tipeo en la hora. Null = usa DateTime.Now (caso normal). Restringido a
+    /// Gerencia/Desarrollador (ver HabitacionService.CheckInAsync): permitir que
+    /// cualquiera "mueva" cuándo empezó una estadía afecta a qué día se le atribuye el
+    /// ingreso en Informe Mensual y Reportes.</summary>
+    public DateTime? FechaCheckInManual { get; set; }
+}
+
+/// <summary>Corrección de los datos de identidad de un huésped ya con Check-in hecho
+/// — ver HabitacionService.EditarDatosHuespedAsync. A propósito NO incluye
+/// facturación (RUC/RazonSocial/TipoComprobante) ni acompañantes: cambiar cómo se
+/// factura después de hecho el Check-in es un caso distinto, más delicado, que no
+/// se resuelve con un simple typo-fix.</summary>
+public class EditarDatosHuespedDto
+{
+    public int EstadiaId { get; set; }
+    public TipoDocumento TipoDocumento { get; set; } = TipoDocumento.DNI;
+    public string NumeroDocumento { get; set; } = string.Empty;
+    public string NombreCompleto { get; set; } = string.Empty;
+    public string Celular { get; set; } = string.Empty;
 }
 
 // ============================================================
@@ -274,11 +593,34 @@ public interface IHabitacionService
     Task<List<HabitacionCardDto>> ObtenerPorPisoAsync(int piso);
     Task<List<HabitacionCardDto>> ObtenerTodasAsync();
     Task CheckInAsync(NuevoCheckInDto dto);
-    Task CheckOutAsync(int estadiaId, int usuarioId, MetodoPago metodoPago);
+
+    /// <summary>fechaCheckOutManual: igual que NuevoCheckInDto.FechaCheckInManual, pero
+    /// para el cierre de la estadía — null usa DateTime.Now (caso normal), y fijar un
+    /// valor está restringido a Gerencia/Desarrollador por el mismo motivo.</summary>
+    Task CheckOutAsync(int estadiaId, int usuarioId, MetodoPago metodoPago, DateTime? fechaCheckOutManual = null);
     Task IniciarMantenimientoAsync(int habitacionId, string motivo, int usuarioId);
     Task FinalizarMantenimientoAsync(int habitacionId, int usuarioId);
-    Task FinalizarLimpiezaAsync(int habitacionId);
+    Task FinalizarLimpiezaAsync(int habitacionId, int usuarioId);
     Task RegistrarLimpiezaIntermediaAsync(int habitacionId, int usuarioId);
+
+    /// <summary>Cambia la tarifa por noche de una habitación de acá en adelante — NO
+    /// afecta el TotalAcumulado de estadías ya en curso (esas ya cobraron su tarifa al
+    /// hacer Check-in). Restringido a Gerencia/Desarrollador.</summary>
+    Task EditarTarifaAsync(int habitacionId, decimal nuevaTarifa, int usuarioId);
+
+    /// <summary>Corrige documento/nombre/celular de una estadía Activa — para el typo
+    /// más común del día a día (un número de documento mal tipeado en el apuro de un
+    /// Check-in). A diferencia de EditarTarifaAsync, NO está restringido a Gerencia:
+    /// es una corrección de datos, no algo que cambie cuánto se cobra, y cualquiera
+    /// que hizo el Check-in original debería poder arreglar su propio error sin
+    /// depender de un superior. Solo se puede usar mientras la estadía sigue Activa
+    /// (no después del Check-out, que ya cerró el registro).</summary>
+    Task EditarDatosHuespedAsync(EditarDatosHuespedDto dto, int usuarioId);
+
+    /// <summary>Datos de una Estadia ya cerrada (Check-out hecho), listos para
+    /// imprimir el comprobante. Null si la estadía no existe o todavía está Activa
+    /// (el total y el número de comprobante recién quedan definitivos al Check-out).</summary>
+    Task<EstadiaReciboDto?> ObtenerReciboEstadiaAsync(int estadiaId);
 }
 
 /// <summary>
@@ -348,12 +690,28 @@ public class HabitacionService : IHabitacionService
     private readonly AppDbContext _context;
     private readonly IAuditoriaService _auditoriaService;
     private readonly IComprobanteNumeracionService _comprobanteNumeracionService;
+    private readonly ISessionService _sessionService;
 
-    public HabitacionService(AppDbContext context, IAuditoriaService auditoriaService, IComprobanteNumeracionService comprobanteNumeracionService)
+    public HabitacionService(AppDbContext context, IAuditoriaService auditoriaService, IComprobanteNumeracionService comprobanteNumeracionService, ISessionService sessionService)
     {
         _context = context;
         _auditoriaService = auditoriaService;
         _comprobanteNumeracionService = comprobanteNumeracionService;
+        _sessionService = sessionService;
+    }
+
+    /// <summary>Repite el mismo chequeo de rol que ya usan GastosService/AuditoriaService
+    /// para sus acciones sensibles — protege tanto "mover" la fecha real de un
+    /// Check-in/Check-out (cambia a qué día se le atribuye un ingreso en los reportes)
+    /// como editar la tarifa de una habitación (cambia cuánto se cobra a partir de
+    /// ahora).</summary>
+    private void ExigirRolGerencial(string accion)
+    {
+        var rol = _sessionService.UsuarioActual?.Rol;
+        if (rol != RolUsuario.Gerencia && rol != RolUsuario.Desarrollador)
+        {
+            throw new UnauthorizedAccessException($"Solo Gerencia/Desarrollador puede {accion}.");
+        }
     }
 
     public async Task<List<HabitacionCardDto>> ObtenerPorPisoAsync(int piso)
@@ -434,6 +792,17 @@ public class HabitacionService : IHabitacionService
             throw new InvalidOperationException("Esta habitación ya no está Disponible. Actualiza la pantalla e intenta de nuevo.");
         }
 
+        var fechaCheckIn = DateTime.Now;
+        if (dto.FechaCheckInManual is { } fechaManual)
+        {
+            ExigirRolGerencial("fijar una fecha de Check-in distinta a la actual");
+            if (fechaManual > DateTime.Now)
+            {
+                throw new InvalidOperationException("La fecha de Check-in no puede ser en el futuro.");
+            }
+            fechaCheckIn = fechaManual;
+        }
+
         var estadia = new Estadia
         {
             HabitacionId = habitacion.Id,
@@ -446,7 +815,7 @@ public class HabitacionService : IHabitacionService
             Nacionalidad = string.IsNullOrWhiteSpace(dto.Nacionalidad) ? "Peruana" : dto.Nacionalidad,
             LugarResidencia = dto.LugarResidencia,
             MotivoViaje = dto.MotivoViaje,
-            FechaCheckIn = DateTime.Now,
+            FechaCheckIn = fechaCheckIn,
             Estado = EstadoEstadia.Activa,
             TipoComprobante = dto.TipoComprobante,
             RUC = dto.RUC,
@@ -486,7 +855,7 @@ public class HabitacionService : IHabitacionService
             dto.UsuarioId, "Estadia", estadia.Id);
     }
 
-    public async Task CheckOutAsync(int estadiaId, int usuarioId, MetodoPago metodoPago)
+    public async Task CheckOutAsync(int estadiaId, int usuarioId, MetodoPago metodoPago, DateTime? fechaCheckOutManual = null)
     {
         // AsTracking(): se modifican tanto la Estadia (Estado, TotalAcumulado) como
         // su Habitacion (Estado = LimpiezaSalida) y ambas se guardan.
@@ -504,8 +873,23 @@ public class HabitacionService : IHabitacionService
             throw new InvalidOperationException("Esta estadía ya fue cerrada.");
         }
 
+        var fechaCheckOut = DateTime.Now;
+        if (fechaCheckOutManual is { } fechaManual)
+        {
+            ExigirRolGerencial("fijar una fecha de Check-out distinta a la actual");
+            if (fechaManual > DateTime.Now)
+            {
+                throw new InvalidOperationException("La fecha de Check-out no puede ser en el futuro.");
+            }
+            if (fechaManual < estadia.FechaCheckIn)
+            {
+                throw new InvalidOperationException("La fecha de Check-out no puede ser anterior a la de Check-in.");
+            }
+            fechaCheckOut = fechaManual;
+        }
+
         estadia.Estado = EstadoEstadia.Finalizada;
-        estadia.FechaCheckOut = DateTime.Now;
+        estadia.FechaCheckOut = fechaCheckOut;
         estadia.UsuarioCheckOutId = usuarioId;
         estadia.MetodoPago = metodoPago;
         estadia.NumeroComprobante = await _comprobanteNumeracionService.ObtenerSiguienteNumeroAsync(estadia.TipoComprobante);
@@ -527,6 +911,17 @@ public class HabitacionService : IHabitacionService
             }
 
             estadia.Habitacion.Estado = EstadoHabitacion.LimpiezaSalida;
+
+            // Abre el registro histórico de limpieza (ver RegistroLimpieza) — se
+            // cierra en FinalizarLimpiezaAsync. Sirve para reportar frecuencia de
+            // limpieza por habitación; no afecta el Calendario, que solo mira
+            // Habitacion.Estado para HOY.
+            _context.RegistrosLimpieza.Add(new RegistroLimpieza
+            {
+                HabitacionId = estadia.Habitacion.Id,
+                FechaInicio = DateTime.Now,
+                UsuarioInicioId = usuarioId
+            });
         }
 
         await _context.SaveChangesAsync();
@@ -590,7 +985,7 @@ public class HabitacionService : IHabitacionService
             usuarioId, "Habitacion", habitacion.Id);
     }
 
-    public async Task FinalizarLimpiezaAsync(int habitacionId)
+    public async Task FinalizarLimpiezaAsync(int habitacionId, int usuarioId)
     {
         // AsTracking(): se modifica (Estado = Disponible) y se guarda.
         var habitacion = await _context.Habitaciones.AsTracking().FirstOrDefaultAsync(h => h.Id == habitacionId);
@@ -604,6 +999,21 @@ public class HabitacionService : IHabitacionService
         }
 
         habitacion.Estado = EstadoHabitacion.Disponible;
+
+        // Cierra el registro histórico que abrió CheckOutAsync. AsTracking()
+        // porque se modifica (FechaFin, UsuarioFinId) y se guarda junto con la
+        // habitación en el mismo SaveChangesAsync.
+        var registroAbierto = await _context.RegistrosLimpieza
+            .AsTracking()
+            .Where(r => r.HabitacionId == habitacionId && r.FechaFin == null)
+            .OrderByDescending(r => r.FechaInicio)
+            .FirstOrDefaultAsync();
+        if (registroAbierto is not null)
+        {
+            registroAbierto.FechaFin = DateTime.Now;
+            registroAbierto.UsuarioFinId = usuarioId;
+        }
+
         await _context.SaveChangesAsync();
     }
 
@@ -621,6 +1031,124 @@ public class HabitacionService : IHabitacionService
             $"Se solicitó limpieza intermedia para la habitación {habitacion.Numero} (sin cambio de estado).",
             usuarioId, "Habitacion", habitacion.Id);
     }
+
+    public async Task EditarTarifaAsync(int habitacionId, decimal nuevaTarifa, int usuarioId)
+    {
+        ExigirRolGerencial("editar la tarifa de una habitación");
+
+        if (nuevaTarifa <= 0)
+        {
+            throw new InvalidOperationException("La tarifa debe ser mayor a cero.");
+        }
+
+        // AsTracking(): se modifica (TarifaNoche) y se guarda. No toca Estado (el
+        // ConcurrencyToken es sobre esa propiedad, no sobre esta) así que no hay riesgo
+        // de chocar con un Check-in concurrente por este cambio.
+        var habitacion = await _context.Habitaciones.AsTracking().FirstOrDefaultAsync(h => h.Id == habitacionId);
+        if (habitacion is null)
+        {
+            throw new InvalidOperationException("La habitación no existe.");
+        }
+
+        var tarifaAnterior = habitacion.TarifaNoche;
+        habitacion.TarifaNoche = nuevaTarifa;
+        await _context.SaveChangesAsync();
+
+        await _auditoriaService.RegistrarAsync(
+            "HABITACION_TARIFA_EDITADA",
+            $"Tarifa de la habitación {habitacion.Numero} cambió de S/ {tarifaAnterior:0.00} a S/ {nuevaTarifa:0.00}.",
+            usuarioId, "Habitacion", habitacion.Id);
+    }
+
+    public async Task EditarDatosHuespedAsync(EditarDatosHuespedDto dto, int usuarioId)
+    {
+        if (string.IsNullOrWhiteSpace(dto.NumeroDocumento) || string.IsNullOrWhiteSpace(dto.NombreCompleto) || string.IsNullOrWhiteSpace(dto.Celular))
+        {
+            throw new InvalidOperationException("El número de documento, nombre completo y celular son obligatorios.");
+        }
+
+        // AsTracking(): se modifica (TipoDocumento/NumeroDocumento/NombreCompleto/
+        // Celular) y se guarda.
+        var estadia = await _context.Estadias.AsTracking().FirstOrDefaultAsync(e => e.Id == dto.EstadiaId);
+        if (estadia is null)
+        {
+            throw new InvalidOperationException("La estadía no existe.");
+        }
+        if (estadia.Estado != EstadoEstadia.Activa)
+        {
+            throw new InvalidOperationException("Solo se pueden corregir los datos de una estadía Activa (no después del Check-out).");
+        }
+
+        var nombreAnterior = estadia.NombreCompleto;
+        estadia.TipoDocumento = dto.TipoDocumento;
+        estadia.NumeroDocumento = dto.NumeroDocumento.Trim();
+        estadia.NombreCompleto = dto.NombreCompleto.Trim();
+        estadia.Celular = dto.Celular.Trim();
+        await _context.SaveChangesAsync();
+
+        await _auditoriaService.RegistrarAsync(
+            "ESTADIA_DATOS_CORREGIDOS",
+            $"Se corrigieron los datos del huésped \"{nombreAnterior}\" → \"{estadia.NombreCompleto}\" ({estadia.TipoDocumento} {estadia.NumeroDocumento}) en la habitación.",
+            usuarioId, "Estadia", estadia.Id);
+    }
+
+    public async Task<EstadiaReciboDto?> ObtenerReciboEstadiaAsync(int estadiaId)
+    {
+        var estadia = await _context.Estadias
+            .Include(e => e.Habitacion)
+            .Include(e => e.Acompanantes)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(e => e.Id == estadiaId);
+
+        if (estadia is null || estadia.Estado != EstadoEstadia.Finalizada || estadia.FechaCheckOut is null)
+        {
+            return null;
+        }
+
+        var noches = Math.Max(1, (estadia.FechaCheckOut.Value.Date - estadia.FechaCheckIn.Date).Days);
+
+        return new EstadiaReciboDto
+        {
+            EstadiaId = estadia.Id,
+            NumeroComprobante = estadia.NumeroComprobante ?? "—",
+            TipoComprobante = estadia.TipoComprobante,
+            FechaCheckIn = estadia.FechaCheckIn,
+            FechaCheckOut = estadia.FechaCheckOut.Value,
+            Noches = noches,
+            NumeroHabitacion = estadia.Habitacion?.Numero ?? 0,
+            TipoHabitacion = estadia.Habitacion?.Tipo ?? TipoHabitacion.Simple,
+            NombreHuesped = estadia.NombreCompleto,
+            TipoDocumento = estadia.TipoDocumento,
+            NumeroDocumento = estadia.NumeroDocumento,
+            RUC = estadia.RUC,
+            RazonSocial = estadia.RazonSocial,
+            MetodoPago = estadia.MetodoPago,
+            Total = estadia.TotalAcumulado,
+            Acompanantes = estadia.Acompanantes.Select(a => a.NombreCompleto).ToList()
+        };
+    }
+}
+
+/// <summary>Datos listos para imprimir el comprobante de una Estadia ya cerrada —
+/// ver IHabitacionService.ObtenerReciboEstadiaAsync.</summary>
+public class EstadiaReciboDto
+{
+    public int EstadiaId { get; set; }
+    public string NumeroComprobante { get; set; } = string.Empty;
+    public TipoComprobante TipoComprobante { get; set; }
+    public DateTime FechaCheckIn { get; set; }
+    public DateTime FechaCheckOut { get; set; }
+    public int Noches { get; set; }
+    public int NumeroHabitacion { get; set; }
+    public TipoHabitacion TipoHabitacion { get; set; }
+    public string NombreHuesped { get; set; } = string.Empty;
+    public TipoDocumento TipoDocumento { get; set; }
+    public string NumeroDocumento { get; set; } = string.Empty;
+    public string? RUC { get; set; }
+    public string? RazonSocial { get; set; }
+    public MetodoPago? MetodoPago { get; set; }
+    public decimal Total { get; set; }
+    public List<string> Acompanantes { get; set; } = new();
 }
 
 // ============================================================
@@ -634,7 +1162,10 @@ public class EstadoHabitacionResumenDto
 
     /// <summary>Ancho ya calculado en pixeles para dibujar la barra proporcional (ver DashboardService).</summary>
     public double AnchoBarra { get; set; }
-    public Color ColorBarra { get; set; } = Colors.Gray;
+
+    /// <summary>Clave del color de tema (ej. "ColorDisponible"), no un Color de MAUI — ver
+    /// el comentario de HabitacionCardDto.ClaveColorEstado más arriba.</summary>
+    public string ClaveColorBarra { get; set; } = string.Empty;
     public string Etiqueta { get; set; } = string.Empty;
 }
 
@@ -763,39 +1294,12 @@ public class DashboardService : IDashboardService
                 Estado = estado,
                 Cantidad = cantidad,
                 AnchoBarra = ancho,
-                ColorBarra = ColorParaEstado(estado),
+                ClaveColorBarra = ClaveDeColorEstado.ParaEstadoHabitacion(estado),
                 Etiqueta = EtiquetaParaEstado(estado)
             });
         }
 
         return resultado;
-    }
-
-    /// <summary>
-    /// Busca el color del tema con "TryGetValue" en vez de indexar directo con "!":
-    /// así, si algún día esto se llama sin una Application de MAUI corriendo (como en
-    /// las pruebas automatizadas, donde no hay ventana ni tema cargado), devuelve un
-    /// gris neutro en vez de tirar NullReferenceException. En la app real esto nunca
-    /// cambia nada — Application.Current y las 4 claves siempre existen.
-    /// </summary>
-    private static Color ColorParaEstado(EstadoHabitacion estado)
-    {
-        var clave = estado switch
-        {
-            EstadoHabitacion.Disponible => "ColorDisponible",
-            EstadoHabitacion.Ocupada => "ColorOcupada",
-            EstadoHabitacion.LimpiezaSalida => "ColorLimpieza",
-            EstadoHabitacion.Mantenimiento => "ColorMantenimiento",
-            _ => (string?)null
-        };
-
-        var recursos = Microsoft.Maui.Controls.Application.Current?.Resources;
-        if (clave is not null && recursos is not null && recursos.TryGetValue(clave, out var valor) && valor is Color color)
-        {
-            return color;
-        }
-
-        return Colors.Gray;
     }
 
     private static string EtiquetaParaEstado(EstadoHabitacion estado) => estado switch
@@ -805,6 +1309,357 @@ public class DashboardService : IDashboardService
         EstadoHabitacion.LimpiezaSalida => "Limpieza",
         EstadoHabitacion.Mantenimiento => "Mantenimiento",
         _ => estado.ToString()
+    };
+}
+
+// ============================================================
+// INFORME MENSUAL — DTOs + Servicio
+// ============================================================
+// Replica el informe mensual en Excel que el negocio ya llevaba a mano
+// (ver conversación de referencia): resumen Ingreso/Egreso/Saldo del mes,
+// desglose por método de pago y por categoría (con el detalle de
+// movimientos debajo de cada categoría), el libro diario completo del
+// mes, y la evolución mes a mes para los gráficos anuales.
+
+public class MontoPorMetodoDto
+{
+    public string Etiqueta { get; set; } = string.Empty;
+    public decimal Monto { get; set; }
+}
+
+/// <summary>Un renglón del libro diario — igual a la columna "Concepto" del Excel:
+/// mezcla check-outs de Hotel, ventas de Sauna/Cafetería cobradas al contado, y
+/// movimientos de caja manuales, todo en una sola línea de tiempo.</summary>
+public class MovimientoLibroDiarioDto
+{
+    public DateTime Fecha { get; set; }
+    public string Concepto { get; set; } = string.Empty;
+    public decimal? Ingreso { get; set; }
+    public decimal? Salida { get; set; }
+    public string Medio { get; set; } = string.Empty;
+    public string Responsable { get; set; } = string.Empty;
+}
+
+public class MontoPorCategoriaDto
+{
+    public string Etiqueta { get; set; } = string.Empty;
+    public decimal Monto { get; set; }
+
+    /// <summary>Los movimientos que componen este total — para poder expandir una
+    /// categoría (ej. "Servicios") y ver el detalle, igual que el Excel mostraba
+    /// Agua/Electricidad/Cable/etc. debajo del total de Servicios.</summary>
+    public List<MovimientoLibroDiarioDto> Detalle { get; set; } = new();
+}
+
+public class InformeMensualDto
+{
+    public int Anio { get; set; }
+    public int Mes { get; set; }
+    public string NombreMes { get; set; } = string.Empty;
+
+    public decimal IngresoTotal { get; set; }
+    public decimal EgresoTotal { get; set; }
+    public decimal Saldo => IngresoTotal - EgresoTotal;
+
+    /// <summary>Saldo acumulado de TODA la historia hasta antes de este mes — igual
+    /// a "SALDO ANTERIOR" del Excel.</summary>
+    public decimal SaldoAnterior { get; set; }
+
+    public List<MontoPorMetodoDto> IngresosPorMetodo { get; set; } = new();
+    public List<MontoPorCategoriaDto> IngresosPorCategoria { get; set; } = new();
+
+    public List<MontoPorMetodoDto> EgresosPorMetodo { get; set; } = new();
+    public List<MontoPorCategoriaDto> EgresosPorCategoria { get; set; } = new();
+
+    public List<MovimientoLibroDiarioDto> LibroDiario { get; set; } = new();
+}
+
+/// <summary>Un punto de la serie mensual — para los 2 gráficos "anuales" del Excel
+/// (barras Ingreso/Egreso por mes, y tendencia del Saldo neto).</summary>
+public class EvolucionMesDto
+{
+    public int Anio { get; set; }
+    public int Mes { get; set; }
+    public string Etiqueta { get; set; } = string.Empty;
+    public decimal Ingreso { get; set; }
+    public decimal Egreso { get; set; }
+    public decimal Saldo => Ingreso - Egreso;
+}
+
+public interface IInformeMensualService
+{
+    Task<InformeMensualDto> ObtenerInformeMensualAsync(int anio, int mes);
+
+    /// <summary>Mismo informe que ObtenerInformeMensualAsync, pero para un rango de
+    /// fechas elegido a mano en vez de un mes calendario completo — por ejemplo, para
+    /// cerrar solo la primera quincena o revisar una semana puntual. "hastaInclusive"
+    /// es el último día que SÍ entra en el informe (a diferencia del "finExclusivo"
+    /// interno, para que quien llama no tenga que acordarse de sumar un día).</summary>
+    Task<InformeMensualDto> ObtenerInformePorRangoAsync(DateTime desde, DateTime hastaInclusive);
+
+    /// <summary>Los últimos "cantidadMeses" meses, terminando en el mes actual.</summary>
+    Task<List<EvolucionMesDto>> ObtenerEvolucionAsync(int cantidadMeses);
+}
+
+public class InformeMensualService : IInformeMensualService
+{
+    private readonly AppDbContext _context;
+
+    private static readonly string[] NombresMeses =
+    {
+        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    };
+
+    public InformeMensualService(AppDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<InformeMensualDto> ObtenerInformeMensualAsync(int anio, int mes)
+    {
+        var inicio = new DateTime(anio, mes, 1);
+        var finExclusivo = inicio.AddMonths(1);
+
+        var informe = await ConstruirInformeAsync(inicio, finExclusivo);
+        informe.Anio = anio;
+        informe.Mes = mes;
+        informe.NombreMes = $"{NombresMeses[mes - 1]} {anio}";
+        return informe;
+    }
+
+    public async Task<InformeMensualDto> ObtenerInformePorRangoAsync(DateTime desde, DateTime hastaInclusive)
+    {
+        var inicio = desde.Date;
+        var finExclusivo = hastaInclusive.Date.AddDays(1);
+        if (finExclusivo <= inicio)
+        {
+            throw new InvalidOperationException("La fecha 'hasta' debe ser igual o posterior a la fecha 'desde'.");
+        }
+
+        var informe = await ConstruirInformeAsync(inicio, finExclusivo);
+        informe.NombreMes = inicio == hastaInclusive.Date
+            ? inicio.ToString("dd/MM/yyyy")
+            : $"{inicio:dd/MM/yyyy} — {hastaInclusive:dd/MM/yyyy}";
+        return informe;
+    }
+
+    /// <summary>Núcleo compartido por ObtenerInformeMensualAsync y
+    /// ObtenerInformePorRangoAsync — arma todo el informe (totales, desglose por
+    /// método/categoría, libro diario) para el rango [inicio, finExclusivo). No fija
+    /// Anio/Mes/NombreMes: eso es responsabilidad de cada método público, porque solo
+    /// tiene sentido real para un mes calendario completo.</summary>
+    private async Task<InformeMensualDto> ConstruirInformeAsync(DateTime inicio, DateTime finExclusivo)
+    {
+        var (ingresoAnterior, egresoAnterior) = await CalcularTotalesAsync(DateTime.MinValue, inicio);
+
+        // --- Ingresos "reales" del período: cuándo se cobró la plata de verdad. ---
+        // Check-out (no Check-in): recién ahí se cobra el total real de la estadía
+        // (noches + consumos cargados a la habitación). Venta de Sauna/Cafetería
+        // SOLO si se pagó al contado (Pagada) — la que se cargó a la habitación ya
+        // está adentro del total de la estadía, contarla de nuevo sería duplicar.
+        var estadias = await _context.Estadias
+            .Include(e => e.Habitacion)
+            .Where(e => e.FechaCheckOut != null && e.FechaCheckOut >= inicio && e.FechaCheckOut < finExclusivo)
+            .ToListAsync();
+
+        var ventas = await _context.VentasSauna
+            .Where(v => v.Estado == EstadoVenta.Pagada && v.Fecha >= inicio && v.Fecha < finExclusivo)
+            .ToListAsync();
+
+        var clienteIds = ventas.Where(v => v.ClienteSaunaId != null).Select(v => v.ClienteSaunaId!.Value).Distinct().ToList();
+        var clientes = await _context.ClientesSauna.Where(c => clienteIds.Contains(c.Id)).ToListAsync();
+        var estadiaVentaIds = ventas.Where(v => v.ClienteSaunaId == null && v.EstadiaHotelDestinoId != null)
+            .Select(v => v.EstadiaHotelDestinoId!.Value).Distinct().ToList();
+        var estadiasDeVenta = await _context.Estadias.Where(e => estadiaVentaIds.Contains(e.Id)).ToListAsync();
+
+        var movimientos = await _context.MovimientosCaja
+            .Where(m => m.FechaHora >= inicio && m.FechaHora < finExclusivo)
+            .ToListAsync();
+        var usuarioIds = movimientos.Select(m => m.UsuarioId).Distinct().ToList();
+        var usuarios = await _context.Usuarios.Where(u => usuarioIds.Contains(u.Id)).ToListAsync();
+        string NombreUsuario(int id) => usuarios.FirstOrDefault(u => u.Id == id)?.NombreCompleto ?? "—";
+
+        // --- Libro diario: las 3 fuentes, mezcladas y ordenadas por fecha ---
+        var libro = new List<MovimientoLibroDiarioDto>();
+
+        foreach (var e in estadias)
+        {
+            libro.Add(new MovimientoLibroDiarioDto
+            {
+                Fecha = e.FechaCheckOut!.Value,
+                Concepto = $"Check-out {e.NombreCompleto} — Hab. {e.Habitacion?.Numero}",
+                Ingreso = e.TotalAcumulado,
+                Medio = e.MetodoPago.HasValue ? EtiquetaMetodo(e.MetodoPago.Value) : "—",
+                Responsable = "—"
+            });
+        }
+
+        foreach (var v in ventas)
+        {
+            var nombre = v.ClienteSaunaId is { } clienteId
+                ? clientes.FirstOrDefault(c => c.Id == clienteId)?.NombreCompleto ?? "—"
+                : estadiasDeVenta.FirstOrDefault(e => e.Id == v.EstadiaHotelDestinoId)?.NombreCompleto ?? "—";
+
+            libro.Add(new MovimientoLibroDiarioDto
+            {
+                Fecha = v.Fecha,
+                Concepto = $"Venta POS — {nombre}",
+                Ingreso = v.Total,
+                Medio = v.MetodoPago.HasValue ? EtiquetaMetodo(v.MetodoPago.Value) : "—",
+                Responsable = "—"
+            });
+        }
+
+        foreach (var m in movimientos)
+        {
+            libro.Add(new MovimientoLibroDiarioDto
+            {
+                Fecha = m.FechaHora,
+                Concepto = m.Descripcion,
+                Ingreso = m.Direccion == DireccionMovimiento.Ingreso ? m.Monto : null,
+                Salida = m.Direccion == DireccionMovimiento.Salida ? m.Monto : null,
+                Medio = EtiquetaMetodo(m.MetodoPago),
+                Responsable = !string.IsNullOrWhiteSpace(m.PersonalRelacionado) ? m.PersonalRelacionado : NombreUsuario(m.UsuarioId)
+            });
+        }
+
+        libro = libro.OrderBy(l => l.Fecha).ToList();
+
+        var detalleCheckOuts = libro.Where(l => l.Concepto.StartsWith("Check-out")).ToList();
+        var detalleVentas = libro.Where(l => l.Concepto.StartsWith("Venta POS")).ToList();
+
+        decimal ingresoHabitacion = estadias.Sum(e => e.TotalAcumulado);
+        decimal ingresoVentas = ventas.Sum(v => v.Total);
+        decimal ingresoMovimientos = movimientos.Where(m => m.Direccion == DireccionMovimiento.Ingreso).Sum(m => m.Monto);
+        decimal egresoTotal = movimientos.Where(m => m.Direccion == DireccionMovimiento.Salida).Sum(m => m.Monto);
+
+        var ingresosPorCategoria = new List<MontoPorCategoriaDto>();
+        if (ingresoHabitacion > 0)
+        {
+            ingresosPorCategoria.Add(new MontoPorCategoriaDto { Etiqueta = "Habitación", Monto = ingresoHabitacion, Detalle = detalleCheckOuts });
+        }
+        if (ingresoVentas > 0)
+        {
+            ingresosPorCategoria.Add(new MontoPorCategoriaDto { Etiqueta = "Otras ventas", Monto = ingresoVentas, Detalle = detalleVentas });
+        }
+        ingresosPorCategoria.AddRange(
+            movimientos.Where(m => m.Direccion == DireccionMovimiento.Ingreso)
+                .GroupBy(m => m.Categoria)
+                .Select(g => new MontoPorCategoriaDto
+                {
+                    Etiqueta = EtiquetaCategoriaMovimiento.Etiqueta(g.Key),
+                    Monto = g.Sum(m => m.Monto),
+                    Detalle = g.Select(m => new MovimientoLibroDiarioDto
+                    {
+                        Fecha = m.FechaHora,
+                        Concepto = m.Descripcion,
+                        Ingreso = m.Monto,
+                        Medio = EtiquetaMetodo(m.MetodoPago),
+                        Responsable = !string.IsNullOrWhiteSpace(m.PersonalRelacionado) ? m.PersonalRelacionado : NombreUsuario(m.UsuarioId)
+                    }).ToList()
+                }));
+
+        var egresosPorCategoria = movimientos
+            .Where(m => m.Direccion == DireccionMovimiento.Salida)
+            .GroupBy(m => m.Categoria)
+            .Select(g => new MontoPorCategoriaDto
+            {
+                Etiqueta = EtiquetaCategoriaMovimiento.Etiqueta(g.Key),
+                Monto = g.Sum(m => m.Monto),
+                Detalle = g.Select(m => new MovimientoLibroDiarioDto
+                {
+                    Fecha = m.FechaHora,
+                    Concepto = m.Descripcion,
+                    Salida = m.Monto,
+                    Medio = EtiquetaMetodo(m.MetodoPago),
+                    Responsable = !string.IsNullOrWhiteSpace(m.PersonalRelacionado) ? m.PersonalRelacionado : NombreUsuario(m.UsuarioId)
+                }).ToList()
+            })
+            .OrderByDescending(c => c.Monto)
+            .ToList();
+
+        List<MontoPorMetodoDto> AgruparPorMetodo(IEnumerable<(MetodoPago metodo, decimal monto)> items) =>
+            items.GroupBy(i => i.metodo)
+                .Select(g => new MontoPorMetodoDto { Etiqueta = EtiquetaMetodo(g.Key), Monto = g.Sum(i => i.monto) })
+                .OrderByDescending(m => m.Monto)
+                .ToList();
+
+        var ingresosPorMetodo = AgruparPorMetodo(
+            estadias.Where(e => e.MetodoPago.HasValue).Select(e => (e.MetodoPago!.Value, e.TotalAcumulado))
+                .Concat(ventas.Where(v => v.MetodoPago.HasValue).Select(v => (v.MetodoPago!.Value, v.Total)))
+                .Concat(movimientos.Where(m => m.Direccion == DireccionMovimiento.Ingreso).Select(m => (m.MetodoPago, m.Monto))));
+
+        var egresosPorMetodo = AgruparPorMetodo(
+            movimientos.Where(m => m.Direccion == DireccionMovimiento.Salida).Select(m => (m.MetodoPago, m.Monto)));
+
+        return new InformeMensualDto
+        {
+            IngresoTotal = ingresoHabitacion + ingresoVentas + ingresoMovimientos,
+            EgresoTotal = egresoTotal,
+            SaldoAnterior = ingresoAnterior - egresoAnterior,
+            IngresosPorMetodo = ingresosPorMetodo,
+            IngresosPorCategoria = ingresosPorCategoria.OrderByDescending(c => c.Monto).ToList(),
+            EgresosPorMetodo = egresosPorMetodo,
+            EgresosPorCategoria = egresosPorCategoria,
+            LibroDiario = libro
+        };
+    }
+
+    public async Task<List<EvolucionMesDto>> ObtenerEvolucionAsync(int cantidadMeses)
+    {
+        var resultado = new List<EvolucionMesDto>();
+        var mesActual = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+
+        for (var i = cantidadMeses - 1; i >= 0; i--)
+        {
+            var mes = mesActual.AddMonths(-i);
+            var (ingreso, egreso) = await CalcularTotalesAsync(mes, mes.AddMonths(1));
+            resultado.Add(new EvolucionMesDto
+            {
+                Anio = mes.Year,
+                Mes = mes.Month,
+                Etiqueta = $"{NombresMeses[mes.Month - 1][..3].ToLower()}-{mes:yy}",
+                Ingreso = ingreso,
+                Egreso = egreso
+            });
+        }
+
+        return resultado;
+    }
+
+    /// <summary>Mismo criterio de ingreso/egreso "real" que ObtenerInformeMensualAsync,
+    /// pero sumado directo en SQL (sin traer entidades a memoria) — se usa tanto para
+    /// el Saldo Anterior como para cada punto de ObtenerEvolucionAsync.</summary>
+    private async Task<(decimal ingreso, decimal egreso)> CalcularTotalesAsync(DateTime desde, DateTime hastaExclusivo)
+    {
+        var ingresoHabitacion = await _context.Estadias
+            .Where(e => e.FechaCheckOut != null && e.FechaCheckOut >= desde && e.FechaCheckOut < hastaExclusivo)
+            .SumAsync(e => (decimal?)e.TotalAcumulado) ?? 0m;
+
+        var ingresoVentas = await _context.VentasSauna
+            .Where(v => v.Estado == EstadoVenta.Pagada && v.Fecha >= desde && v.Fecha < hastaExclusivo)
+            .SumAsync(v => (decimal?)v.Total) ?? 0m;
+
+        var ingresoMovimientos = await _context.MovimientosCaja
+            .Where(m => m.Direccion == DireccionMovimiento.Ingreso && m.FechaHora >= desde && m.FechaHora < hastaExclusivo)
+            .SumAsync(m => (decimal?)m.Monto) ?? 0m;
+
+        var egreso = await _context.MovimientosCaja
+            .Where(m => m.Direccion == DireccionMovimiento.Salida && m.FechaHora >= desde && m.FechaHora < hastaExclusivo)
+            .SumAsync(m => (decimal?)m.Monto) ?? 0m;
+
+        return (ingresoHabitacion + ingresoVentas + ingresoMovimientos, egreso);
+    }
+
+    private static string EtiquetaMetodo(MetodoPago metodo) => metodo switch
+    {
+        MetodoPago.Efectivo => "Efectivo",
+        MetodoPago.Tarjeta => "Tarjeta",
+        MetodoPago.Yape => "Yape",
+        MetodoPago.Plin => "Plin",
+        MetodoPago.Transferencia => "Transferencia",
+        _ => metodo.ToString()
     };
 }
 
@@ -1108,14 +1963,7 @@ public class MovimientoCajaCardDto
 
     public string EtiquetaDireccion => Direccion == DireccionMovimiento.Ingreso ? "Ingreso de dinero" : "Salida de dinero";
 
-    public string EtiquetaCategoria => Categoria switch
-    {
-        CategoriaMovimientoCaja.PagoPersonal => "Pago del Personal",
-        CategoriaMovimientoCaja.GastosDiarios => "Gastos diarios",
-        CategoriaMovimientoCaja.AjusteCaja => "Ajuste de Caja",
-        CategoriaMovimientoCaja.ConsumoPersonal => "Consumo de Personal",
-        _ => Categoria.ToString()
-    };
+    public string EtiquetaCategoria => EtiquetaCategoriaMovimiento.Etiqueta(Categoria);
 
     /// <summary>Ej: "(Salida de dinero / Pago del Personal)" — mismo estilo que pediste.</summary>
     public string TipoCompletoTexto => $"({EtiquetaDireccion} / {EtiquetaCategoria})";
@@ -1369,11 +2217,26 @@ public class NuevaReservaDto
     public int UsuarioId { get; set; }
 }
 
+/// <summary>Cambios permitidos sobre una reserva ya creada — a propósito NO incluye
+/// documento/nombre/facturación (eso es la identidad del huésped, no algo que
+/// debería cambiar con un "editar"; si está mal, conviene cancelar y crear una
+/// nueva). Cubre el pedido más común en la práctica: mover las fechas porque el
+/// huésped llamó a cambiar su estadía, o corregir el celular/una observación.</summary>
+public class ModificarReservaDto
+{
+    public int ReservaId { get; set; }
+    public DateTime FechaInicio { get; set; }
+    public DateTime FechaFin { get; set; }
+    public string Celular { get; set; } = string.Empty;
+    public string? Observaciones { get; set; }
+}
+
 public interface IReservaService
 {
     Task<List<ReservaCardDto>> ObtenerProximasAsync();
     Task<List<HabitacionDisponibleDto>> ObtenerHabitacionesDisponiblesAsync(DateTime fechaInicio, DateTime fechaFin);
     Task<int> CrearReservaAsync(NuevaReservaDto dto);
+    Task ModificarReservaAsync(ModificarReservaDto dto, int usuarioId);
     Task CancelarReservaAsync(int reservaId, int usuarioId);
     Task ConvertirEnCheckInAsync(int reservaId, int usuarioId);
 }
@@ -1512,6 +2375,60 @@ public class ReservaService : IReservaService
         return reserva.Id;
     }
 
+    public async Task ModificarReservaAsync(ModificarReservaDto dto, int usuarioId)
+    {
+        // AsTracking(): se modifica (FechaInicio/FechaFin/Celular/Observaciones) y se guarda.
+        var reserva = await _context.Reservas.AsTracking().FirstOrDefaultAsync(r => r.Id == dto.ReservaId);
+        if (reserva is null)
+        {
+            throw new InvalidOperationException("La reserva no existe.");
+        }
+        if (reserva.Estado != EstadoReserva.Confirmada)
+        {
+            throw new InvalidOperationException("Solo se pueden modificar reservas Confirmadas (no canceladas ni ya convertidas en Check-in).");
+        }
+
+        var fechaInicio = dto.FechaInicio.Date;
+        var fechaFin = dto.FechaFin.Date;
+
+        if (fechaFin <= fechaInicio)
+        {
+            throw new InvalidOperationException("La fecha de salida debe ser posterior a la fecha de entrada.");
+        }
+        if (fechaInicio < DateTime.Now.Date)
+        {
+            throw new InvalidOperationException("No se puede mover la reserva a una fecha que ya pasó.");
+        }
+
+        // Mismo chequeo de superposición que CrearReservaAsync, excluyendo esta misma
+        // reserva (si no, siempre "chocaría" contra sus propias fechas viejas).
+        var hayConflicto = await _context.Reservas.AnyAsync(r =>
+            r.Id != dto.ReservaId &&
+            r.HabitacionId == reserva.HabitacionId &&
+            r.Estado == EstadoReserva.Confirmada &&
+            r.FechaInicio < fechaFin &&
+            fechaInicio < r.FechaFin);
+
+        if (hayConflicto)
+        {
+            throw new InvalidOperationException("Esa habitación ya tiene otra reserva confirmada que se cruza con esas fechas.");
+        }
+
+        var fechaInicioAnterior = reserva.FechaInicio;
+        var fechaFinAnterior = reserva.FechaFin;
+
+        reserva.FechaInicio = fechaInicio;
+        reserva.FechaFin = fechaFin;
+        reserva.Celular = dto.Celular;
+        reserva.Observaciones = dto.Observaciones;
+        await _context.SaveChangesAsync();
+
+        await _auditoriaService.RegistrarAsync(
+            "RESERVA_MODIFICADA",
+            $"Reserva de {reserva.NombreCompleto} modificada: {fechaInicioAnterior:dd/MM/yyyy}–{fechaFinAnterior:dd/MM/yyyy} pasó a {fechaInicio:dd/MM/yyyy}–{fechaFin:dd/MM/yyyy}.",
+            usuarioId, "Reserva", reserva.Id);
+    }
+
     public async Task CancelarReservaAsync(int reservaId, int usuarioId)
     {
         // AsTracking(): se modifica (Estado = Cancelada) y se guarda.
@@ -1623,7 +2540,8 @@ public enum EstadoCeldaCalendario
     Disponible,
     Ocupada,
     Reservada,
-    Mantenimiento
+    Mantenimiento,
+    Limpieza
 }
 
 public class CeldaCalendarioDto
@@ -1641,6 +2559,7 @@ public class ColumnaHabitacionCalendarioDto
     public int Numero { get; set; }
     public int Piso { get; set; }
     public TipoHabitacion Tipo { get; set; }
+    public decimal TarifaNoche { get; set; }
 
     /// <summary>Estado actual (de hoy) de la habitación — no es por día, es el mismo
     /// dato que usa Registro Hotel. Sirve para el filtro de estado del Calendario.</summary>
@@ -1725,6 +2644,7 @@ public class CalendarioService : ICalendarioService
                 Numero = habitacion.Numero,
                 Piso = habitacion.Piso,
                 Tipo = habitacion.Tipo,
+                TarifaNoche = habitacion.TarifaNoche,
                 EstadoActual = habitacion.Estado
             };
 
@@ -1736,11 +2656,19 @@ public class CalendarioService : ICalendarioService
                 var fecha = new DateTime(anio, mes, dia);
                 var esHoy = fecha == hoy;
 
-                // 1) Mantenimiento: solo se puede saber para HOY (es el único estado
-                //    "actual" que tenemos, no hay historial de mantenimiento por fecha).
+                // 1) Mantenimiento y Limpieza: solo se pueden saber para HOY (son estados
+                //    "actuales" de la habitación, no hay historial por fecha para pintar
+                //    días pasados o futuros — ver RegistroLimpieza para el historial real,
+                //    que existe para reportes de frecuencia, no para esta grilla).
                 if (esHoy && habitacion.Estado == EstadoHabitacion.Mantenimiento)
                 {
                     columna.Celdas.Add(new CeldaCalendarioDto { Dia = dia, Estado = EstadoCeldaCalendario.Mantenimiento, EsHoy = true });
+                    continue;
+                }
+
+                if (esHoy && habitacion.Estado == EstadoHabitacion.LimpiezaSalida)
+                {
+                    columna.Celdas.Add(new CeldaCalendarioDto { Dia = dia, Estado = EstadoCeldaCalendario.Limpieza, EsHoy = true });
                     continue;
                 }
 
@@ -1850,6 +2778,19 @@ public class ItemCarritoDto
     public int Cantidad { get; set; }
     public decimal PrecioUnitario { get; set; }
     public decimal Subtotal => Cantidad * PrecioUnitario;
+}
+
+/// <summary>Cambio de precio sobre un producto del catálogo del POS — a propósito
+/// solo toca precio(s), no nombre/categoría/ícono (eso es catálogo, no algo que
+/// cambie con la frecuencia con la que sube un precio). Restringido a
+/// Gerencia/Desarrollador, igual que el resto de acciones que afectan cuánto se
+/// le cobra a un cliente.</summary>
+public class EditarPrecioProductoDto
+{
+    public int ProductoId { get; set; }
+    public decimal Precio { get; set; }
+    public decimal PrecioAlquiler { get; set; }
+    public decimal PrecioVenta { get; set; }
 }
 
 // ============================================================
@@ -1998,10 +2939,36 @@ public class NuevoMovimientoInventarioDto
     public int UsuarioId { get; set; }
 }
 
+/// <summary>Alta de un artículo nuevo en el Almacén — hasta ahora la lista de
+/// insumos era fija (la que trajo el sembrado inicial), sin forma de agregar un
+/// producto nuevo que el hotel empiece a comprar sin editar la base a mano.</summary>
+public class NuevoInsumoDto
+{
+    public string Nombre { get; set; } = string.Empty;
+    public CategoriaInsumo Categoria { get; set; }
+    public string UnidadMedida { get; set; } = string.Empty;
+    public int StockInicial { get; set; }
+    public int StockMinimo { get; set; }
+}
+
+/// <summary>Corrección de un insumo ya existente — a propósito NO incluye
+/// StockActual (eso se mueve solo con RegistrarMovimientoAsync, que además deja
+/// registro en MovimientoInventario; cambiarlo acá directamente perdería esa
+/// trazabilidad).</summary>
+public class EditarInsumoDto
+{
+    public int Id { get; set; }
+    public string Nombre { get; set; } = string.Empty;
+    public string UnidadMedida { get; set; } = string.Empty;
+    public int StockMinimo { get; set; }
+}
+
 public interface IInventarioService
 {
     Task<List<InsumoCardDto>> ObtenerInsumosAsync();
     Task RegistrarMovimientoAsync(NuevoMovimientoInventarioDto dto);
+    Task<int> CrearInsumoAsync(NuevoInsumoDto dto, int usuarioId);
+    Task EditarInsumoAsync(EditarInsumoDto dto, int usuarioId);
 }
 
 /// <summary>
@@ -2080,24 +3047,102 @@ public class InventarioService : IInventarioService
             $"{etiquetaTipo} de {dto.Cantidad} {insumo.UnidadMedida} de {insumo.Nombre}. Motivo: {dto.Motivo}. Stock resultante: {insumo.StockActual} {insumo.UnidadMedida}.",
             dto.UsuarioId, "Insumo", insumo.Id);
     }
+
+    public async Task<int> CrearInsumoAsync(NuevoInsumoDto dto, int usuarioId)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Nombre))
+        {
+            throw new InvalidOperationException("El nombre del insumo es obligatorio.");
+        }
+        if (string.IsNullOrWhiteSpace(dto.UnidadMedida))
+        {
+            throw new InvalidOperationException("La unidad de medida es obligatoria.");
+        }
+        if (dto.StockInicial < 0 || dto.StockMinimo < 0)
+        {
+            throw new InvalidOperationException("El stock inicial y el mínimo no pueden ser negativos.");
+        }
+
+        var insumo = new Insumo
+        {
+            Nombre = dto.Nombre.Trim(),
+            Categoria = dto.Categoria,
+            UnidadMedida = dto.UnidadMedida.Trim(),
+            StockActual = dto.StockInicial,
+            StockMinimo = dto.StockMinimo,
+            Activo = true
+        };
+
+        _context.Insumos.Add(insumo);
+        await _context.SaveChangesAsync();
+
+        await _auditoriaService.RegistrarAsync(
+            "INSUMO_CREADO",
+            $"Nuevo insumo '{insumo.Nombre}' ({insumo.UnidadMedida}), stock inicial {insumo.StockActual}, mínimo {insumo.StockMinimo}.",
+            usuarioId, "Insumo", insumo.Id);
+
+        return insumo.Id;
+    }
+
+    public async Task EditarInsumoAsync(EditarInsumoDto dto, int usuarioId)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Nombre))
+        {
+            throw new InvalidOperationException("El nombre del insumo es obligatorio.");
+        }
+        if (string.IsNullOrWhiteSpace(dto.UnidadMedida))
+        {
+            throw new InvalidOperationException("La unidad de medida es obligatoria.");
+        }
+        if (dto.StockMinimo < 0)
+        {
+            throw new InvalidOperationException("El stock mínimo no puede ser negativo.");
+        }
+
+        // AsTracking(): se modifica (Nombre/UnidadMedida/StockMinimo) y se guarda.
+        var insumo = await _context.Insumos.AsTracking().FirstOrDefaultAsync(i => i.Id == dto.Id);
+        if (insumo is null)
+        {
+            throw new InvalidOperationException("El insumo no existe.");
+        }
+
+        insumo.Nombre = dto.Nombre.Trim();
+        insumo.UnidadMedida = dto.UnidadMedida.Trim();
+        insumo.StockMinimo = dto.StockMinimo;
+        await _context.SaveChangesAsync();
+
+        await _auditoriaService.RegistrarAsync(
+            "INSUMO_EDITADO",
+            $"Insumo '{insumo.Nombre}' editado — mínimo actualizado a {insumo.StockMinimo} {insumo.UnidadMedida}.",
+            usuarioId, "Insumo", insumo.Id);
+    }
 }
 
 public interface ISaunaService
 {
     Task<List<ProductoCatalogoDto>> ObtenerCatalogoAsync();
+    Task EditarPrecioProductoAsync(EditarPrecioProductoDto dto, int usuarioId);
     Task<List<ClienteSaunaCardDto>> ObtenerClientesActivosAsync();
     Task<int> RegistrarClienteAsync(NuevoClienteSaunaDto dto, int usuarioId);
     Task<List<HabitacionCardDto>> BuscarHuespedesActivosAsync();
     /// <summary>metodoPago es obligatorio cuando cargarAHabitacion es false (se está
-    /// cobrando ahora mismo); se ignora cuando es true (se cobra recién al Check-out).</summary>
-    Task RegistrarVentaAsync(int clienteSaunaId, List<ItemCarritoDto> items, int usuarioId, bool cargarAHabitacion, MetodoPago? metodoPago);
+    /// cobrando ahora mismo); se ignora cuando es true (se cobra recién al Check-out).
+    /// Devuelve el Id de la VentaSauna creada, para poder abrir su comprobante
+    /// imprimible (ver ObtenerReciboVentaAsync) cuando se cobró en el momento.</summary>
+    Task<int> RegistrarVentaAsync(int clienteSaunaId, List<ItemCarritoDto> items, int usuarioId, bool cargarAHabitacion, MetodoPago? metodoPago);
 
     /// <summary>Venta de Cafetería/servicios DIRECTA a un huésped de hotel, sin pasar
     /// por un registro de ClienteSauna — para el caso de un huésped que solo quiere
-    /// un café o un servicio adicional, sin haber ido al Sauna. Ver CafeteriaPage.</summary>
-    Task RegistrarVentaHotelAsync(int estadiaId, List<ItemCarritoDto> items, int usuarioId, bool cargarAHabitacion, MetodoPago? metodoPago);
+    /// un café o un servicio adicional, sin haber ido al Sauna. Ver CafeteriaPage.
+    /// Devuelve el Id de la VentaSauna creada, igual que RegistrarVentaAsync.</summary>
+    Task<int> RegistrarVentaHotelAsync(int estadiaId, List<ItemCarritoDto> items, int usuarioId, bool cargarAHabitacion, MetodoPago? metodoPago);
 
     Task FinalizarSesionAsync(int clienteSaunaId, int usuarioId);
+
+    /// <summary>Datos de una VentaSauna ya cobrada (no cargada a habitación), listos
+    /// para imprimir el comprobante. Null si la venta no existe o todavía está
+    /// CargadaAHabitacion (esas se imprimen recién al Check-out, con el total final).</summary>
+    Task<VentaReciboDto?> ObtenerReciboVentaAsync(int ventaId);
 }
 
 /// <summary>
@@ -2110,12 +3155,14 @@ public class SaunaService : ISaunaService
     private readonly AppDbContext _context;
     private readonly IAuditoriaService _auditoriaService;
     private readonly IComprobanteNumeracionService _comprobanteNumeracionService;
+    private readonly ISessionService _sessionService;
 
-    public SaunaService(AppDbContext context, IAuditoriaService auditoriaService, IComprobanteNumeracionService comprobanteNumeracionService)
+    public SaunaService(AppDbContext context, IAuditoriaService auditoriaService, IComprobanteNumeracionService comprobanteNumeracionService, ISessionService sessionService)
     {
         _context = context;
         _auditoriaService = auditoriaService;
         _comprobanteNumeracionService = comprobanteNumeracionService;
+        _sessionService = sessionService;
     }
 
     public async Task<List<ProductoCatalogoDto>> ObtenerCatalogoAsync()
@@ -2137,6 +3184,45 @@ public class SaunaService : ISaunaService
             PrecioAlquiler = p.PrecioAlquiler,
             PrecioVenta = p.PrecioVenta
         }).ToList();
+    }
+
+    public async Task EditarPrecioProductoAsync(EditarPrecioProductoDto dto, int usuarioId)
+    {
+        var rol = _sessionService.UsuarioActual?.Rol;
+        if (rol != RolUsuario.Gerencia && rol != RolUsuario.Desarrollador)
+        {
+            throw new UnauthorizedAccessException("No tienes permiso para cambiar precios del catálogo.");
+        }
+
+        if (dto.Precio < 0 || dto.PrecioAlquiler < 0 || dto.PrecioVenta < 0)
+        {
+            throw new InvalidOperationException("Los precios no pueden ser negativos.");
+        }
+
+        // AsTracking(): se modifica (Precio/PrecioAlquiler/PrecioVenta) y se guarda.
+        var producto = await _context.ProductosPOS.AsTracking().FirstOrDefaultAsync(p => p.Id == dto.ProductoId);
+        if (producto is null)
+        {
+            throw new InvalidOperationException("El producto no existe.");
+        }
+
+        var precioAnteriorTexto = producto.EsAlquilerVenta
+            ? $"Alquiler S/ {producto.PrecioAlquiler:0.00} / Venta S/ {producto.PrecioVenta:0.00}"
+            : $"S/ {producto.Precio:0.00}";
+
+        producto.Precio = dto.Precio;
+        producto.PrecioAlquiler = dto.PrecioAlquiler;
+        producto.PrecioVenta = dto.PrecioVenta;
+        await _context.SaveChangesAsync();
+
+        var precioNuevoTexto = producto.EsAlquilerVenta
+            ? $"Alquiler S/ {producto.PrecioAlquiler:0.00} / Venta S/ {producto.PrecioVenta:0.00}"
+            : $"S/ {producto.Precio:0.00}";
+
+        await _auditoriaService.RegistrarAsync(
+            "PRODUCTO_PRECIO_EDITADO",
+            $"Precio de '{producto.Nombre}' cambió de {precioAnteriorTexto} a {precioNuevoTexto}.",
+            usuarioId, "ProductoPOS", producto.Id);
     }
 
     public async Task<List<ClienteSaunaCardDto>> ObtenerClientesActivosAsync()
@@ -2237,7 +3323,7 @@ public class SaunaService : ISaunaService
         }
     }
 
-    public async Task RegistrarVentaAsync(int clienteSaunaId, List<ItemCarritoDto> items, int usuarioId, bool cargarAHabitacion, MetodoPago? metodoPago)
+    public async Task<int> RegistrarVentaAsync(int clienteSaunaId, List<ItemCarritoDto> items, int usuarioId, bool cargarAHabitacion, MetodoPago? metodoPago)
     {
         ValidarCarrito(items);
 
@@ -2323,9 +3409,11 @@ public class SaunaService : ISaunaService
                 $"Venta POS de S/ {venta.Total:0.00} a {cliente.NombreCompleto} ({items.Count} ítem(s)).",
                 usuarioId, "VentaSauna", venta.Id);
         }
+
+        return venta.Id;
     }
 
-    public async Task RegistrarVentaHotelAsync(int estadiaId, List<ItemCarritoDto> items, int usuarioId, bool cargarAHabitacion, MetodoPago? metodoPago)
+    public async Task<int> RegistrarVentaHotelAsync(int estadiaId, List<ItemCarritoDto> items, int usuarioId, bool cargarAHabitacion, MetodoPago? metodoPago)
     {
         ValidarCarrito(items);
 
@@ -2388,6 +3476,8 @@ public class SaunaService : ISaunaService
                 ? $"Consumo de Cafetería de {estadia.NombreCompleto} (S/ {venta.Total:0.00}) cargado a la habitación {estadia.Habitacion?.Numero}."
                 : $"Venta de Cafetería de S/ {venta.Total:0.00} a {estadia.NombreCompleto} (habitación {estadia.Habitacion?.Numero}), cobrada directamente.",
             usuarioId, "VentaSauna", venta.Id);
+
+        return venta.Id;
     }
 
     public async Task FinalizarSesionAsync(int clienteSaunaId, int usuarioId)
@@ -2409,6 +3499,108 @@ public class SaunaService : ISaunaService
             $"{cliente.NombreCompleto} finalizó su sesión de Sauna.",
             usuarioId, "ClienteSauna", cliente.Id);
     }
+
+    public async Task<VentaReciboDto?> ObtenerReciboVentaAsync(int ventaId)
+    {
+        var venta = await _context.VentasSauna
+            .Include(v => v.Detalles)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(v => v.Id == ventaId);
+
+        if (venta is null || venta.Estado != EstadoVenta.Pagada)
+        {
+            return null;
+        }
+
+        string nombreCliente;
+        TipoDocumento tipoDocumento;
+        string numeroDocumento;
+        TipoComprobante tipoComprobante;
+        string? ruc = null;
+        string? razonSocial = null;
+        int? numeroHabitacion = null;
+
+        if (venta.ClienteSaunaId is { } clienteSaunaId)
+        {
+            var cliente = await _context.ClientesSauna.AsNoTracking().FirstOrDefaultAsync(c => c.Id == clienteSaunaId);
+            nombreCliente = cliente?.NombreCompleto ?? "—";
+            tipoDocumento = cliente?.TipoDocumento ?? TipoDocumento.DNI;
+            numeroDocumento = cliente?.NumeroDocumento ?? "—";
+            tipoComprobante = cliente?.TipoComprobante ?? TipoComprobante.Boleta;
+            ruc = cliente?.RUC;
+            razonSocial = cliente?.RazonSocial;
+        }
+        else if (venta.EstadiaHotelDestinoId is { } estadiaId)
+        {
+            var estadia = await _context.Estadias.Include(e => e.Habitacion).AsNoTracking().FirstOrDefaultAsync(e => e.Id == estadiaId);
+            nombreCliente = estadia?.NombreCompleto ?? "—";
+            tipoDocumento = estadia?.TipoDocumento ?? TipoDocumento.DNI;
+            numeroDocumento = estadia?.NumeroDocumento ?? "—";
+            tipoComprobante = estadia?.TipoComprobante ?? TipoComprobante.Boleta;
+            ruc = estadia?.RUC;
+            razonSocial = estadia?.RazonSocial;
+            numeroHabitacion = estadia?.Habitacion?.Numero;
+        }
+        else
+        {
+            nombreCliente = "—";
+            tipoDocumento = TipoDocumento.DNI;
+            numeroDocumento = "—";
+            tipoComprobante = TipoComprobante.Boleta;
+        }
+
+        return new VentaReciboDto
+        {
+            VentaId = venta.Id,
+            NumeroComprobante = venta.NumeroComprobante ?? "—",
+            TipoComprobante = tipoComprobante,
+            Fecha = venta.Fecha,
+            NombreCliente = nombreCliente,
+            TipoDocumento = tipoDocumento,
+            NumeroDocumento = numeroDocumento,
+            RUC = ruc,
+            RazonSocial = razonSocial,
+            NumeroHabitacion = numeroHabitacion,
+            MetodoPago = venta.MetodoPago,
+            Total = venta.Total,
+            Items = venta.Detalles.Select(d => new ItemReciboDto
+            {
+                Descripcion = d.Descripcion,
+                Cantidad = d.Cantidad,
+                PrecioUnitario = d.PrecioUnitario,
+                Subtotal = d.Subtotal
+            }).ToList()
+        };
+    }
+}
+
+/// <summary>Un renglón de comprobante (hotel o sauna/cafetería) — ver EstadiaReciboDto
+/// y VentaReciboDto.</summary>
+public class ItemReciboDto
+{
+    public string Descripcion { get; set; } = string.Empty;
+    public int Cantidad { get; set; }
+    public decimal PrecioUnitario { get; set; }
+    public decimal Subtotal { get; set; }
+}
+
+/// <summary>Datos listos para imprimir el comprobante de una venta de Sauna o
+/// Cafetería ya cobrada — ver ISaunaService.ObtenerReciboVentaAsync.</summary>
+public class VentaReciboDto
+{
+    public int VentaId { get; set; }
+    public string NumeroComprobante { get; set; } = string.Empty;
+    public TipoComprobante TipoComprobante { get; set; }
+    public DateTime Fecha { get; set; }
+    public string NombreCliente { get; set; } = string.Empty;
+    public TipoDocumento TipoDocumento { get; set; }
+    public string NumeroDocumento { get; set; } = string.Empty;
+    public string? RUC { get; set; }
+    public string? RazonSocial { get; set; }
+    public int? NumeroHabitacion { get; set; }
+    public MetodoPago? MetodoPago { get; set; }
+    public decimal Total { get; set; }
+    public List<ItemReciboDto> Items { get; set; } = new();
 }
 
 // ============================================================

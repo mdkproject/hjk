@@ -1,0 +1,318 @@
+@page "/almacen"
+@using JKalixto_System.Application.Services
+@using JKalixto_System.Domain.Models
+@using JKalixto_System.Web.Services
+@inject IInventarioService InventarioService
+@inject SesionWebService Sesion
+@inject INotificadorCambios Notificador
+@inject NavigationManager Navegacion
+@implements IDisposable
+
+<PageTitle>Almacén</PageTitle>
+
+<div class="page">
+    <div class="page-header">
+        <div>
+            <h1>Almacén</h1>
+            <p class="page-subtitle">Stock de insumos de hotel y sauna — tocá una tarjeta para editarla</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-secundario" @onclick="AbrirNuevoInsumo">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                Nuevo Insumo
+            </button>
+            <button class="btn" @onclick='() => Navegacion.NavigateTo("/almacen/nuevo")'>
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                Registrar Movimiento
+            </button>
+        </div>
+    </div>
+
+    @if (_error is not null)
+    {
+        <div class="caja-error"><p>@_error</p></div>
+    }
+
+    <div class="search-input" style="min-width:240px; margin-bottom:14px;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+        <input placeholder="Buscar insumo…" value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+    </div>
+
+    <div class="filtro-grupo" style="margin-bottom:18px;">
+        <span class="filtro-grupo-label">Categoría</span>
+        <div class="filtro-chips">
+            <button type="button" class="filtro-chip @(_filtroCategoria == "" ? "activo" : "")" @onclick='() => _filtroCategoria = ""'>Todas</button>
+            <button type="button" class="filtro-chip @(_filtroCategoria == CategoriaInsumo.HotelHabitaciones.ToString() ? "activo" : "")" @onclick="() => _filtroCategoria = CategoriaInsumo.HotelHabitaciones.ToString()">Hotel — Habitaciones</button>
+            <button type="button" class="filtro-chip @(_filtroCategoria == CategoriaInsumo.HotelCocina.ToString() ? "activo" : "")" @onclick="() => _filtroCategoria = CategoriaInsumo.HotelCocina.ToString()">Hotel — Cocina</button>
+            <button type="button" class="filtro-chip @(_filtroCategoria == CategoriaInsumo.Sauna.ToString() ? "activo" : "")" @onclick="() => _filtroCategoria = CategoriaInsumo.Sauna.ToString()">Sauna</button>
+        </div>
+    </div>
+
+    @if (_cargando)
+    {
+        <p class="empty-state">Cargando…</p>
+    }
+    else
+    {
+        <div class="card-grid">
+            @foreach (var insumo in Filtrados())
+            {
+                <div class="card card-clickable" style="width:200px; border-color:@(insumo.StockBajo ? "var(--danger)" : "var(--border)");" @onclick="() => AbrirEditarInsumo(insumo)">
+                    <strong>@insumo.Nombre</strong>
+                    <div style="color:var(--text-secondary); font-size:0.85rem;">@insumo.EtiquetaCategoria</div>
+                    @if (insumo.StockBajo)
+                    {
+                        <span class="badge" style="background:var(--danger-soft); color:#fca5a5; margin-top:6px;">Stock bajo</span>
+                    }
+                    <div style="margin-top:6px; font-weight:600; color:@(insumo.StockBajo ? "var(--danger)" : "var(--text-primary)");">
+                        Stock: @insumo.StockActual @insumo.UnidadMedida
+                    </div>
+                    <div style="color:var(--text-secondary); font-size:0.8rem;">Mínimo: @insumo.StockMinimo @insumo.UnidadMedida</div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@if (_vistaNuevo)
+{
+    <ModalBase Titulo="Nuevo insumo" OnCerrar="() => _vistaNuevo = false">
+        @if (_errorModal is not null)
+        {
+            <div class="caja-error"><p>@_errorModal</p></div>
+        }
+        <div class="form-grupo">
+            <label>Nombre *</label>
+            <input type="text" @bind="_nuevoNombre" @bind:event="oninput" />
+        </div>
+        <div class="form-grupo">
+            <label>Categoría</label>
+            <select @bind="_nuevoCategoria">
+                <option value="@CategoriaInsumo.HotelHabitaciones">Hotel — Habitaciones</option>
+                <option value="@CategoriaInsumo.HotelCocina">Hotel — Cocina</option>
+                <option value="@CategoriaInsumo.Sauna">Sauna</option>
+            </select>
+        </div>
+        <div class="form-grupo">
+            <label>Unidad de medida * (ej: unidad, docena, litro)</label>
+            <input type="text" @bind="_nuevoUnidad" @bind:event="oninput" />
+        </div>
+        <div class="form-grid-2">
+            <div class="form-grupo">
+                <label>Stock inicial</label>
+                <input type="text" @bind="_nuevoStockInicialTexto" @bind:event="oninput" />
+            </div>
+            <div class="form-grupo">
+                <label>Stock mínimo (alerta)</label>
+                <input type="text" @bind="_nuevoStockMinimoTexto" @bind:event="oninput" />
+            </div>
+        </div>
+        <button class="btn btn-bloque" disabled="@_guardando" @onclick="GuardarNuevoInsumoAsync">@(_guardando ? "Guardando…" : "Crear insumo")</button>
+    </ModalBase>
+}
+
+@if (_editando is not null)
+{
+    <ModalBase Titulo="@($"Editar — {_editando.Nombre}")" OnCerrar="() => _editando = null">
+        @if (_errorModal is not null)
+        {
+            <div class="caja-error"><p>@_errorModal</p></div>
+        }
+        <div class="form-grupo">
+            <label>Nombre *</label>
+            <input type="text" @bind="_editNombre" @bind:event="oninput" />
+        </div>
+        <div class="form-grupo">
+            <label>Unidad de medida *</label>
+            <input type="text" @bind="_editUnidad" @bind:event="oninput" />
+        </div>
+        <div class="form-grupo">
+            <label>Stock mínimo (alerta)</label>
+            <input type="text" @bind="_editStockMinimoTexto" @bind:event="oninput" />
+        </div>
+        <p style="font-size:0.8rem; color:var(--text-muted);">Para cambiar el stock actual, usá "Registrar Movimiento" — así queda el motivo en el historial.</p>
+        <button class="btn btn-bloque" disabled="@_guardando" @onclick="GuardarEdicionInsumoAsync">@(_guardando ? "Guardando…" : "Guardar cambios")</button>
+    </ModalBase>
+}
+
+@code {
+    private List<InsumoCardDto> _insumos = new();
+    private bool _cargando = true;
+    private string? _error;
+    private string? _errorModal;
+    private string _filtroCategoria = string.Empty;
+    private string _textoBusqueda = string.Empty;
+    private bool _guardando;
+
+    private bool _vistaNuevo;
+    private string _nuevoNombre = string.Empty;
+    private CategoriaInsumo _nuevoCategoria = CategoriaInsumo.HotelHabitaciones;
+    private string _nuevoUnidad = string.Empty;
+    private string _nuevoStockInicialTexto = "0";
+    private string _nuevoStockMinimoTexto = "0";
+
+    private InsumoCardDto? _editando;
+    private string _editNombre = string.Empty;
+    private string _editUnidad = string.Empty;
+    private string _editStockMinimoTexto = "0";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAsync();
+        Notificador.CambioDetectado += OnCambioDetectado;
+    }
+
+    private async Task CargarAsync()
+    {
+        try
+        {
+            _insumos = await InventarioService.ObtenerInsumosAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo cargar el almacén: {ex.Message}";
+        }
+        finally
+        {
+            _cargando = false;
+        }
+    }
+
+    private async void OnCambioDetectado(string area)
+    {
+        if (area != "almacen")
+        {
+            return;
+        }
+
+        await InvokeAsync(async () =>
+        {
+            await CargarAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose() => Notificador.CambioDetectado -= OnCambioDetectado;
+
+    private void AbrirNuevoInsumo()
+    {
+        _nuevoNombre = string.Empty;
+        _nuevoCategoria = CategoriaInsumo.HotelHabitaciones;
+        _nuevoUnidad = string.Empty;
+        _nuevoStockInicialTexto = "0";
+        _nuevoStockMinimoTexto = "0";
+        _errorModal = null;
+        _vistaNuevo = true;
+    }
+
+    private async Task GuardarNuevoInsumoAsync()
+    {
+        if (_guardando)
+        {
+            return;
+        }
+
+        if (!int.TryParse(_nuevoStockInicialTexto, out var stockInicial) || stockInicial < 0)
+        {
+            _errorModal = "El stock inicial debe ser un número entero de 0 o más.";
+            return;
+        }
+        if (!int.TryParse(_nuevoStockMinimoTexto, out var stockMinimo) || stockMinimo < 0)
+        {
+            _errorModal = "El stock mínimo debe ser un número entero de 0 o más.";
+            return;
+        }
+
+        _guardando = true;
+        _errorModal = null;
+        try
+        {
+            var usuario = await Sesion.ObtenerUsuarioActualAsync();
+            await InventarioService.CrearInsumoAsync(new NuevoInsumoDto
+            {
+                Nombre = _nuevoNombre.Trim(),
+                Categoria = _nuevoCategoria,
+                UnidadMedida = _nuevoUnidad.Trim(),
+                StockInicial = stockInicial,
+                StockMinimo = stockMinimo
+            }, usuario.Id);
+
+            _vistaNuevo = false;
+            await CargarAsync();
+            Notificador.Avisar("almacen");
+        }
+        catch (Exception ex)
+        {
+            _errorModal = ex.Message;
+        }
+        finally
+        {
+            _guardando = false;
+        }
+    }
+
+    private void AbrirEditarInsumo(InsumoCardDto insumo)
+    {
+        _editando = insumo;
+        _editNombre = insumo.Nombre;
+        _editUnidad = insumo.UnidadMedida;
+        _editStockMinimoTexto = insumo.StockMinimo.ToString();
+        _errorModal = null;
+    }
+
+    private async Task GuardarEdicionInsumoAsync()
+    {
+        if (_guardando || _editando is null)
+        {
+            return;
+        }
+
+        if (!int.TryParse(_editStockMinimoTexto, out var stockMinimo) || stockMinimo < 0)
+        {
+            _errorModal = "El stock mínimo debe ser un número entero de 0 o más.";
+            return;
+        }
+
+        _guardando = true;
+        _errorModal = null;
+        try
+        {
+            var usuario = await Sesion.ObtenerUsuarioActualAsync();
+            await InventarioService.EditarInsumoAsync(new EditarInsumoDto
+            {
+                Id = _editando.Id,
+                Nombre = _editNombre.Trim(),
+                UnidadMedida = _editUnidad.Trim(),
+                StockMinimo = stockMinimo
+            }, usuario.Id);
+
+            _editando = null;
+            await CargarAsync();
+            Notificador.Avisar("almacen");
+        }
+        catch (Exception ex)
+        {
+            _errorModal = ex.Message;
+        }
+        finally
+        {
+            _guardando = false;
+        }
+    }
+
+    private IEnumerable<InsumoCardDto> Filtrados()
+    {
+        var query = _insumos.AsEnumerable();
+        if (!string.IsNullOrEmpty(_filtroCategoria) && Enum.TryParse<CategoriaInsumo>(_filtroCategoria, out var categoria))
+        {
+            query = query.Where(i => i.Categoria == categoria);
+        }
+
+        if (!string.IsNullOrWhiteSpace(_textoBusqueda))
+        {
+            query = query.Where(i => i.Nombre.Contains(_textoBusqueda, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return query;
+    }
+}

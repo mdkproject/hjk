@@ -1,0 +1,128 @@
+@page "/registro-huespedes"
+@using JKalixto_System.Application.Services
+@using JKalixto_System.Web.Services
+@inject IRegistroHuespedesService RegistroHuespedesService
+@inject INotificadorCambios Notificador
+@implements IDisposable
+
+<PageTitle>Registro de Huéspedes</PageTitle>
+
+<div class="page">
+    <div class="page-header">
+        <div>
+            <h1>Registro de Huéspedes</h1>
+            <p class="page-subtitle">Registro exigido por MINCETUR (D.S. N° 001-2015-MINCETUR / D.S. N° 005-2021-MINCETUR)</p>
+        </div>
+    </div>
+
+    @if (_error is not null)
+    {
+        <div class="caja-error"><p>@_error</p></div>
+    }
+
+    <div class="search-input" style="max-width:400px; margin-bottom:16px;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+        <input placeholder="Buscar por nombre o documento…" value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+    </div>
+
+    @if (_cargando)
+    {
+        <p class="empty-state">Cargando…</p>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table-pro">
+                <thead>
+                    <tr>
+                        <th>Hab.</th>
+                        <th>Nombre</th>
+                        <th>Documento</th>
+                        <th>Sexo</th>
+                        <th>Nac. / Nacionalidad</th>
+                        <th>Procedencia</th>
+                        <th>Motivo</th>
+                        <th>Tarifa</th>
+                        <th>Ingreso</th>
+                        <th>Salida</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Filtrados())
+                    {
+                        <tr>
+                            <td style="font-weight:600;">@r.NumeroHabitacion</td>
+                            <td>@r.NombreCompleto</td>
+                            <td>@r.EtiquetaTipoDocumento @r.NumeroDocumento</td>
+                            <td>@r.EtiquetaSexo</td>
+                            <td>@r.FechaNacimientoTexto / @r.Nacionalidad</td>
+                            <td>@r.LugarResidencia</td>
+                            <td>@r.EtiquetaMotivoViaje</td>
+                            <td>@r.Tarifa.ToString("C")</td>
+                            <td>@r.FechaIngresoTexto</td>
+                            <td>@r.FechaSalidaTexto</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private List<RegistroHuespedDto> _registros = new();
+    private bool _cargando = true;
+    private string? _error;
+    private string _textoBusqueda = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAsync();
+        Notificador.CambioDetectado += OnCambioDetectado;
+    }
+
+    private async Task CargarAsync()
+    {
+        try
+        {
+            _registros = await RegistroHuespedesService.ObtenerRegistroAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo cargar el registro: {ex.Message}";
+        }
+        finally
+        {
+            _cargando = false;
+        }
+    }
+
+    private async void OnCambioDetectado(string area)
+    {
+        if (area != "habitaciones")
+        {
+            return;
+        }
+
+        await InvokeAsync(async () =>
+        {
+            await CargarAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose() => Notificador.CambioDetectado -= OnCambioDetectado;
+
+    private IEnumerable<RegistroHuespedDto> Filtrados()
+    {
+        if (string.IsNullOrWhiteSpace(_textoBusqueda))
+        {
+            return _registros;
+        }
+
+        var texto = _textoBusqueda.Trim();
+        return _registros.Where(r =>
+            r.NombreCompleto.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
+            r.NumeroDocumento.Contains(texto, StringComparison.OrdinalIgnoreCase));
+    }
+}

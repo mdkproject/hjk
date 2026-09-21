@@ -1,0 +1,458 @@
+@page "/reservas"
+@using JKalixto_System.Application.Services
+@using JKalixto_System.Domain.Models
+@using JKalixto_System.Web.Services
+@inject IReservaService ReservaService
+@inject IHabitacionService HabitacionService
+@inject INotificadorCambios Notificador
+@inject SesionWebService Sesion
+@inject NavigationManager Navegacion
+@implements IDisposable
+
+<PageTitle>Reservas</PageTitle>
+
+<div class="page">
+    <div class="page-header">
+        <div>
+            <h1>Reservas</h1>
+            <p class="page-subtitle">Próximas reservas y disponibilidad de hoy</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn" @onclick='() => Navegacion.NavigateTo("/reservas/nuevo")'>
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                Nueva Reserva
+            </button>
+        </div>
+    </div>
+
+    @if (_error is not null)
+    {
+        <div class="caja-error"><p>@_error</p></div>
+    }
+
+    <div style="display:flex; gap:24px; flex-wrap:wrap;">
+        <div style="flex:2; min-width:320px;">
+            <div class="search-input" style="margin-bottom:14px;">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+                <input placeholder="Buscar por huésped, habitación o celular…" value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+            </div>
+
+            @if (_cargandoReservas)
+            {
+                <p class="empty-state">Cargando reservas…</p>
+            }
+            else
+            {
+                @foreach (var reserva in ReservasFiltradas())
+                {
+                    <div class="card card-clickable" style="margin-bottom:8px;" @onclick="() => AbrirDetalle(reserva)">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <strong>Hab. @reserva.NumeroHabitacion — @reserva.EtiquetaTipoHabitacion</strong>
+                            <span class="badge" style="background:@ColorParaEstadoReserva(reserva.Estado); color:@ContrasteParaEstadoReserva(reserva.Estado);">@EtiquetaEstadoReserva(reserva.Estado)</span>
+                        </div>
+                        <div style="margin-top:2px;">@reserva.NombreCliente — @reserva.Celular</div>
+                        <div style="color:var(--text-secondary); font-size:0.85rem;">@reserva.FechaInicio.ToString("dd/MM/yyyy") → @reserva.FechaFin.ToString("dd/MM/yyyy")</div>
+                    </div>
+                }
+            }
+        </div>
+
+        <div class="card" style="flex:1; min-width:300px; align-self:flex-start;">
+            <h3 style="margin-top:0;">Disponibilidad de hoy</h3>
+
+            @{
+                var paraContar = HabitacionesPorPisoYTipo();
+                var contDisponible = paraContar.Count(h => h.Estado == EstadoHabitacion.Disponible);
+                var contOcupada = paraContar.Count(h => h.Estado == EstadoHabitacion.Ocupada);
+                var contLimpieza = paraContar.Count(h => h.Estado == EstadoHabitacion.LimpiezaSalida);
+                var contMantenimiento = paraContar.Count(h => h.Estado == EstadoHabitacion.Mantenimiento);
+            }
+
+            <div class="filtro-grupo">
+                <span class="filtro-grupo-label">Piso</span>
+                <div class="filtro-chips">
+                    <button type="button" class="filtro-chip @(_filtroPiso == 0 ? "activo" : "")" @onclick="() => _filtroPiso = 0">Todos</button>
+                    <button type="button" class="filtro-chip @(_filtroPiso == 1 ? "activo" : "")" @onclick="() => _filtroPiso = 1">Piso 1</button>
+                    <button type="button" class="filtro-chip @(_filtroPiso == 2 ? "activo" : "")" @onclick="() => _filtroPiso = 2">Piso 2</button>
+                    <button type="button" class="filtro-chip @(_filtroPiso == 3 ? "activo" : "")" @onclick="() => _filtroPiso = 3">Piso 3</button>
+                    <button type="button" class="filtro-chip @(_filtroPiso == 4 ? "activo" : "")" @onclick="() => _filtroPiso = 4">Piso 4</button>
+                </div>
+            </div>
+
+            <div class="filtro-grupo">
+                <span class="filtro-grupo-label">Tipo</span>
+                <div class="filtro-chips">
+                    <button type="button" class="filtro-chip @(_filtroTipo == "" ? "activo" : "")" @onclick='() => _filtroTipo = ""'>Todos</button>
+                    @foreach (var tipo in Enum.GetValues<TipoHabitacion>())
+                    {
+                        <button type="button" class="filtro-chip @(_filtroTipo == tipo.ToString() ? "activo" : "")" @onclick="() => _filtroTipo = tipo.ToString()">@tipo</button>
+                    }
+                </div>
+            </div>
+
+            <div class="filtro-grupo" style="margin-bottom:14px;">
+                <span class="filtro-grupo-label">Estado</span>
+                <div class="filtro-chips">
+                    <button type="button" class="filtro-chip @(_filtroEstado == "" ? "activo" : "")" @onclick='() => _filtroEstado = ""'>Todos</button>
+                    <button type="button" class="filtro-chip filtro-chip-estado filtro-chip-disponible @(_filtroEstado == "Disponible" ? "activo" : "")" @onclick='() => _filtroEstado = "Disponible"'>Disponible (@contDisponible)</button>
+                    <button type="button" class="filtro-chip filtro-chip-estado filtro-chip-ocupada @(_filtroEstado == "Ocupada" ? "activo" : "")" @onclick='() => _filtroEstado = "Ocupada"'>Ocupada (@contOcupada)</button>
+                    <button type="button" class="filtro-chip filtro-chip-estado filtro-chip-limpieza @(_filtroEstado == "LimpiezaSalida" ? "activo" : "")" @onclick='() => _filtroEstado = "LimpiezaSalida"'>Limpieza (@contLimpieza)</button>
+                    <button type="button" class="filtro-chip filtro-chip-estado filtro-chip-mantenimiento @(_filtroEstado == "Mantenimiento" ? "activo" : "")" @onclick='() => _filtroEstado = "Mantenimiento"'>Mantenimiento (@contMantenimiento)</button>
+                </div>
+            </div>
+
+            @if (_cargandoHabitaciones)
+            {
+                <p class="empty-state">Cargando…</p>
+            }
+            else
+            {
+                var habitacionesFiltradas = HabitacionesFiltradas().ToList();
+                @if (habitacionesFiltradas.Count == 0)
+                {
+                    <p class="empty-state">No hay habitaciones con este filtro.</p>
+                }
+                <div class="card-grid" style="gap:8px;">
+                    @foreach (var h in habitacionesFiltradas)
+                    {
+                        <div class="card" style="width:132px; padding:10px 12px; border-left:3px solid @ColorParaEstadoHabitacion(h.Estado);">
+                            <div style="display:flex; justify-content:space-between; align-items:start;">
+                                <div>
+                                    <div style="font-size:0.72rem; color:var(--text-secondary);">@h.EtiquetaTipo</div>
+                                    <div style="font-size:0.78rem; margin-top:3px; color:var(--text-secondary);">@h.EtiquetaEstado</div>
+                                </div>
+                                <strong style="font-size:1.1rem;">@h.Numero</strong>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@if (_reservaSeleccionada is { } r && !_editando)
+{
+    <ModalBase Titulo="@($"Hab. {r.NumeroHabitacion} — {r.NombreCliente}")" OnCerrar="CerrarDetalle">
+        @if (_error is not null)
+        {
+            <div class="caja-error"><p>@_error</p></div>
+        }
+        <p>Documento: @r.NumeroDocumento</p>
+        <p>Celular: @r.Celular</p>
+        <p>@r.FechaInicio.ToString("dd/MM/yyyy") → @r.FechaFin.ToString("dd/MM/yyyy")</p>
+        @if (!string.IsNullOrWhiteSpace(r.Observaciones))
+        {
+            <p>Observaciones: @r.Observaciones</p>
+        }
+
+        @if (r.Estado == EstadoReserva.Confirmada)
+        {
+            <button class="btn btn-bloque" disabled="@_guardando" @onclick="() => ConvertirEnCheckInAsync(r)">@(_guardando ? "Guardando…" : "Hacer Check-in ahora")</button>
+            <button class="btn btn-secundario btn-bloque" disabled="@_guardando" @onclick="() => AbrirEdicion(r)">Editar fechas / datos de contacto</button>
+            <button class="btn btn-peligro btn-bloque" disabled="@_guardando" @onclick="() => CancelarAsync(r)">@(_guardando ? "Guardando…" : "Cancelar reserva")</button>
+        }
+    </ModalBase>
+}
+
+@if (_reservaSeleccionada is { } re && _editando)
+{
+    <ModalBase Titulo="@($"Editar reserva — Hab. {re.NumeroHabitacion}")" OnCerrar="CerrarEdicion">
+        @if (_error is not null)
+        {
+            <div class="caja-error"><p>@_error</p></div>
+        }
+        <div class="form-grid-2">
+            <div class="form-grupo">
+                <label>Fecha de entrada</label>
+                <input type="date" @bind="_editFechaInicio" />
+            </div>
+            <div class="form-grupo">
+                <label>Fecha de salida</label>
+                <input type="date" @bind="_editFechaFin" />
+            </div>
+        </div>
+        <div class="form-grupo">
+            <label>Celular</label>
+            <input type="text" @bind="_editCelular" @bind:event="oninput" />
+        </div>
+        <div class="form-grupo">
+            <label>Observaciones</label>
+            <textarea style="min-height:60px;" @bind="_editObservaciones" @bind:event="oninput"></textarea>
+        </div>
+        <button class="btn btn-bloque" disabled="@_guardando" @onclick="() => GuardarEdicionAsync(re)">@(_guardando ? "Guardando…" : "Guardar cambios")</button>
+    </ModalBase>
+}
+
+@code {
+    private List<ReservaCardDto> _reservas = new();
+    private List<HabitacionCardDto> _habitaciones = new();
+    private bool _cargandoReservas = true;
+    private bool _cargandoHabitaciones = true;
+    private string? _error;
+    private string _textoBusqueda = string.Empty;
+    private int _filtroPiso;
+    private string _filtroTipo = string.Empty;
+    private string _filtroEstado = string.Empty;
+    private ReservaCardDto? _reservaSeleccionada;
+    private bool _guardando;
+    private bool _editando;
+    private DateTime _editFechaInicio;
+    private DateTime _editFechaFin;
+    private string _editCelular = string.Empty;
+    private string _editObservaciones = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarReservasAsync();
+        await CargarHabitacionesAsync();
+        Notificador.CambioDetectado += OnCambioDetectado;
+    }
+
+    private async Task CargarReservasAsync()
+    {
+        try
+        {
+            _reservas = await ReservaService.ObtenerProximasAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo cargar las reservas: {ex.Message}";
+        }
+        finally
+        {
+            _cargandoReservas = false;
+        }
+    }
+
+    private async Task CargarHabitacionesAsync()
+    {
+        try
+        {
+            _habitaciones = await HabitacionService.ObtenerTodasAsync();
+        }
+        finally
+        {
+            _cargandoHabitaciones = false;
+        }
+    }
+
+    private IEnumerable<ReservaCardDto> ReservasFiltradas()
+    {
+        if (string.IsNullOrWhiteSpace(_textoBusqueda))
+        {
+            return _reservas;
+        }
+
+        var texto = _textoBusqueda.Trim();
+        return _reservas.Where(r =>
+            r.NombreCliente.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
+            r.NumeroHabitacion.ToString().Contains(texto) ||
+            r.Celular.Contains(texto, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>Habitaciones filtradas solo por piso+tipo — sirve tanto para calcular
+    /// los contadores (que ignoran el filtro de estado, igual que en MAUI) como base
+    /// para HabitacionesFiltradas.</summary>
+    private List<HabitacionCardDto> HabitacionesPorPisoYTipo()
+    {
+        var query = _habitaciones.AsEnumerable();
+        if (_filtroPiso != 0)
+        {
+            query = query.Where(h => h.Piso == _filtroPiso);
+        }
+
+        if (!string.IsNullOrEmpty(_filtroTipo) && Enum.TryParse<TipoHabitacion>(_filtroTipo, out var tipo))
+        {
+            query = query.Where(h => h.Tipo == tipo);
+        }
+
+        return query.ToList();
+    }
+
+    private IEnumerable<HabitacionCardDto> HabitacionesFiltradas()
+    {
+        var query = HabitacionesPorPisoYTipo().AsEnumerable();
+
+        if (!string.IsNullOrEmpty(_filtroEstado) && Enum.TryParse<EstadoHabitacion>(_filtroEstado, out var estado))
+        {
+            query = query.Where(h => h.Estado == estado);
+        }
+
+        return query.OrderBy(h => h.Numero);
+    }
+
+    private static string ColorParaEstadoHabitacion(EstadoHabitacion estado) => estado switch
+    {
+        EstadoHabitacion.Disponible => "var(--ok)",
+        EstadoHabitacion.Ocupada => "var(--info)",
+        EstadoHabitacion.LimpiezaSalida => "var(--warn)",
+        EstadoHabitacion.Mantenimiento => "var(--danger)",
+        _ => "var(--text-muted)"
+    };
+
+    private static string EtiquetaEstadoReserva(EstadoReserva estado) => estado switch
+    {
+        EstadoReserva.Confirmada => "Confirmada",
+        EstadoReserva.CheckInRealizado => "Check-in realizado",
+        EstadoReserva.Cancelada => "Cancelada",
+        _ => estado.ToString()
+    };
+
+    private static string ColorParaEstadoReserva(EstadoReserva estado) => estado switch
+    {
+        EstadoReserva.Confirmada => "var(--violet)",
+        EstadoReserva.CheckInRealizado => "var(--info)",
+        EstadoReserva.Cancelada => "var(--text-muted)",
+        _ => "var(--text-muted)"
+    };
+
+    /// <summary>Texto sobre el badge de ColorParaEstadoReserva — violeta e info son
+    /// claros/pastel, blanco encima no contrasta lo suficiente.</summary>
+    private static string ContrasteParaEstadoReserva(EstadoReserva estado) => estado switch
+    {
+        EstadoReserva.Confirmada => "var(--violet-contrast)",
+        EstadoReserva.CheckInRealizado => "var(--info-contrast)",
+        _ => "white"
+    };
+
+    private async Task ConvertirEnCheckInAsync(ReservaCardDto r)
+    {
+        if (_guardando)
+        {
+            return;
+        }
+
+        _guardando = true;
+        try
+        {
+            var usuario = await Sesion.ObtenerUsuarioActualAsync();
+            await ReservaService.ConvertirEnCheckInAsync(r.ReservaId, usuario.Id);
+            _reservaSeleccionada = null;
+            await CargarReservasAsync();
+            await CargarHabitacionesAsync();
+            Notificador.Avisar("habitaciones");
+            Notificador.Avisar("reservas");
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo hacer el check-in: {ex.Message}";
+        }
+        finally
+        {
+            _guardando = false;
+        }
+    }
+
+    private void CerrarDetalle()
+    {
+        _reservaSeleccionada = null;
+        _editando = false;
+        _error = null;
+    }
+
+    private void AbrirDetalle(ReservaCardDto r)
+    {
+        _reservaSeleccionada = r;
+        _editando = false;
+        _error = null;
+    }
+
+    private void AbrirEdicion(ReservaCardDto r)
+    {
+        _editFechaInicio = r.FechaInicio;
+        _editFechaFin = r.FechaFin;
+        _editCelular = r.Celular;
+        _editObservaciones = r.Observaciones ?? string.Empty;
+        _error = null;
+        _editando = true;
+    }
+
+    private void CerrarEdicion()
+    {
+        _editando = false;
+        _error = null;
+    }
+
+    private async Task GuardarEdicionAsync(ReservaCardDto r)
+    {
+        if (_guardando)
+        {
+            return;
+        }
+
+        _guardando = true;
+        _error = null;
+        try
+        {
+            var usuario = await Sesion.ObtenerUsuarioActualAsync();
+            await ReservaService.ModificarReservaAsync(new ModificarReservaDto
+            {
+                ReservaId = r.ReservaId,
+                FechaInicio = _editFechaInicio,
+                FechaFin = _editFechaFin,
+                Celular = _editCelular.Trim(),
+                Observaciones = string.IsNullOrWhiteSpace(_editObservaciones) ? null : _editObservaciones.Trim()
+            }, usuario.Id);
+
+            _editando = false;
+            _reservaSeleccionada = null;
+            await CargarReservasAsync();
+            Notificador.Avisar("reservas");
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _guardando = false;
+        }
+    }
+
+    private async Task CancelarAsync(ReservaCardDto r)
+    {
+        if (_guardando)
+        {
+            return;
+        }
+
+        _guardando = true;
+        try
+        {
+            var usuario = await Sesion.ObtenerUsuarioActualAsync();
+            await ReservaService.CancelarReservaAsync(r.ReservaId, usuario.Id);
+            _reservaSeleccionada = null;
+            await CargarReservasAsync();
+            Notificador.Avisar("reservas");
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo cancelar la reserva: {ex.Message}";
+        }
+        finally
+        {
+            _guardando = false;
+        }
+    }
+
+    private async void OnCambioDetectado(string area)
+    {
+        if (area != "habitaciones" && area != "reservas")
+        {
+            return;
+        }
+
+        await InvokeAsync(async () =>
+        {
+            await CargarHabitacionesAsync();
+            await CargarReservasAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        Notificador.CambioDetectado -= OnCambioDetectado;
+    }
+}

@@ -75,7 +75,11 @@ public class ReclamosServiceTests
         var servicio = new ReclamosService(bd.Contexto, new AuditoriaService(bd.Contexto, new SessionService()));
         var id = await servicio.RegistrarAsync(DtoBase(), usuarioId: 1);
 
-        await servicio.ResponderAsync(id, "Se revisó el equipo y se le dio un descuento del 20%.", usuarioId: 2);
+        // usuarioId 5 = "recepcion" en la semilla (BaseDeDatosDePrueba/SeedUsuarios) —
+        // tiene que ser un usuario que exista de verdad: desde que LogAuditoria.UsuarioId
+        // tiene foreign key a Usuarios, un id inventado rompe el registro de auditoría
+        // que ResponderAsync hace internamente.
+        await servicio.ResponderAsync(id, "Se revisó el equipo y se le dio un descuento del 20%.", usuarioId: 5);
 
         var reclamo = await bd.Contexto.Reclamos.SingleAsync(r => r.Id == id);
         Assert.Equal(EstadoReclamo.Respondido, reclamo.Estado);

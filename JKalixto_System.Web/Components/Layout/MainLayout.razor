@@ -1,0 +1,277 @@
+@using JKalixto_System.Application.Services
+@using JKalixto_System.Web.Services
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject AuthenticationStateProvider AuthProvider
+@inject NavigationManager Navegacion
+@inject IJSRuntime JS
+@inject IInventarioService InventarioService
+@inject INotificadorCambios Notificador
+
+@* Menú lateral fijo — mismo orden que el FlyoutItem de AppShell.xaml en MAUI
+   (de la pantalla que más se usa en el día a día, a la de uso puntual/
+   gerencial), agrupado visualmente en dos secciones para que se entienda
+   de un vistazo. Cada ítem tiene un ícono real (SVG en línea, sin emojis)
+   que se mantiene visible incluso en estado activo/hover. *@
+
+<div class="app-shell">
+    <button class="app-mobile-toggle" @onclick="ToggleSidebar" aria-label="Abrir menú" title="Menú">
+        @if (_sidebarAbierto)
+        {
+            <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+        }
+        else
+        {
+            <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
+        }
+    </button>
+
+    @if (_sidebarAbierto)
+    {
+        <div class="app-sidebar-backdrop visible" @onclick="CerrarSidebar"></div>
+    }
+
+    <nav class="app-sidebar @(_sidebarAbierto ? "abierto" : "")">
+        <div class="app-sidebar-header">
+            <div class="app-logo" style="background:transparent;">
+                <img src="/images/logo-transparente.png" alt="HJK" width="34" height="34" style="object-fit:contain;" />
+            </div>
+            <div>
+                <div class="app-sidebar-brand">HKX</div>
+                <div class="app-sidebar-subtitle">Hotel &amp; Sauna System</div>
+            </div>
+        </div>
+
+        <div class="app-sidebar-links">
+            <div class="app-nav-group-label">Operación</div>
+
+            <NavLink class="app-nav-link" href="/recepcion" Match="NavLinkMatch.Prefix">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6" /><path d="M3 18v2M21 18v2" /><path d="M3 12V6a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v4" /></svg>
+                <span>Registro Hotel</span>
+            </NavLink>
+
+            <NavLink class="app-nav-link" href="/sauna" Match="NavLinkMatch.Prefix">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z" /></svg>
+                <span>Registro Sauna</span>
+            </NavLink>
+
+            <NavLink class="app-nav-link" href="/cafeteria" Match="NavLinkMatch.Prefix">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h12v6a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V8z" /><path d="M16 9h2a2 2 0 0 1 0 4h-2" /><path d="M7 3c0 1-1 1-1 2M11 3c0 1-1 1-1 2" /></svg>
+                <span>Cafetería</span>
+            </NavLink>
+
+            <NavLink class="app-nav-link" href="/reservas" Match="NavLinkMatch.Prefix">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /><path d="m9 15 2 2 4-4" /></svg>
+                <span>Reservas</span>
+            </NavLink>
+
+            <NavLink class="app-nav-link" href="/clientes" Match="NavLinkMatch.Prefix">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3" /><path d="M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6" /><circle cx="17" cy="9" r="2.3" /><path d="M15.3 14.2c2.6.3 4.3 2.5 4.3 5.8" /></svg>
+                <span>Clientes</span>
+            </NavLink>
+
+            <NavLink class="app-nav-link" href="/cierre-caja" Match="NavLinkMatch.Prefix">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" /><path d="M16 12h3a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-3a2 2 0 0 1 0-4z" /></svg>
+                <span>Cierre de Caja</span>
+            </NavLink>
+
+            <NavLink class="app-nav-link" href="/gastos" Match="NavLinkMatch.Prefix">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-2-1.3L14 21l-2-1.3L10 21l-2-1.3L6 21z" /><path d="M9 8h6M9 12h6" /></svg>
+                <span>Gastos</span>
+            </NavLink>
+
+            <div class="app-nav-group-label">Gestión</div>
+
+            <NavLink class="app-nav-link" href="/calendario" Match="NavLinkMatch.Prefix">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /><path d="M7 14h.01M12 14h.01M17 14h.01M7 17h.01M12 17h.01" /></svg>
+                <span>Calendario</span>
+            </NavLink>
+
+            <NavLink class="app-nav-link" href="/almacen" Match="NavLinkMatch.Prefix">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8z" /><path d="M3 8l9 5 9-5M12 13v8" /></svg>
+                <span>Almacén</span>
+                @if (_stockBajoCount > 0)
+                {
+                    <span class="app-nav-badge" title="@_stockBajoCount insumo(s) con stock bajo">@_stockBajoCount</span>
+                }
+            </NavLink>
+
+            <NavLink class="app-nav-link" href="/registro-huespedes" Match="NavLinkMatch.Prefix">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="11" r="2" /><path d="M6 16c0-1.7 1.4-3 3-3s3 1.3 3 3" /><path d="M14 9h5M14 13h5" /></svg>
+                <span>Registro de Huéspedes</span>
+            </NavLink>
+
+            <NavLink class="app-nav-link" href="/reclamos" Match="NavLinkMatch.Prefix">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v18" /><path d="M5 4h11l-2 3.5L16 11H5" /></svg>
+                <span>Libro de Reclamaciones</span>
+            </NavLink>
+
+            @if (_puedeVerAuditoria)
+            {
+                <NavLink class="app-nav-link" href="/auditoria" Match="NavLinkMatch.Prefix">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" /><path d="m9 12 2 2 4-4" /></svg>
+                    <span>Ver Auditoría</span>
+                </NavLink>
+
+                <NavLink class="app-nav-link" href="/usuarios" Match="NavLinkMatch.Prefix">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+                    <span>Usuarios</span>
+                </NavLink>
+
+                <NavLink class="app-nav-link" href="/salud" Match="NavLinkMatch.Prefix">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>
+                    <span>Salud del Sistema</span>
+                </NavLink>
+            }
+
+            <NavLink class="app-nav-link" href="/reportes" Match="NavLinkMatch.Prefix">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M11 20V4M18 20v-7" /><path d="M2 20h20" /></svg>
+                <span>Reportes</span>
+            </NavLink>
+        </div>
+
+        @if (_nombreUsuario is not null)
+        {
+            <div class="app-sidebar-footer">
+                <div>
+                    <div style="font-weight:600; font-size:0.85rem;">@_nombreUsuario</div>
+                    <div style="color:var(--text-muted); font-size:0.75rem;">@_rolUsuario</div>
+                </div>
+                <div style="display:flex; gap:6px;">
+                    <button class="app-logout-btn" type="button" @onclick="AlternarTemaAsync" title="@(_temaClaro ? "Cambiar a tema oscuro" : "Cambiar a tema claro")" aria-label="Cambiar tema">
+                        @if (_temaClaro)
+                        {
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v1M12 20v1M4.2 4.2l.7.7M19.1 19.1l.7.7M3 12h1M20 12h1M4.2 19.8l.7-.7M19.1 4.9l.7-.7" /><circle cx="12" cy="12" r="4.5" /></svg>
+                        }
+                        else
+                        {
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z" /></svg>
+                        }
+                    </button>
+                    <a class="app-logout-btn" href="/cambiar-password" title="Cambiar mi contraseña" aria-label="Cambiar mi contraseña" style="display:flex; align-items:center; justify-content:center;">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5" /><path d="m10.6 12.4 6.9-6.9M15.5 7.5l2 2M18.5 4.5l2 2" /></svg>
+                    </a>
+                    <form method="post" action="/account/logout">
+                        <button class="app-logout-btn" type="submit" title="Cerrar sesión" aria-label="Cerrar sesión">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></svg>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        }
+    </nav>
+
+    <main class="app-content">
+        <div class="app-topbar">
+            <RelojWidget />
+        </div>
+        @Body
+    </main>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    Ocurrió un error inesperado.
+    <a href="." class="reload">Recargar</a>
+    <span class="dismiss">✕</span>
+</div>
+
+@code {
+    private string? _nombreUsuario;
+    private string? _rolUsuario;
+    private bool _puedeVerAuditoria;
+    private bool _sidebarAbierto;
+    private bool _temaClaro;
+    private int _stockBajoCount;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // El servidor no sabe qué tema eligió este navegador la última vez
+            // (queda en localStorage, ver theme.js) — recién acá, después del
+            // primer render, ya hay una conexión de JS interop para preguntarlo.
+            var temaActual = await JS.InvokeAsync<string>("jkalixtoTema.obtenerActual");
+            _temaClaro = temaActual == "light";
+            StateHasChanged();
+        }
+    }
+
+    private async Task AlternarTemaAsync()
+    {
+        var nuevoTema = await JS.InvokeAsync<string>("jkalixtoTema.alternar");
+        _temaClaro = nuevoTema == "light";
+    }
+
+    protected override void OnInitialized()
+    {
+        // La navegación de NavLink la maneja el JS de Blazor (enhanced navigation),
+        // que intercepta el clic antes de que llegue a un @onclick del contenedor
+        // padre — por eso el menú se cierra acá, escuchando el cambio de ruta en
+        // vez de depender de que el clic burbujee.
+        Navegacion.LocationChanged += OnLocationChanged;
+        Notificador.CambioDetectado += OnCambioDetectado;
+    }
+
+    /// <summary>El sidebar es visible en TODAS las páginas, así que el conteo de
+    /// stock bajo se recalcula acá (no en Almacen.razor) para que el aviso se vea
+    /// sin necesidad de entrar a esa pantalla — y se actualiza solo cuando cambia
+    /// el área "almacen", igual que ya hacen el resto de las páginas suscritas.</summary>
+    private async void OnCambioDetectado(string area)
+    {
+        if (area != "almacen")
+        {
+            return;
+        }
+
+        await InvokeAsync(async () =>
+        {
+            await CargarStockBajoAsync();
+            StateHasChanged();
+        });
+    }
+
+    private async Task CargarStockBajoAsync()
+    {
+        var insumos = await InventarioService.ObtenerInsumosAsync();
+        _stockBajoCount = insumos.Count(i => i.StockBajo);
+    }
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        if (_sidebarAbierto)
+        {
+            _sidebarAbierto = false;
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void ToggleSidebar() => _sidebarAbierto = !_sidebarAbierto;
+
+    private void CerrarSidebar() => _sidebarAbierto = false;
+
+    public void Dispose()
+    {
+        Navegacion.LocationChanged -= OnLocationChanged;
+        Notificador.CambioDetectado -= OnCambioDetectado;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var estadoAuth = await AuthProvider.GetAuthenticationStateAsync();
+        var usuario = estadoAuth.User;
+
+        if (usuario.Identity?.IsAuthenticated == true)
+        {
+            _nombreUsuario = usuario.FindFirst("NombreCompleto")?.Value ?? usuario.Identity.Name;
+            _rolUsuario = usuario.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+
+            // Mismo criterio que AppShell.xaml.cs en MAUI: solo Gerencia/Desarrollador
+            // ven "Ver Auditoría". Es solo una ayuda visual — AuditoriaService repite
+            // este mismo chequeo del lado del servidor, así que nadie puede saltárselo
+            // escribiendo la URL a mano.
+            _puedeVerAuditoria = _rolUsuario is "Gerencia" or "Desarrollador";
+
+            await CargarStockBajoAsync();
+        }
+    }
+}

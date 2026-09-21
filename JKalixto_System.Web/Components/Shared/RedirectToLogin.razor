@@ -1,0 +1,14 @@
+@* Se muestra cuando AuthorizeRouteView (Routes.razor) determina que la página
+   pedida requiere sesión y no hay ninguna — manda al navegador a /login,
+   recordando a dónde volver después de iniciar sesión. forceLoad:true a
+   propósito: es una navegación completa del navegador (no por SignalR), para
+   arrancar un circuito nuevo y limpio en /login. *@
+@inject NavigationManager Navegacion
+
+@code {
+    protected override void OnInitialized()
+    {
+        var returnUrl = Uri.EscapeDataString(Navegacion.Uri);
+        Navegacion.NavigateTo($"/login?returnUrl={returnUrl}", forceLoad: true);
+    }
+}

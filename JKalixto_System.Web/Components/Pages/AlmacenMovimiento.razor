@@ -1,0 +1,137 @@
+@page "/almacen/nuevo"
+@using JKalixto_System.Application.Services
+@using JKalixto_System.Domain.Models
+@using JKalixto_System.Web.Services
+@inject IInventarioService InventarioService
+@inject SesionWebService Sesion
+@inject INotificadorCambios Notificador
+@inject NavigationManager Navegacion
+
+<PageTitle>Movimiento de almacén</PageTitle>
+
+<div class="page" style="max-width:480px;">
+    <a href="/almacen" class="volver">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+        Volver a Almacén
+    </a>
+    <div class="page-header"><h1>Registrar movimiento</h1></div>
+
+    @if (_errores.Count > 0)
+    {
+        <div class="caja-error">
+            @foreach (var error in _errores)
+            {
+                <p>@error</p>
+            }
+        </div>
+    }
+
+    <div class="card">
+        <div style="display:flex; gap:8px; margin-bottom:16px;">
+            <button class="btn @(_tipo == TipoMovimientoInventario.Entrada ? "" : "btn-secundario")" @onclick="() => _tipo = TipoMovimientoInventario.Entrada">Entrada</button>
+            <button class="btn @(_tipo == TipoMovimientoInventario.Salida ? "" : "btn-secundario")" @onclick="() => _tipo = TipoMovimientoInventario.Salida">Salida</button>
+        </div>
+
+        <div class="form-grupo">
+            <label>Insumo *</label>
+            @if (_insumos.Count == 0)
+            {
+                <p class="empty-state" style="padding:4px 0;">Cargando…</p>
+            }
+            else
+            {
+                <select @bind="_insumoId">
+                    <option value="0">— Seleccionar —</option>
+                    @foreach (var insumo in _insumos)
+                    {
+                        <option value="@insumo.Id">@insumo.Nombre (stock: @insumo.StockActual @insumo.UnidadMedida)</option>
+                    }
+                </select>
+            }
+        </div>
+
+        <div class="form-grid-2">
+            <div class="form-grupo">
+                <label>Cantidad *</label>
+                <input type="text" @bind="_cantidadTexto" @bind:event="oninput" />
+            </div>
+
+            <div class="form-grupo">
+                <label>Motivo *</label>
+                <input type="text" @bind="_motivo" @bind:event="oninput" />
+            </div>
+        </div>
+    </div>
+
+    <button class="btn" disabled="@_guardando" @onclick="ConfirmarAsync">@(_guardando ? "Guardando…" : "Registrar movimiento")</button>
+</div>
+
+@code {
+    private List<InsumoCardDto> _insumos = new();
+    private readonly List<string> _errores = new();
+    private TipoMovimientoInventario _tipo = TipoMovimientoInventario.Entrada;
+    private int _insumoId;
+    private string _cantidadTexto = string.Empty;
+    private string _motivo = string.Empty;
+    private bool _guardando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _insumos = await InventarioService.ObtenerInsumosAsync();
+    }
+
+    private async Task ConfirmarAsync()
+    {
+        if (_guardando)
+        {
+            return;
+        }
+
+        _errores.Clear();
+
+        if (_insumoId == 0)
+        {
+            _errores.Add("Tenés que elegir un insumo.");
+        }
+
+        if (!int.TryParse(_cantidadTexto, out var cantidad) || cantidad <= 0)
+        {
+            _errores.Add("La cantidad debe ser un número entero mayor a 0.");
+        }
+
+        if (string.IsNullOrWhiteSpace(_motivo))
+        {
+            _errores.Add("El motivo es obligatorio.");
+        }
+
+        if (_errores.Count > 0)
+        {
+            return;
+        }
+
+        var usuario = await Sesion.ObtenerUsuarioActualAsync();
+
+        _guardando = true;
+        try
+        {
+            await InventarioService.RegistrarMovimientoAsync(new NuevoMovimientoInventarioDto
+            {
+                InsumoId = _insumoId,
+                Tipo = _tipo,
+                Cantidad = int.Parse(_cantidadTexto),
+                Motivo = _motivo.Trim(),
+                UsuarioId = usuario.Id
+            });
+            Notificador.Avisar("almacen");
+            Navegacion.NavigateTo("/almacen");
+        }
+        catch (Exception ex)
+        {
+            _errores.Add(ex.Message);
+        }
+        finally
+        {
+            _guardando = false;
+        }
+    }
+}

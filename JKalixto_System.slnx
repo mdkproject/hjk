@@ -1,4 +1,8 @@
 <Solution>
+  <Project Path="JKalixto_System.Domain/JKalixto_System.Domain.csproj" />
+  <Project Path="JKalixto_System.Application/JKalixto_System.Application.csproj" />
+  <Project Path="JKalixto_System.Infrastructure/JKalixto_System.Infrastructure.csproj" />
+  <Project Path="JKalixto_System.Web/JKalixto_System.Web.csproj" />
   <Project Path="JKalixto_System/JKalixto_System.csproj" />
   <Project Path="JKalixto_System.Tests/JKalixto_System.Tests.csproj" />
 </Solution>

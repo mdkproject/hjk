@@ -268,7 +268,7 @@
                         en su propia columna.
                     -->
                     <Border BackgroundColor="{DynamicResource ColorTarjeta}"
-                            Stroke="{Binding BrushEstado}"
+                            Stroke="{Binding ClaveColorEstado, Converter={StaticResource ClaveColorABrushConverter}}"
                             StrokeThickness="2"
                             Padding="10"
                             HeightRequest="150">
@@ -291,7 +291,7 @@
                                 <Label Grid.Row="0" Text="{Binding EtiquetaTipo}" FontSize="15"
                                        HorizontalOptions="Start" HorizontalTextAlignment="Start" TextColor="{DynamicResource ColorTextoSecundario}" />
 
-                                <Border Grid.Row="1" BackgroundColor="{Binding ColorEstado}" Padding="6,2" Margin="0,2,0,2" HorizontalOptions="Start">
+                                <Border Grid.Row="1" BackgroundColor="{Binding ClaveColorEstado, Converter={StaticResource ClaveColorAColorConverter}}" Padding="6,2" Margin="0,2,0,2" HorizontalOptions="Start">
                                     <Border.StrokeShape>
                                         <RoundRectangle CornerRadius="6" />
                                     </Border.StrokeShape>

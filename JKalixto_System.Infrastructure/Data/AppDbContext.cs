@@ -30,6 +30,7 @@ public class AppDbContext : DbContext
     public DbSet<LogAuditoria> LogsAuditoria => Set<LogAuditoria>();
     public DbSet<NumeracionComprobante> NumeracionesComprobante => Set<NumeracionComprobante>();
     public DbSet<Reclamo> Reclamos => Set<Reclamo>();
+    public DbSet<RegistroLimpieza> RegistrosLimpieza => Set<RegistroLimpieza>();
 
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
@@ -87,10 +88,19 @@ public class AppDbContext : DbContext
                   .HasForeignKey(r => r.HabitacionId)
                   .OnDelete(DeleteBehavior.Restrict);
 
+            entity.HasOne<Usuario>()
+                  .WithMany()
+                  .HasForeignKey(r => r.UsuarioCreacionId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
             entity.HasMany(r => r.Acompanantes)
                   .WithOne()
                   .HasForeignKey(a => a.ReservaId)
                   .OnDelete(DeleteBehavior.Cascade);
+
+            // Calendario/Reservas cruzan "¿esta habitación tiene una reserva que se
+            // superpone con este rango de fechas?" en cada consulta de disponibilidad.
+            entity.HasIndex(r => new { r.HabitacionId, r.FechaInicio, r.FechaFin });
         });
 
         modelBuilder.Entity<AcompananteReserva>(entity =>
@@ -118,10 +128,31 @@ public class AppDbContext : DbContext
                   .HasForeignKey(e => e.HabitacionId)
                   .OnDelete(DeleteBehavior.Restrict);
 
+            entity.HasOne<Usuario>()
+                  .WithMany()
+                  .HasForeignKey(e => e.UsuarioCheckInId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Usuario>()
+                  .WithMany()
+                  .HasForeignKey(e => e.UsuarioCheckOutId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
             entity.HasMany(e => e.Acompanantes)
                   .WithOne()
                   .HasForeignKey(a => a.EstadiaId)
                   .OnDelete(DeleteBehavior.Cascade);
+
+            // Todos los reportes financieros (Dashboard, Informe Mensual, Reporte por
+            // Rango) filtran "FechaCheckOut entre X e Y" -- sin índice, cada uno es un
+            // escaneo completo de la tabla, cada vez más lento a medida que se
+            // acumulan años de estadías.
+            entity.HasIndex(e => e.FechaCheckOut);
+
+            // Recepción arma el tablero cruzando TODAS las habitaciones con las
+            // estadías "Activa" (ConstruirTarjetasAsync) -- se consulta en cada carga
+            // de esa pantalla, la más usada del día a día.
+            entity.HasIndex(e => e.Estado);
         });
 
         modelBuilder.Entity<Acompanante>(entity =>
@@ -137,6 +168,11 @@ public class AppDbContext : DbContext
         {
             entity.ToTable("ClientesSauna");
             entity.HasKey(c => c.Id);
+
+            entity.HasOne<Estadia>()
+                  .WithMany()
+                  .HasForeignKey(c => c.EstadiaHotelId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<ProductoPOS>(entity =>
@@ -159,6 +195,25 @@ public class AppDbContext : DbContext
                   .WithOne()
                   .HasForeignKey(d => d.VentaSaunaId)
                   .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<ClienteSauna>()
+                  .WithMany()
+                  .HasForeignKey(v => v.ClienteSaunaId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Estadia>()
+                  .WithMany()
+                  .HasForeignKey(v => v.EstadiaHotelDestinoId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Usuario>()
+                  .WithMany()
+                  .HasForeignKey(v => v.UsuarioId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // Mismo motivo que Estadia.FechaCheckOut: los reportes financieros
+            // filtran "Fecha entre X e Y" en cada consulta.
+            entity.HasIndex(v => v.Fecha);
         });
 
         modelBuilder.Entity<DetalleVenta>(entity =>
@@ -167,6 +222,11 @@ public class AppDbContext : DbContext
             entity.HasKey(d => d.Id);
             entity.Property(d => d.PrecioUnitario).HasPrecision(10, 2);
             entity.Property(d => d.Subtotal).HasPrecision(10, 2);
+
+            entity.HasOne<ProductoPOS>()
+                  .WithMany()
+                  .HasForeignKey(d => d.ProductoId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Penalidad>(entity =>
@@ -174,6 +234,21 @@ public class AppDbContext : DbContext
             entity.ToTable("Penalidades");
             entity.HasKey(p => p.Id);
             entity.Property(p => p.Monto).HasPrecision(10, 2);
+
+            entity.HasOne<ClienteSauna>()
+                  .WithMany()
+                  .HasForeignKey(p => p.ClienteSaunaId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Estadia>()
+                  .WithMany()
+                  .HasForeignKey(p => p.EstadiaHotelId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Usuario>()
+                  .WithMany()
+                  .HasForeignKey(p => p.UsuarioId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<CierreCaja>(entity =>
@@ -182,6 +257,11 @@ public class AppDbContext : DbContext
             entity.HasKey(c => c.Id);
             entity.Property(c => c.TotalHotel).HasPrecision(10, 2);
             entity.Property(c => c.TotalSauna).HasPrecision(10, 2);
+
+            entity.HasOne<Usuario>()
+                  .WithMany()
+                  .HasForeignKey(c => c.UsuarioId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<MovimientoCaja>(entity =>
@@ -191,6 +271,15 @@ public class AppDbContext : DbContext
             entity.Property(m => m.Descripcion).IsRequired().HasMaxLength(200);
             entity.Property(m => m.PersonalRelacionado).HasMaxLength(150);
             entity.Property(m => m.Monto).HasPrecision(10, 2);
+
+            entity.HasOne<Usuario>()
+                  .WithMany()
+                  .HasForeignKey(m => m.UsuarioId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // Mismo motivo que Estadia.FechaCheckOut: Gastos, Informe Mensual y
+            // Reporte por Rango filtran "FechaHora entre X e Y" en cada consulta.
+            entity.HasIndex(m => m.FechaHora);
         });
 
         // ----------------------------------------------------------------
@@ -209,6 +298,16 @@ public class AppDbContext : DbContext
             entity.ToTable("MovimientosInventario");
             entity.HasKey(m => m.Id);
             entity.Property(m => m.Motivo).IsRequired().HasMaxLength(200);
+
+            entity.HasOne<Insumo>()
+                  .WithMany()
+                  .HasForeignKey(m => m.InsumoId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Usuario>()
+                  .WithMany()
+                  .HasForeignKey(m => m.UsuarioId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ----------------------------------------------------------------
@@ -220,6 +319,16 @@ public class AppDbContext : DbContext
             entity.HasKey(l => l.Id);
             entity.Property(l => l.TipoAccion).IsRequired().HasMaxLength(50);
             entity.Property(l => l.EntidadAfectada).IsRequired().HasMaxLength(50);
+
+            entity.HasOne<Usuario>()
+                  .WithMany()
+                  .HasForeignKey(l => l.UsuarioId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // ObtenerRecientesAsync ordena "ORDER BY Timestamp DESC" en cada carga de
+            // /auditoria -- sin índice, ordenar toda la tabla se pone más lento a
+            // medida que se acumulan años de registros.
+            entity.HasIndex(l => l.Timestamp);
         });
 
         // ----------------------------------------------------------------
@@ -255,6 +364,35 @@ public class AppDbContext : DbContext
             entity.Property(r => r.DetalleReclamo).IsRequired().HasMaxLength(1000);
             entity.Property(r => r.PedidoConsumidor).HasMaxLength(500);
             entity.Property(r => r.RespuestaEstablecimiento).HasMaxLength(1000);
+
+            entity.HasOne<Usuario>()
+                  .WithMany()
+                  .HasForeignKey(r => r.UsuarioRegistroId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ----------------------------------------------------------------
+        // HISTORIAL DE LIMPIEZA
+        // ----------------------------------------------------------------
+        modelBuilder.Entity<RegistroLimpieza>(entity =>
+        {
+            entity.ToTable("RegistrosLimpieza");
+            entity.HasKey(r => r.Id);
+
+            entity.HasOne<Habitacion>()
+                  .WithMany()
+                  .HasForeignKey(r => r.HabitacionId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Usuario>()
+                  .WithMany()
+                  .HasForeignKey(r => r.UsuarioInicioId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Usuario>()
+                  .WithMany()
+                  .HasForeignKey(r => r.UsuarioFinId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ==================================================================
@@ -268,20 +406,19 @@ public class AppDbContext : DbContext
 
     private static void SeedUsuarios(ModelBuilder modelBuilder)
     {
-        // ⚠️ ATENCIÓN ANTES DE INSTALAR EN EL HOTEL: estos 3 usuarios (incluido el
-        // de rol Desarrollador, que tiene acceso total) se crean SIEMPRE la primera
-        // vez que corre la app —también en una build Release— con la misma
-        // contraseña "1234" para los tres. Hoy no existe pantalla de "cambiar
-        // contraseña" en el sistema, así que hay que decidir cómo reemplazarla
-        // antes de usar datos reales (a mano en la base, o construyendo esa
-        // pantalla). No depender de esta contraseña por defecto en producción.
+        // Estos 3 usuarios (incluido el de rol Desarrollador, que tiene acceso
+        // total) se crean SIEMPRE la primera vez que corre la app —también en una
+        // build Release— con la misma contraseña "1234" para los tres.
+        // DebeCambiarPassword = true los obliga a elegir una propia en el primer
+        // login (ver /account/cambiar-password en Program.cs) — ya no dependen de
+        // que alguien se acuerde de cambiarla a mano antes de usar datos reales.
         const string hashPasswordDemo = "$2b$11$JucXsFC6/Xlkhh/qvHvjDejcGLdbOjdbfzyCbQEDTMJYxxWIf6Gf2";
         var fechaSeed = new DateTime(2026, 1, 1);
 
         modelBuilder.Entity<Usuario>().HasData(
-            new Usuario { Id = 1, Username = "gerencia.1", NombreCompleto = "Gerencia", Rol = RolUsuario.Gerencia, PasswordHash = hashPasswordDemo, Activo = true, FechaCreacion = fechaSeed },
-            new Usuario { Id = 5, Username = "recepcion", NombreCompleto = "Recepción General", Rol = RolUsuario.Recepcionista, PasswordHash = hashPasswordDemo, Activo = true, FechaCreacion = fechaSeed },
-            new Usuario { Id = 6, Username = "marcelo.dev", NombreCompleto = "Marcelo López", Rol = RolUsuario.Desarrollador, PasswordHash = hashPasswordDemo, Activo = true, FechaCreacion = fechaSeed }
+            new Usuario { Id = 1, Username = "gerencia.1", NombreCompleto = "Gerencia", Rol = RolUsuario.Gerencia, PasswordHash = hashPasswordDemo, Activo = true, FechaCreacion = fechaSeed, IntentosFallidos = 0, BloqueadoHasta = null, DebeCambiarPassword = true, SecurityStamp = "seed-gerencia-1" },
+            new Usuario { Id = 5, Username = "recepcion", NombreCompleto = "Recepción General", Rol = RolUsuario.Recepcionista, PasswordHash = hashPasswordDemo, Activo = true, FechaCreacion = fechaSeed, IntentosFallidos = 0, BloqueadoHasta = null, DebeCambiarPassword = true, SecurityStamp = "seed-recepcion-5" },
+            new Usuario { Id = 6, Username = "marcelo.dev", NombreCompleto = "Marcelo López", Rol = RolUsuario.Desarrollador, PasswordHash = hashPasswordDemo, Activo = true, FechaCreacion = fechaSeed, IntentosFallidos = 0, BloqueadoHasta = null, DebeCambiarPassword = true, SecurityStamp = "seed-marcelo-6" }
         );
     }
 

@@ -1,0 +1,319 @@
+@page "/reportes/mensual"
+@using JKalixto_System.Application.Services
+@inject IInformeMensualService InformeService
+@inject AuthenticationStateProvider AuthProvider
+@inject IJSRuntime JS
+
+<PageTitle>Informe Mensual</PageTitle>
+
+<div class="page">
+    <a href="/reportes" class="volver no-imprimir">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+        Volver a Reportes
+    </a>
+
+    <div class="page-header">
+        <div>
+            <h1>Informe Mensual</h1>
+            <p class="page-subtitle">@(_informe?.NombreMes ?? "")</p>
+        </div>
+        <div class="page-actions no-imprimir">
+            <a class="btn btn-secundario" href="@UrlExportarExcel">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /></svg>
+                Exportar Excel
+            </a>
+            <button class="btn btn-secundario" type="button" onclick="window.print()">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect x="6" y="14" width="12" height="8" /></svg>
+                Imprimir / PDF
+            </button>
+        </div>
+    </div>
+
+    <div class="no-imprimir" style="display:flex; align-items:center; gap:14px; margin-bottom:20px; flex-wrap:wrap;">
+        <div class="cal-nav-group">
+            <button class="cal-nav-btn" disabled="@_cargando" @onclick="MesAnteriorAsync" title="Mes anterior">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+            </button>
+            <strong style="min-width:150px; text-align:center; font-size:0.95rem;">@(_informe?.NombreMes ?? "")</strong>
+            <button class="cal-nav-btn" disabled="@_cargando" @onclick="MesSiguienteAsync" title="Mes siguiente">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+            </button>
+        </div>
+        <button class="btn btn-secundario" disabled="@_cargando" @onclick="IrAMesActualAsync">Mes actual</button>
+    </div>
+
+    @if (_error is not null)
+    {
+        <div class="caja-error"><p>@_error</p></div>
+    }
+    else if (_informe is null)
+    {
+        <p class="empty-state">Cargando…</p>
+    }
+    else
+    {
+        <div class="kpi-grid" style="margin-bottom:24px;">
+            <div class="kpi-card">
+                <div class="kpi-label">Ingreso del mes</div>
+                <div class="kpi-value">@Monto(_informe.IngresoTotal)</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Egreso del mes</div>
+                <div class="kpi-value">@Monto(_informe.EgresoTotal)</div>
+            </div>
+            <div class="kpi-card" style="border-color:var(--accent-border); background:var(--accent-soft);">
+                <div class="kpi-label">Saldo del mes</div>
+                <div class="kpi-value">@Monto(_informe.Saldo)</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Saldo anterior (acumulado)</div>
+                <div class="kpi-value">@Monto(_informe.SaldoAnterior)</div>
+            </div>
+        </div>
+
+        <div class="card" style="max-width:460px; margin-bottom:28px;">
+            <div style="position:relative; height:260px;">
+                <canvas id="grafico-resumen-mes"></canvas>
+            </div>
+        </div>
+
+        <div class="form-grid-2" style="align-items:start; gap:22px; margin-bottom:28px;">
+            <div>
+                <div class="section-title" style="margin-top:0;">Ingresos</div>
+                <div class="card" style="margin-bottom:16px;">
+                    <div style="position:relative; height:240px;">
+                        <canvas id="grafico-ingresos-metodo"></canvas>
+                    </div>
+                </div>
+                <div class="card">
+                    @if (_informe.IngresosPorCategoria.Count == 0)
+                    {
+                        <p class="empty-state">Sin ingresos registrados este mes.</p>
+                    }
+                    else
+                    {
+                        @foreach (var cat in _informe.IngresosPorCategoria)
+                        {
+                            <details style="border-bottom:1px solid var(--border); padding:8px 0;">
+                                <summary style="cursor:pointer; display:flex; justify-content:space-between; gap:10px; font-weight:600;">
+                                    <span>@cat.Etiqueta</span>
+                                    <span>@Monto(cat.Monto)</span>
+                                </summary>
+                                @if (cat.Detalle.Count > 0)
+                                {
+                                    <table class="table-pro" style="margin-top:8px;">
+                                        <thead><tr><th>Fecha</th><th>Concepto</th><th>Medio</th><th>Monto</th></tr></thead>
+                                        <tbody>
+                                            @foreach (var m in cat.Detalle)
+                                            {
+                                                <tr>
+                                                    <td>@m.Fecha.ToString("dd/MM HH:mm")</td>
+                                                    <td>@m.Concepto</td>
+                                                    <td>@m.Medio</td>
+                                                    <td>@Monto(m.Ingreso ?? 0)</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                }
+                            </details>
+                        }
+                    }
+                </div>
+            </div>
+
+            <div>
+                <div class="section-title" style="margin-top:0;">Egresos</div>
+                <div class="card" style="margin-bottom:16px;">
+                    <div style="position:relative; height:240px;">
+                        <canvas id="grafico-egresos-metodo"></canvas>
+                    </div>
+                </div>
+                <div class="card">
+                    @if (_informe.EgresosPorCategoria.Count == 0)
+                    {
+                        <p class="empty-state">Sin egresos registrados este mes.</p>
+                    }
+                    else
+                    {
+                        @foreach (var cat in _informe.EgresosPorCategoria)
+                        {
+                            <details style="border-bottom:1px solid var(--border); padding:8px 0;">
+                                <summary style="cursor:pointer; display:flex; justify-content:space-between; gap:10px; font-weight:600;">
+                                    <span>@cat.Etiqueta</span>
+                                    <span>@Monto(cat.Monto)</span>
+                                </summary>
+                                @if (cat.Detalle.Count > 0)
+                                {
+                                    <table class="table-pro" style="margin-top:8px;">
+                                        <thead><tr><th>Fecha</th><th>Concepto</th><th>Medio</th><th>Monto</th></tr></thead>
+                                        <tbody>
+                                            @foreach (var m in cat.Detalle)
+                                            {
+                                                <tr>
+                                                    <td>@m.Fecha.ToString("dd/MM HH:mm")</td>
+                                                    <td>@m.Concepto</td>
+                                                    <td>@m.Medio</td>
+                                                    <td>@Monto(m.Salida ?? 0)</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                }
+                            </details>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="section-title">Libro diario del mes</div>
+        <div class="card" style="margin-bottom:28px; max-height:480px; overflow-y:auto;">
+            @if (_informe.LibroDiario.Count == 0)
+            {
+                <p class="empty-state">Sin movimientos este mes.</p>
+            }
+            else
+            {
+                <table class="table-pro">
+                    <thead>
+                        <tr><th>Fecha</th><th>Concepto</th><th>Ingreso</th><th>Salida</th><th>Medio</th><th>Responsable</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var m in _informe.LibroDiario)
+                        {
+                            <tr>
+                                <td>@m.Fecha.ToString("dd/MM HH:mm")</td>
+                                <td>@m.Concepto</td>
+                                <td>@(m.Ingreso is { } ing ? Monto(ing) : "")</td>
+                                <td>@(m.Salida is { } sal ? Monto(sal) : "")</td>
+                                <td>@m.Medio</td>
+                                <td>@m.Responsable</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+
+        <div class="section-title">Evolución (últimos 12 meses)</div>
+        <div class="card" style="margin-bottom:16px;">
+            <div style="position:relative; height:300px;">
+                <canvas id="grafico-evolucion-barras"></canvas>
+            </div>
+        </div>
+        <div class="card">
+            <div style="position:relative; height:300px;">
+                <canvas id="grafico-evolucion-saldo"></canvas>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private static readonly string[] Paleta =
+    {
+        "#c9a84c", "#81c995", "#669df6", "#fdd663", "#f28b82", "#d7aefb",
+        "#4c9c86", "#a8c7fa", "#f6ad55", "#fc8181", "#b794f4", "#68d391"
+    };
+
+    private InformeMensualDto? _informe;
+    private List<EvolucionMesDto>? _evolucion;
+    private string? _error;
+    private bool _cargando;
+    private bool _puedeVerFinanzas;
+    private int _anio = DateTime.Today.Year;
+    private int _mes = DateTime.Today.Month;
+    private bool _debeRedibujarGraficos;
+
+    private string UrlExportarExcel => $"/reportes/mensual/exportar-excel?anio={_anio}&mes={_mes}";
+
+    private string Monto(decimal valor) => _puedeVerFinanzas ? valor.ToString("C") : "***";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var estadoAuth = await AuthProvider.GetAuthenticationStateAsync();
+        var rol = estadoAuth.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+        _puedeVerFinanzas = rol is "Gerencia" or "Desarrollador";
+
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        _error = null;
+        try
+        {
+            _informe = await InformeService.ObtenerInformeMensualAsync(_anio, _mes);
+            _evolucion = await InformeService.ObtenerEvolucionAsync(12);
+            _debeRedibujarGraficos = true;
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo cargar el informe: {ex.Message}";
+        }
+        finally
+        {
+            _cargando = false;
+        }
+    }
+
+    private async Task MesAnteriorAsync()
+    {
+        var fecha = new DateTime(_anio, _mes, 1).AddMonths(-1);
+        _anio = fecha.Year;
+        _mes = fecha.Month;
+        await CargarAsync();
+    }
+
+    private async Task MesSiguienteAsync()
+    {
+        var fecha = new DateTime(_anio, _mes, 1).AddMonths(1);
+        _anio = fecha.Year;
+        _mes = fecha.Month;
+        await CargarAsync();
+    }
+
+    private async Task IrAMesActualAsync()
+    {
+        _anio = DateTime.Today.Year;
+        _mes = DateTime.Today.Month;
+        await CargarAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_debeRedibujarGraficos || _informe is null || _evolucion is null)
+        {
+            return;
+        }
+        _debeRedibujarGraficos = false;
+
+        await JS.InvokeVoidAsync("jkalixtoCharts.barras", "grafico-resumen-mes",
+            new[] { "Ingreso", "Egreso" },
+            new object[] { new { nombre = "Monto", datos = new[] { _informe.IngresoTotal, _informe.EgresoTotal }, color = new[] { "#81c995", "#f28b82" } } });
+
+        await JS.InvokeVoidAsync("jkalixtoCharts.torta", "grafico-ingresos-metodo",
+            _informe.IngresosPorMetodo.Select(m => m.Etiqueta).ToArray(),
+            _informe.IngresosPorMetodo.Select(m => m.Monto).ToArray(),
+            _informe.IngresosPorMetodo.Select((_, i) => Paleta[i % Paleta.Length]).ToArray());
+
+        await JS.InvokeVoidAsync("jkalixtoCharts.torta", "grafico-egresos-metodo",
+            _informe.EgresosPorMetodo.Select(m => m.Etiqueta).ToArray(),
+            _informe.EgresosPorMetodo.Select(m => m.Monto).ToArray(),
+            _informe.EgresosPorMetodo.Select((_, i) => Paleta[i % Paleta.Length]).ToArray());
+
+        await JS.InvokeVoidAsync("jkalixtoCharts.barras", "grafico-evolucion-barras",
+            _evolucion.Select(e => e.Etiqueta).ToArray(),
+            new object[]
+            {
+                new { nombre = "Ingreso", datos = _evolucion.Select(e => e.Ingreso).ToArray(), color = "#81c995" },
+                new { nombre = "Egreso", datos = _evolucion.Select(e => e.Egreso).ToArray(), color = "#f28b82" }
+            });
+
+        await JS.InvokeVoidAsync("jkalixtoCharts.linea", "grafico-evolucion-saldo",
+            _evolucion.Select(e => e.Etiqueta).ToArray(),
+            new object[] { new { nombre = "Saldo neto", datos = _evolucion.Select(e => e.Saldo).ToArray(), color = "#c9a84c" } });
+    }
+}

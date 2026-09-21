@@ -1,0 +1,40 @@
+﻿@page "/Error"
+@using System.Diagnostics
+
+<PageTitle>Error — JKalixto</PageTitle>
+
+@* Página que ve cualquiera cuando algo se rompe de verdad (excepción no
+   manejada) — a propósito NUNCA muestra el detalle técnico del error acá,
+   solo un "Request ID" para que soporte pueda buscarlo en los logs del
+   servidor sin exponerle a un huésped o recepcionista un stack trace. *@
+<div style="min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px;">
+    <div class="card" style="width:100%; max-width:420px; padding:28px 26px; text-align:center;">
+        <div class="app-logo" style="width:56px; height:56px; border-radius:16px; margin:0 auto 14px; background:transparent;">
+            <img src="/images/logo-transparente.png" alt="HJK" width="56" height="56" style="object-fit:contain;" />
+        </div>
+        <strong style="font-size:1.1rem;">Ocurrió un error inesperado</strong>
+        <p class="page-subtitle" style="margin-top:6px;">
+            Algo falló al procesar la solicitud. Probá de nuevo — si el problema sigue, avisale a soporte técnico.
+        </p>
+
+        @if (ShowRequestId)
+        {
+            <p style="font-size:0.8rem; color:var(--text-muted); margin-top:16px;">
+                Código de referencia: <code>@RequestId</code>
+            </p>
+        }
+
+        <a class="btn btn-bloque" href="/" style="margin-top:16px;">Volver al inicio</a>
+    </div>
+</div>
+
+@code{
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private string? RequestId { get; set; }
+    private bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
+
+    protected override void OnInitialized() =>
+        RequestId = Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
+}

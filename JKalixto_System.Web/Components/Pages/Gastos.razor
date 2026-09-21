@@ -1,0 +1,192 @@
+@page "/gastos"
+@using JKalixto_System.Application.Services
+@using JKalixto_System.Domain.Models
+@using JKalixto_System.Web.Services
+@inject IGastosService GastosService
+@inject SesionWebService Sesion
+@inject INotificadorCambios Notificador
+@inject NavigationManager Navegacion
+@implements IDisposable
+
+<PageTitle>Gastos</PageTitle>
+
+<div class="page">
+    <div class="page-header">
+        <div>
+            <h1>Gastos</h1>
+            <p class="page-subtitle">Movimientos de caja chica del día</p>
+        </div>
+        <div class="page-actions">
+            <a class="btn btn-secundario" href="/gastos/exportar-excel">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v13m0 0-4-4m4 4 4-4M4 20h16" /></svg>
+                Exportar Excel
+            </a>
+            <button class="btn" @onclick='() => Navegacion.NavigateTo("/gastos/nuevo")'>
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                Nuevo Movimiento
+            </button>
+        </div>
+    </div>
+
+    @if (_error is not null)
+    {
+        <div class="caja-error"><p>@_error</p></div>
+    }
+
+    @if (_resumenCaja is not null)
+    {
+        <div class="kpi-grid" style="margin-bottom:18px;">
+            <div class="kpi-card">
+                <div class="kpi-label">Caja Chica Hotel (base @_resumenCaja.MontoBaseHotel.ToString("C"))</div>
+                <div class="kpi-value">@_resumenCaja.MontoEsperadoHotel.ToString("C")</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Caja Chica Sauna (base @_resumenCaja.MontoBaseSauna.ToString("C"))</div>
+                <div class="kpi-value">@_resumenCaja.MontoEsperadoSauna.ToString("C")</div>
+            </div>
+        </div>
+    }
+
+    <div class="search-input" style="max-width:400px; margin-bottom:16px;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+        <input placeholder="Buscar por descripción o personal…" value="@_textoBusqueda" @oninput="e => _textoBusqueda = e.Value?.ToString() ?? string.Empty" />
+    </div>
+
+    @if (_cargando)
+    {
+        <p class="empty-state">Cargando…</p>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table-pro">
+                <thead>
+                    <tr>
+                        <th>Hora</th>
+                        <th>Tipo</th>
+                        <th>Descripción</th>
+                        <th>Cajero</th>
+                        <th>Método</th>
+                        <th>Monto</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var m in Filtrados())
+                    {
+                        <tr class="row-clickable" @onclick="() => ConfirmarEliminarAsync(m)">
+                            <td>@m.FechaHora.ToString("HH:mm")</td>
+                            <td>@m.OrigenCaja — @m.Categoria</td>
+                            <td>@m.Descripcion</td>
+                            <td>@m.UsuarioNombre</td>
+                            <td>@m.MetodoPago</td>
+                            <td style="font-weight:600; color:@(m.Direccion == DireccionMovimiento.Ingreso ? "var(--ok)" : "var(--danger)");">
+                                @(m.Direccion == DireccionMovimiento.Ingreso ? "+" : "-")@m.Monto.ToString("C")
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@if (_paraEliminar is { } m2)
+{
+    <ModalBase Titulo="Eliminar movimiento" OnCerrar="() => _paraEliminar = null">
+        <p>@m2.Descripcion — @m2.Monto.ToString("C")</p>
+        <p>¿Confirmás que querés eliminar este movimiento? Esta acción requiere rol de Gerencia/Desarrollador.</p>
+        <button class="btn btn-peligro btn-bloque" disabled="@_guardando" @onclick="EliminarAsync">@(_guardando ? "Eliminando…" : "Sí, eliminar")</button>
+    </ModalBase>
+}
+
+@code {
+    private List<MovimientoCajaCardDto> _movimientos = new();
+    private CajaChicaResumenDto? _resumenCaja;
+    private bool _cargando = true;
+    private string? _error;
+    private string _textoBusqueda = string.Empty;
+    private MovimientoCajaCardDto? _paraEliminar;
+    private bool _guardando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAsync();
+        Notificador.CambioDetectado += OnCambioDetectado;
+    }
+
+    private async void OnCambioDetectado(string area)
+    {
+        if (area != "gastos" && area != "caja")
+        {
+            return;
+        }
+
+        await InvokeAsync(async () =>
+        {
+            await CargarAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose() => Notificador.CambioDetectado -= OnCambioDetectado;
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        try
+        {
+            _movimientos = await GastosService.ObtenerDelDiaAsync(DateTime.Today);
+            _resumenCaja = await GastosService.ObtenerResumenCajaChicaAsync(DateTime.Today);
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo cargar los movimientos: {ex.Message}";
+        }
+        finally
+        {
+            _cargando = false;
+        }
+    }
+
+    private IEnumerable<MovimientoCajaCardDto> Filtrados()
+    {
+        if (string.IsNullOrWhiteSpace(_textoBusqueda))
+        {
+            return _movimientos;
+        }
+
+        var texto = _textoBusqueda.Trim();
+        return _movimientos.Where(m =>
+            m.Descripcion.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
+            (m.PersonalRelacionado ?? string.Empty).Contains(texto, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void ConfirmarEliminarAsync(MovimientoCajaCardDto m) => _paraEliminar = m;
+
+    private async Task EliminarAsync()
+    {
+        if (_paraEliminar is null || _guardando)
+        {
+            return;
+        }
+
+        _guardando = true;
+        try
+        {
+            var usuario = await Sesion.ObtenerUsuarioActualAsync();
+            await GastosService.EliminarMovimientoAsync(_paraEliminar.Id, usuario.Id);
+            _paraEliminar = null;
+            await CargarAsync();
+            Notificador.Avisar("gastos");
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo eliminar: {ex.Message}";
+            _paraEliminar = null;
+        }
+        finally
+        {
+            _guardando = false;
+        }
+    }
+}
