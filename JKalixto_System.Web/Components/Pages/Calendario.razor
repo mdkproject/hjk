@@ -200,7 +200,7 @@
                                                             <span class="cal-bloque-avatar">@Iniciales(bloque.NombreCliente)</span>
                                                         }
                                                         <div class="cal-bloque-texto">
-                                                            <span class="cal-bloque-nombre">@(bloque.NombreCliente ?? EtiquetaEstadoBloque(bloque.Estado))</span>
+                                                            <span class="cal-bloque-nombre" title="@(bloque.NombreCliente ?? EtiquetaEstadoBloque(bloque.Estado))">@(bloque.NombreCliente ?? EtiquetaEstadoBloque(bloque.Estado))</span>
                                                             @if (bloque.CantidadDias > 1)
                                                             {
                                                                 <span class="cal-bloque-noches">@bloque.CantidadDias noches</span>

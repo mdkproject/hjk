@@ -531,6 +531,14 @@ public class NuevoCheckInDto
     public List<string> Acompanantes { get; set; } = new();
     public string? Observaciones { get; set; }
     public int UsuarioId { get; set; }
+
+    /// <summary>Fecha/hora de Check-in a registrar en vez de "ahora" — para corregir un
+    /// huésped que ya estaba alojado y recién se está cargando en el sistema, o un
+    /// error de tipeo en la hora. Null = usa DateTime.Now (caso normal). Restringido a
+    /// Gerencia/Desarrollador (ver HabitacionService.CheckInAsync): permitir que
+    /// cualquiera "mueva" cuándo empezó una estadía afecta a qué día se le atribuye el
+    /// ingreso en Informe Mensual y Reportes.</summary>
+    public DateTime? FechaCheckInManual { get; set; }
 }
 
 // ============================================================
@@ -542,7 +550,11 @@ public interface IHabitacionService
     Task<List<HabitacionCardDto>> ObtenerPorPisoAsync(int piso);
     Task<List<HabitacionCardDto>> ObtenerTodasAsync();
     Task CheckInAsync(NuevoCheckInDto dto);
-    Task CheckOutAsync(int estadiaId, int usuarioId, MetodoPago metodoPago);
+
+    /// <summary>fechaCheckOutManual: igual que NuevoCheckInDto.FechaCheckInManual, pero
+    /// para el cierre de la estadía — null usa DateTime.Now (caso normal), y fijar un
+    /// valor está restringido a Gerencia/Desarrollador por el mismo motivo.</summary>
+    Task CheckOutAsync(int estadiaId, int usuarioId, MetodoPago metodoPago, DateTime? fechaCheckOutManual = null);
     Task IniciarMantenimientoAsync(int habitacionId, string motivo, int usuarioId);
     Task FinalizarMantenimientoAsync(int habitacionId, int usuarioId);
     Task FinalizarLimpiezaAsync(int habitacionId, int usuarioId);
@@ -621,12 +633,27 @@ public class HabitacionService : IHabitacionService
     private readonly AppDbContext _context;
     private readonly IAuditoriaService _auditoriaService;
     private readonly IComprobanteNumeracionService _comprobanteNumeracionService;
+    private readonly ISessionService _sessionService;
 
-    public HabitacionService(AppDbContext context, IAuditoriaService auditoriaService, IComprobanteNumeracionService comprobanteNumeracionService)
+    public HabitacionService(AppDbContext context, IAuditoriaService auditoriaService, IComprobanteNumeracionService comprobanteNumeracionService, ISessionService sessionService)
     {
         _context = context;
         _auditoriaService = auditoriaService;
         _comprobanteNumeracionService = comprobanteNumeracionService;
+        _sessionService = sessionService;
+    }
+
+    /// <summary>Repite el mismo chequeo de rol que ya usan GastosService/AuditoriaService
+    /// para sus acciones sensibles — acá protege que alguien "mueva" la fecha real de un
+    /// Check-in/Check-out, algo que cambia a qué día se le atribuye un ingreso en los
+    /// reportes.</summary>
+    private void ExigirRolParaFechaManual()
+    {
+        var rol = _sessionService.UsuarioActual?.Rol;
+        if (rol != RolUsuario.Gerencia && rol != RolUsuario.Desarrollador)
+        {
+            throw new UnauthorizedAccessException("Solo Gerencia/Desarrollador puede fijar una fecha distinta a la actual.");
+        }
     }
 
     public async Task<List<HabitacionCardDto>> ObtenerPorPisoAsync(int piso)
@@ -707,6 +734,17 @@ public class HabitacionService : IHabitacionService
             throw new InvalidOperationException("Esta habitación ya no está Disponible. Actualiza la pantalla e intenta de nuevo.");
         }
 
+        var fechaCheckIn = DateTime.Now;
+        if (dto.FechaCheckInManual is { } fechaManual)
+        {
+            ExigirRolParaFechaManual();
+            if (fechaManual > DateTime.Now)
+            {
+                throw new InvalidOperationException("La fecha de Check-in no puede ser en el futuro.");
+            }
+            fechaCheckIn = fechaManual;
+        }
+
         var estadia = new Estadia
         {
             HabitacionId = habitacion.Id,
@@ -719,7 +757,7 @@ public class HabitacionService : IHabitacionService
             Nacionalidad = string.IsNullOrWhiteSpace(dto.Nacionalidad) ? "Peruana" : dto.Nacionalidad,
             LugarResidencia = dto.LugarResidencia,
             MotivoViaje = dto.MotivoViaje,
-            FechaCheckIn = DateTime.Now,
+            FechaCheckIn = fechaCheckIn,
             Estado = EstadoEstadia.Activa,
             TipoComprobante = dto.TipoComprobante,
             RUC = dto.RUC,
@@ -759,7 +797,7 @@ public class HabitacionService : IHabitacionService
             dto.UsuarioId, "Estadia", estadia.Id);
     }
 
-    public async Task CheckOutAsync(int estadiaId, int usuarioId, MetodoPago metodoPago)
+    public async Task CheckOutAsync(int estadiaId, int usuarioId, MetodoPago metodoPago, DateTime? fechaCheckOutManual = null)
     {
         // AsTracking(): se modifican tanto la Estadia (Estado, TotalAcumulado) como
         // su Habitacion (Estado = LimpiezaSalida) y ambas se guardan.
@@ -777,8 +815,23 @@ public class HabitacionService : IHabitacionService
             throw new InvalidOperationException("Esta estadía ya fue cerrada.");
         }
 
+        var fechaCheckOut = DateTime.Now;
+        if (fechaCheckOutManual is { } fechaManual)
+        {
+            ExigirRolParaFechaManual();
+            if (fechaManual > DateTime.Now)
+            {
+                throw new InvalidOperationException("La fecha de Check-out no puede ser en el futuro.");
+            }
+            if (fechaManual < estadia.FechaCheckIn)
+            {
+                throw new InvalidOperationException("La fecha de Check-out no puede ser anterior a la de Check-in.");
+            }
+            fechaCheckOut = fechaManual;
+        }
+
         estadia.Estado = EstadoEstadia.Finalizada;
-        estadia.FechaCheckOut = DateTime.Now;
+        estadia.FechaCheckOut = fechaCheckOut;
         estadia.UsuarioCheckOutId = usuarioId;
         estadia.MetodoPago = metodoPago;
         estadia.NumeroComprobante = await _comprobanteNumeracionService.ObtenerSiguienteNumeroAsync(estadia.TipoComprobante);

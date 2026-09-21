@@ -5,6 +5,7 @@
 @inject IHabitacionService HabitacionService
 @inject INotificadorCambios Notificador
 @inject SesionWebService Sesion
+@inject AuthenticationStateProvider AuthProvider
 @inject NavigationManager Navegacion
 @implements IDisposable
 
@@ -205,6 +206,14 @@
             <ModalBase Titulo="Confirmar Check-out" OnCerrar="CerrarModal">
                 <p>¿Cerrar la estadía de <strong>@h.NombreHuesped</strong>?</p>
                 <p>Total a cobrar: <strong>@h.TotalAcumulado?.ToString("C")</strong></p>
+                @if (_puedeFijarFecha)
+                {
+                    <div class="form-grupo">
+                        <label>Fecha y hora de Check-out (opcional — Gerencia/Desarrollador)</label>
+                        <input type="datetime-local" @bind="_fechaCheckOutManual" />
+                        <span class="page-subtitle" style="margin-top:2px;">Dejar vacío para usar la fecha y hora actuales.</span>
+                    </div>
+                }
                 <button class="btn btn-bloque" @onclick="() => _vistaModal = VistaModal.ElegirMetodoPago">Sí, hacer Check-out</button>
             </ModalBase>
             break;
@@ -260,11 +269,17 @@
     private VistaModal _vistaModal;
     private string _motivoMantenimiento = string.Empty;
     private bool _guardando;
+    private bool _puedeFijarFecha;
+    private DateTime? _fechaCheckOutManual;
 
     protected override async Task OnInitializedAsync()
     {
         await CargarAsync();
         Notificador.CambioDetectado += OnCambioDetectado;
+
+        var estadoAuth = await AuthProvider.GetAuthenticationStateAsync();
+        var rol = estadoAuth.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+        _puedeFijarFecha = rol is "Gerencia" or "Desarrollador";
     }
 
     private async Task CargarAsync()
@@ -350,6 +365,7 @@
     {
         _habitacionSeleccionada = null;
         _errorModal = null;
+        _fechaCheckOutManual = null;
     }
 
     private async Task ConfirmarIniciarMantenimientoAsync(HabitacionCardDto h)
@@ -392,7 +408,8 @@
         try
         {
             var usuario = await Sesion.ObtenerUsuarioActualAsync();
-            await HabitacionService.CheckOutAsync(estadiaId, usuario.Id, metodo);
+            var fechaManual = _puedeFijarFecha ? _fechaCheckOutManual : null;
+            await HabitacionService.CheckOutAsync(estadiaId, usuario.Id, metodo, fechaManual);
             Notificador.Avisar("habitaciones");
             Navegacion.NavigateTo($"/comprobante/hotel/{estadiaId}");
         }

@@ -17,7 +17,7 @@ public class SaunaServiceTests
     private static async Task<int> CrearEstadiaActivaAsync(JKalixto_System.Infrastructure.Data.AppDbContext contexto)
     {
         var habitacion = await contexto.Habitaciones.FirstAsync(h => h.Estado == EstadoHabitacion.Disponible);
-        var habitacionService = new HabitacionService(contexto, new AuditoriaService(contexto, new SessionService()), new ComprobanteNumeracionService(contexto));
+        var habitacionService = new HabitacionService(contexto, new AuditoriaService(contexto, new SessionService()), new ComprobanteNumeracionService(contexto), new SessionService());
         await habitacionService.CheckInAsync(new NuevoCheckInDto
         {
             HabitacionId = habitacion.Id,

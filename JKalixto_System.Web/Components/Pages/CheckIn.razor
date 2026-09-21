@@ -5,6 +5,7 @@
 @inject IHabitacionService HabitacionService
 @inject INotificadorCambios Notificador
 @inject SesionWebService Sesion
+@inject AuthenticationStateProvider AuthProvider
 @inject NavigationManager Navegacion
 
 <PageTitle>Check-in</PageTitle>
@@ -146,6 +147,15 @@
                 <label>Observaciones</label>
                 <textarea style="min-height:60px;" @bind="_observaciones" @bind:event="oninput"></textarea>
             </div>
+
+            @if (_puedeFijarFecha)
+            {
+                <div class="form-grupo">
+                    <label>Fecha y hora de Check-in (opcional — Gerencia/Desarrollador)</label>
+                    <input type="datetime-local" @bind="_fechaCheckInManual" />
+                    <span class="page-subtitle" style="margin-top:2px;">Dejar vacío para usar la fecha y hora actuales. Usar solo para corregir un huésped que ya estaba alojado y recién se está cargando en el sistema.</span>
+                </div>
+            }
         </div>
 
         <button class="btn" disabled="@_guardando" @onclick="ConfirmarAsync">@(_guardando ? "Guardando…" : "Confirmar Check-in")</button>
@@ -176,11 +186,17 @@
     private readonly List<string> _acompanantes = new();
     private string _nuevoAcompanante = string.Empty;
     private string _observaciones = string.Empty;
+    private DateTime? _fechaCheckInManual;
+    private bool _puedeFijarFecha;
 
     protected override async Task OnInitializedAsync()
     {
         var todas = await HabitacionService.ObtenerTodasAsync();
         _habitacion = todas.FirstOrDefault(h => h.HabitacionId == HabitacionId);
+
+        var estadoAuth = await AuthProvider.GetAuthenticationStateAsync();
+        var rol = estadoAuth.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+        _puedeFijarFecha = rol is "Gerencia" or "Desarrollador";
     }
 
     private void AgregarAcompanante()
@@ -246,7 +262,8 @@
             CorreoFacturacion = _esFactura ? _correoFacturacion.Trim() : null,
             Acompanantes = _acompanantes,
             Observaciones = string.IsNullOrWhiteSpace(_observaciones) ? null : _observaciones.Trim(),
-            UsuarioId = usuario.Id
+            UsuarioId = usuario.Id,
+            FechaCheckInManual = _puedeFijarFecha ? _fechaCheckInManual : null
         };
 
         _guardando = true;

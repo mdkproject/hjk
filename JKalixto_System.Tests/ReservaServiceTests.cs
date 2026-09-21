@@ -99,7 +99,7 @@ public class ReservaServiceTests
 
         // Mientras tanto, otra persona hizo Check-in directo en esa misma habitación
         // (por ejemplo, un huésped walk-in) antes de que se procese la reserva.
-        var servicioHabitacion = new HabitacionService(bd.Contexto, new AuditoriaService(bd.Contexto, new SessionService()), new ComprobanteNumeracionService(bd.Contexto));
+        var servicioHabitacion = new HabitacionService(bd.Contexto, new AuditoriaService(bd.Contexto, new SessionService()), new ComprobanteNumeracionService(bd.Contexto), new SessionService());
         await servicioHabitacion.CheckInAsync(new NuevoCheckInDto
         {
             HabitacionId = habitacion.Id,
