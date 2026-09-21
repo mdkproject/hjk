@@ -570,6 +570,20 @@ public class NuevoCheckInDto
     public DateTime? FechaCheckInManual { get; set; }
 }
 
+/// <summary>Corrección de los datos de identidad de un huésped ya con Check-in hecho
+/// — ver HabitacionService.EditarDatosHuespedAsync. A propósito NO incluye
+/// facturación (RUC/RazonSocial/TipoComprobante) ni acompañantes: cambiar cómo se
+/// factura después de hecho el Check-in es un caso distinto, más delicado, que no
+/// se resuelve con un simple typo-fix.</summary>
+public class EditarDatosHuespedDto
+{
+    public int EstadiaId { get; set; }
+    public TipoDocumento TipoDocumento { get; set; } = TipoDocumento.DNI;
+    public string NumeroDocumento { get; set; } = string.Empty;
+    public string NombreCompleto { get; set; } = string.Empty;
+    public string Celular { get; set; } = string.Empty;
+}
+
 // ============================================================
 // MÓDULO HOTEL — Servicio
 // ============================================================
@@ -593,6 +607,15 @@ public interface IHabitacionService
     /// afecta el TotalAcumulado de estadías ya en curso (esas ya cobraron su tarifa al
     /// hacer Check-in). Restringido a Gerencia/Desarrollador.</summary>
     Task EditarTarifaAsync(int habitacionId, decimal nuevaTarifa, int usuarioId);
+
+    /// <summary>Corrige documento/nombre/celular de una estadía Activa — para el typo
+    /// más común del día a día (un número de documento mal tipeado en el apuro de un
+    /// Check-in). A diferencia de EditarTarifaAsync, NO está restringido a Gerencia:
+    /// es una corrección de datos, no algo que cambie cuánto se cobra, y cualquiera
+    /// que hizo el Check-in original debería poder arreglar su propio error sin
+    /// depender de un superior. Solo se puede usar mientras la estadía sigue Activa
+    /// (no después del Check-out, que ya cerró el registro).</summary>
+    Task EditarDatosHuespedAsync(EditarDatosHuespedDto dto, int usuarioId);
 
     /// <summary>Datos de una Estadia ya cerrada (Check-out hecho), listos para
     /// imprimir el comprobante. Null si la estadía no existe o todavía está Activa
@@ -1035,6 +1058,38 @@ public class HabitacionService : IHabitacionService
             "HABITACION_TARIFA_EDITADA",
             $"Tarifa de la habitación {habitacion.Numero} cambió de S/ {tarifaAnterior:0.00} a S/ {nuevaTarifa:0.00}.",
             usuarioId, "Habitacion", habitacion.Id);
+    }
+
+    public async Task EditarDatosHuespedAsync(EditarDatosHuespedDto dto, int usuarioId)
+    {
+        if (string.IsNullOrWhiteSpace(dto.NumeroDocumento) || string.IsNullOrWhiteSpace(dto.NombreCompleto) || string.IsNullOrWhiteSpace(dto.Celular))
+        {
+            throw new InvalidOperationException("El número de documento, nombre completo y celular son obligatorios.");
+        }
+
+        // AsTracking(): se modifica (TipoDocumento/NumeroDocumento/NombreCompleto/
+        // Celular) y se guarda.
+        var estadia = await _context.Estadias.AsTracking().FirstOrDefaultAsync(e => e.Id == dto.EstadiaId);
+        if (estadia is null)
+        {
+            throw new InvalidOperationException("La estadía no existe.");
+        }
+        if (estadia.Estado != EstadoEstadia.Activa)
+        {
+            throw new InvalidOperationException("Solo se pueden corregir los datos de una estadía Activa (no después del Check-out).");
+        }
+
+        var nombreAnterior = estadia.NombreCompleto;
+        estadia.TipoDocumento = dto.TipoDocumento;
+        estadia.NumeroDocumento = dto.NumeroDocumento.Trim();
+        estadia.NombreCompleto = dto.NombreCompleto.Trim();
+        estadia.Celular = dto.Celular.Trim();
+        await _context.SaveChangesAsync();
+
+        await _auditoriaService.RegistrarAsync(
+            "ESTADIA_DATOS_CORREGIDOS",
+            $"Se corrigieron los datos del huésped \"{nombreAnterior}\" → \"{estadia.NombreCompleto}\" ({estadia.TipoDocumento} {estadia.NumeroDocumento}) en la habitación.",
+            usuarioId, "Estadia", estadia.Id);
     }
 
     public async Task<EstadiaReciboDto?> ObtenerReciboEstadiaAsync(int estadiaId)

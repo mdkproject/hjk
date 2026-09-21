@@ -205,6 +205,39 @@
                 <p><strong>Check-in:</strong> @h.FechaCheckInHuesped?.ToString("dd/MM/yyyy HH:mm")</p>
                 <p><strong>Acompañantes:</strong> @h.AcompanantesTexto</p>
                 <p><strong>Total acumulado:</strong> @h.TotalAcumulado?.ToString("C")</p>
+                <button class="btn btn-secundario btn-bloque" @onclick="() => AbrirEditarHuesped(h)">Corregir documento / nombre / celular</button>
+            </ModalBase>
+            break;
+
+        case VistaModal.EditarHuesped:
+            <ModalBase Titulo="Corregir datos del huésped" OnCerrar="CerrarModal">
+                @if (_errorModal is not null)
+                {
+                    <div class="caja-error"><p>@_errorModal</p></div>
+                }
+                <div class="form-grid-2">
+                    <div class="form-grupo">
+                        <label>Tipo de documento</label>
+                        <select @bind="_editTipoDocumento">
+                            <option value="@TipoDocumento.DNI">DNI</option>
+                            <option value="@TipoDocumento.Pasaporte">Pasaporte</option>
+                            <option value="@TipoDocumento.CarneExtranjeria">Carné Ext.</option>
+                        </select>
+                    </div>
+                    <div class="form-grupo">
+                        <label>Número de documento *</label>
+                        <input type="text" @bind="_editNumeroDocumento" @bind:event="oninput" />
+                    </div>
+                </div>
+                <div class="form-grupo">
+                    <label>Nombre completo *</label>
+                    <input type="text" @bind="_editNombreHuesped" @bind:event="oninput" />
+                </div>
+                <div class="form-grupo">
+                    <label>Celular *</label>
+                    <input type="text" @bind="_editCelularHuesped" @bind:event="oninput" />
+                </div>
+                <button class="btn btn-bloque" disabled="@_guardando" @onclick="() => GuardarEdicionHuespedAsync(h)">@(_guardando ? "Guardando…" : "Guardar corrección")</button>
             </ModalBase>
             break;
 
@@ -280,7 +313,7 @@
 @code {
     private enum VistaModal
     {
-        MenuDisponible, PromptMantenimiento, MenuOcupada, DetalleHuesped,
+        MenuDisponible, PromptMantenimiento, MenuOcupada, DetalleHuesped, EditarHuesped,
         ConfirmarCheckout, ElegirMetodoPago, ConfirmarLimpieza, ConfirmarFinMantenimiento
     }
 
@@ -303,6 +336,11 @@
     private string? _errorTarifas;
     private bool _guardandoTarifa;
     private readonly Dictionary<int, string> _edicionTarifas = new();
+
+    private TipoDocumento _editTipoDocumento;
+    private string _editNumeroDocumento = string.Empty;
+    private string _editNombreHuesped = string.Empty;
+    private string _editCelularHuesped = string.Empty;
     private bool _puedeFijarFecha;
     private DateTime? _fechaCheckOutManual;
 
@@ -400,6 +438,51 @@
         _habitacionSeleccionada = null;
         _errorModal = null;
         _fechaCheckOutManual = null;
+    }
+
+    private void AbrirEditarHuesped(HabitacionCardDto h)
+    {
+        _editTipoDocumento = h.TipoDocumentoHuesped ?? TipoDocumento.DNI;
+        _editNumeroDocumento = h.NumeroDocumentoHuesped ?? string.Empty;
+        _editNombreHuesped = h.NombreHuesped ?? string.Empty;
+        _editCelularHuesped = h.CelularHuesped ?? string.Empty;
+        _errorModal = null;
+        _vistaModal = VistaModal.EditarHuesped;
+    }
+
+    private async Task GuardarEdicionHuespedAsync(HabitacionCardDto h)
+    {
+        if (_guardando || h.EstadiaId is not { } estadiaId)
+        {
+            return;
+        }
+
+        _guardando = true;
+        _errorModal = null;
+        try
+        {
+            var usuario = await Sesion.ObtenerUsuarioActualAsync();
+            await HabitacionService.EditarDatosHuespedAsync(new EditarDatosHuespedDto
+            {
+                EstadiaId = estadiaId,
+                TipoDocumento = _editTipoDocumento,
+                NumeroDocumento = _editNumeroDocumento.Trim(),
+                NombreCompleto = _editNombreHuesped.Trim(),
+                Celular = _editCelularHuesped.Trim()
+            }, usuario.Id);
+
+            await CargarAsync();
+            CerrarModal();
+            Notificador.Avisar("habitaciones");
+        }
+        catch (Exception ex)
+        {
+            _errorModal = ex.Message;
+        }
+        finally
+        {
+            _guardando = false;
+        }
     }
 
     private string TarifaTextoEdicion(HabitacionCardDto hab) =>

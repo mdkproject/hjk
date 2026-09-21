@@ -301,4 +301,68 @@ public class HabitacionServiceTests
         var estadiaSinCambios = await bd.Contexto.Estadias.FindAsync(estadia.Id);
         Assert.Equal(tarifaAlHacerCheckIn, estadiaSinCambios!.TotalAcumulado);
     }
+
+    [Fact]
+    public async Task EditarDatosHuespedAsync_ComoRecepcionista_CorrigeLosDatos()
+    {
+        using var bd = new BaseDeDatosDePrueba();
+        var servicio = NuevoServicio(bd.Contexto);
+        var habitacion = await bd.Contexto.Habitaciones.FirstAsync(h => h.Estado == EstadoHabitacion.Disponible);
+
+        await servicio.CheckInAsync(new NuevoCheckInDto { HabitacionId = habitacion.Id, NumeroDocumento = "11111111", NombreCompleto = "Nombre Con Typo", Celular = "900000000", UsuarioId = IdUsuarioRecepcion });
+        var estadia = await bd.Contexto.Estadias.SingleAsync(e => e.HabitacionId == habitacion.Id);
+
+        await servicio.EditarDatosHuespedAsync(new EditarDatosHuespedDto
+        {
+            EstadiaId = estadia.Id,
+            TipoDocumento = TipoDocumento.DNI,
+            NumeroDocumento = "22222222",
+            NombreCompleto = "Nombre Correcto",
+            Celular = "911111111"
+        }, IdUsuarioRecepcion);
+
+        var estadiaActualizada = await bd.Contexto.Estadias.FindAsync(estadia.Id);
+        Assert.Equal("22222222", estadiaActualizada!.NumeroDocumento);
+        Assert.Equal("Nombre Correcto", estadiaActualizada.NombreCompleto);
+        Assert.Equal("911111111", estadiaActualizada.Celular);
+    }
+
+    [Fact]
+    public async Task EditarDatosHuespedAsync_EstadiaYaFinalizada_LanzaExcepcion()
+    {
+        using var bd = new BaseDeDatosDePrueba();
+        var servicio = NuevoServicio(bd.Contexto);
+        var habitacion = await bd.Contexto.Habitaciones.FirstAsync(h => h.Estado == EstadoHabitacion.Disponible);
+
+        await servicio.CheckInAsync(new NuevoCheckInDto { HabitacionId = habitacion.Id, NumeroDocumento = "11111111", NombreCompleto = "Huésped", Celular = "900000000", UsuarioId = IdUsuarioRecepcion });
+        var estadia = await bd.Contexto.Estadias.SingleAsync(e => e.HabitacionId == habitacion.Id);
+        await servicio.CheckOutAsync(estadia.Id, IdUsuarioRecepcion, MetodoPago.Efectivo);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => servicio.EditarDatosHuespedAsync(new EditarDatosHuespedDto
+        {
+            EstadiaId = estadia.Id,
+            NumeroDocumento = "22222222",
+            NombreCompleto = "Otro Nombre",
+            Celular = "911111111"
+        }, IdUsuarioRecepcion));
+    }
+
+    [Fact]
+    public async Task EditarDatosHuespedAsync_CelularVacio_LanzaExcepcion()
+    {
+        using var bd = new BaseDeDatosDePrueba();
+        var servicio = NuevoServicio(bd.Contexto);
+        var habitacion = await bd.Contexto.Habitaciones.FirstAsync(h => h.Estado == EstadoHabitacion.Disponible);
+
+        await servicio.CheckInAsync(new NuevoCheckInDto { HabitacionId = habitacion.Id, NumeroDocumento = "11111111", NombreCompleto = "Huésped", Celular = "900000000", UsuarioId = IdUsuarioRecepcion });
+        var estadia = await bd.Contexto.Estadias.SingleAsync(e => e.HabitacionId == habitacion.Id);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => servicio.EditarDatosHuespedAsync(new EditarDatosHuespedDto
+        {
+            EstadiaId = estadia.Id,
+            NumeroDocumento = "22222222",
+            NombreCompleto = "Otro Nombre",
+            Celular = "   "
+        }, IdUsuarioRecepcion));
+    }
 }
