@@ -45,7 +45,7 @@
             {
                 @foreach (var reserva in ReservasFiltradas())
                 {
-                    <div class="card card-clickable" style="margin-bottom:8px;" @onclick="() => _reservaSeleccionada = reserva">
+                    <div class="card card-clickable" style="margin-bottom:8px;" @onclick="() => AbrirDetalle(reserva)">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
                             <strong>Hab. @reserva.NumeroHabitacion — @reserva.EtiquetaTipoHabitacion</strong>
                             <span class="badge" style="background:@ColorParaEstadoReserva(reserva.Estado); color:@ContrasteParaEstadoReserva(reserva.Estado);">@EtiquetaEstadoReserva(reserva.Estado)</span>
@@ -131,9 +131,13 @@
     </div>
 </div>
 
-@if (_reservaSeleccionada is { } r)
+@if (_reservaSeleccionada is { } r && !_editando)
 {
-    <ModalBase Titulo="@($"Hab. {r.NumeroHabitacion} — {r.NombreCliente}")" OnCerrar="() => _reservaSeleccionada = null">
+    <ModalBase Titulo="@($"Hab. {r.NumeroHabitacion} — {r.NombreCliente}")" OnCerrar="CerrarDetalle">
+        @if (_error is not null)
+        {
+            <div class="caja-error"><p>@_error</p></div>
+        }
         <p>Documento: @r.NumeroDocumento</p>
         <p>Celular: @r.Celular</p>
         <p>@r.FechaInicio.ToString("dd/MM/yyyy") → @r.FechaFin.ToString("dd/MM/yyyy")</p>
@@ -145,8 +149,38 @@
         @if (r.Estado == EstadoReserva.Confirmada)
         {
             <button class="btn btn-bloque" disabled="@_guardando" @onclick="() => ConvertirEnCheckInAsync(r)">@(_guardando ? "Guardando…" : "Hacer Check-in ahora")</button>
+            <button class="btn btn-secundario btn-bloque" disabled="@_guardando" @onclick="() => AbrirEdicion(r)">Editar fechas / datos de contacto</button>
             <button class="btn btn-peligro btn-bloque" disabled="@_guardando" @onclick="() => CancelarAsync(r)">@(_guardando ? "Guardando…" : "Cancelar reserva")</button>
         }
+    </ModalBase>
+}
+
+@if (_reservaSeleccionada is { } re && _editando)
+{
+    <ModalBase Titulo="@($"Editar reserva — Hab. {re.NumeroHabitacion}")" OnCerrar="CerrarEdicion">
+        @if (_error is not null)
+        {
+            <div class="caja-error"><p>@_error</p></div>
+        }
+        <div class="form-grid-2">
+            <div class="form-grupo">
+                <label>Fecha de entrada</label>
+                <input type="date" @bind="_editFechaInicio" />
+            </div>
+            <div class="form-grupo">
+                <label>Fecha de salida</label>
+                <input type="date" @bind="_editFechaFin" />
+            </div>
+        </div>
+        <div class="form-grupo">
+            <label>Celular</label>
+            <input type="text" @bind="_editCelular" @bind:event="oninput" />
+        </div>
+        <div class="form-grupo">
+            <label>Observaciones</label>
+            <textarea style="min-height:60px;" @bind="_editObservaciones" @bind:event="oninput"></textarea>
+        </div>
+        <button class="btn btn-bloque" disabled="@_guardando" @onclick="() => GuardarEdicionAsync(re)">@(_guardando ? "Guardando…" : "Guardar cambios")</button>
     </ModalBase>
 }
 
@@ -162,6 +196,11 @@
     private string _filtroEstado = string.Empty;
     private ReservaCardDto? _reservaSeleccionada;
     private bool _guardando;
+    private bool _editando;
+    private DateTime _editFechaInicio;
+    private DateTime _editFechaFin;
+    private string _editCelular = string.Empty;
+    private string _editObservaciones = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -298,6 +337,72 @@
         catch (Exception ex)
         {
             _error = $"No se pudo hacer el check-in: {ex.Message}";
+        }
+        finally
+        {
+            _guardando = false;
+        }
+    }
+
+    private void CerrarDetalle()
+    {
+        _reservaSeleccionada = null;
+        _editando = false;
+        _error = null;
+    }
+
+    private void AbrirDetalle(ReservaCardDto r)
+    {
+        _reservaSeleccionada = r;
+        _editando = false;
+        _error = null;
+    }
+
+    private void AbrirEdicion(ReservaCardDto r)
+    {
+        _editFechaInicio = r.FechaInicio;
+        _editFechaFin = r.FechaFin;
+        _editCelular = r.Celular;
+        _editObservaciones = r.Observaciones ?? string.Empty;
+        _error = null;
+        _editando = true;
+    }
+
+    private void CerrarEdicion()
+    {
+        _editando = false;
+        _error = null;
+    }
+
+    private async Task GuardarEdicionAsync(ReservaCardDto r)
+    {
+        if (_guardando)
+        {
+            return;
+        }
+
+        _guardando = true;
+        _error = null;
+        try
+        {
+            var usuario = await Sesion.ObtenerUsuarioActualAsync();
+            await ReservaService.ModificarReservaAsync(new ModificarReservaDto
+            {
+                ReservaId = r.ReservaId,
+                FechaInicio = _editFechaInicio,
+                FechaFin = _editFechaFin,
+                Celular = _editCelular.Trim(),
+                Observaciones = string.IsNullOrWhiteSpace(_editObservaciones) ? null : _editObservaciones.Trim()
+            }, usuario.Id);
+
+            _editando = false;
+            _reservaSeleccionada = null;
+            await CargarReservasAsync();
+            Notificador.Avisar("reservas");
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
         }
         finally
         {

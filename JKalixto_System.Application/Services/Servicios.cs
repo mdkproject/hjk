@@ -2128,11 +2128,26 @@ public class NuevaReservaDto
     public int UsuarioId { get; set; }
 }
 
+/// <summary>Cambios permitidos sobre una reserva ya creada — a propósito NO incluye
+/// documento/nombre/facturación (eso es la identidad del huésped, no algo que
+/// debería cambiar con un "editar"; si está mal, conviene cancelar y crear una
+/// nueva). Cubre el pedido más común en la práctica: mover las fechas porque el
+/// huésped llamó a cambiar su estadía, o corregir el celular/una observación.</summary>
+public class ModificarReservaDto
+{
+    public int ReservaId { get; set; }
+    public DateTime FechaInicio { get; set; }
+    public DateTime FechaFin { get; set; }
+    public string Celular { get; set; } = string.Empty;
+    public string? Observaciones { get; set; }
+}
+
 public interface IReservaService
 {
     Task<List<ReservaCardDto>> ObtenerProximasAsync();
     Task<List<HabitacionDisponibleDto>> ObtenerHabitacionesDisponiblesAsync(DateTime fechaInicio, DateTime fechaFin);
     Task<int> CrearReservaAsync(NuevaReservaDto dto);
+    Task ModificarReservaAsync(ModificarReservaDto dto, int usuarioId);
     Task CancelarReservaAsync(int reservaId, int usuarioId);
     Task ConvertirEnCheckInAsync(int reservaId, int usuarioId);
 }
@@ -2269,6 +2284,60 @@ public class ReservaService : IReservaService
             dto.UsuarioId, "Reserva", reserva.Id);
 
         return reserva.Id;
+    }
+
+    public async Task ModificarReservaAsync(ModificarReservaDto dto, int usuarioId)
+    {
+        // AsTracking(): se modifica (FechaInicio/FechaFin/Celular/Observaciones) y se guarda.
+        var reserva = await _context.Reservas.AsTracking().FirstOrDefaultAsync(r => r.Id == dto.ReservaId);
+        if (reserva is null)
+        {
+            throw new InvalidOperationException("La reserva no existe.");
+        }
+        if (reserva.Estado != EstadoReserva.Confirmada)
+        {
+            throw new InvalidOperationException("Solo se pueden modificar reservas Confirmadas (no canceladas ni ya convertidas en Check-in).");
+        }
+
+        var fechaInicio = dto.FechaInicio.Date;
+        var fechaFin = dto.FechaFin.Date;
+
+        if (fechaFin <= fechaInicio)
+        {
+            throw new InvalidOperationException("La fecha de salida debe ser posterior a la fecha de entrada.");
+        }
+        if (fechaInicio < DateTime.Now.Date)
+        {
+            throw new InvalidOperationException("No se puede mover la reserva a una fecha que ya pasó.");
+        }
+
+        // Mismo chequeo de superposición que CrearReservaAsync, excluyendo esta misma
+        // reserva (si no, siempre "chocaría" contra sus propias fechas viejas).
+        var hayConflicto = await _context.Reservas.AnyAsync(r =>
+            r.Id != dto.ReservaId &&
+            r.HabitacionId == reserva.HabitacionId &&
+            r.Estado == EstadoReserva.Confirmada &&
+            r.FechaInicio < fechaFin &&
+            fechaInicio < r.FechaFin);
+
+        if (hayConflicto)
+        {
+            throw new InvalidOperationException("Esa habitación ya tiene otra reserva confirmada que se cruza con esas fechas.");
+        }
+
+        var fechaInicioAnterior = reserva.FechaInicio;
+        var fechaFinAnterior = reserva.FechaFin;
+
+        reserva.FechaInicio = fechaInicio;
+        reserva.FechaFin = fechaFin;
+        reserva.Celular = dto.Celular;
+        reserva.Observaciones = dto.Observaciones;
+        await _context.SaveChangesAsync();
+
+        await _auditoriaService.RegistrarAsync(
+            "RESERVA_MODIFICADA",
+            $"Reserva de {reserva.NombreCompleto} modificada: {fechaInicioAnterior:dd/MM/yyyy}–{fechaFinAnterior:dd/MM/yyyy} pasó a {fechaInicio:dd/MM/yyyy}–{fechaFin:dd/MM/yyyy}.",
+            usuarioId, "Reserva", reserva.Id);
     }
 
     public async Task CancelarReservaAsync(int reservaId, int usuarioId)
