@@ -2837,10 +2837,36 @@ public class NuevoMovimientoInventarioDto
     public int UsuarioId { get; set; }
 }
 
+/// <summary>Alta de un artículo nuevo en el Almacén — hasta ahora la lista de
+/// insumos era fija (la que trajo el sembrado inicial), sin forma de agregar un
+/// producto nuevo que el hotel empiece a comprar sin editar la base a mano.</summary>
+public class NuevoInsumoDto
+{
+    public string Nombre { get; set; } = string.Empty;
+    public CategoriaInsumo Categoria { get; set; }
+    public string UnidadMedida { get; set; } = string.Empty;
+    public int StockInicial { get; set; }
+    public int StockMinimo { get; set; }
+}
+
+/// <summary>Corrección de un insumo ya existente — a propósito NO incluye
+/// StockActual (eso se mueve solo con RegistrarMovimientoAsync, que además deja
+/// registro en MovimientoInventario; cambiarlo acá directamente perdería esa
+/// trazabilidad).</summary>
+public class EditarInsumoDto
+{
+    public int Id { get; set; }
+    public string Nombre { get; set; } = string.Empty;
+    public string UnidadMedida { get; set; } = string.Empty;
+    public int StockMinimo { get; set; }
+}
+
 public interface IInventarioService
 {
     Task<List<InsumoCardDto>> ObtenerInsumosAsync();
     Task RegistrarMovimientoAsync(NuevoMovimientoInventarioDto dto);
+    Task<int> CrearInsumoAsync(NuevoInsumoDto dto, int usuarioId);
+    Task EditarInsumoAsync(EditarInsumoDto dto, int usuarioId);
 }
 
 /// <summary>
@@ -2918,6 +2944,75 @@ public class InventarioService : IInventarioService
             dto.Tipo == TipoMovimientoInventario.Entrada ? "INVENTARIO_ENTRADA" : "INVENTARIO_SALIDA",
             $"{etiquetaTipo} de {dto.Cantidad} {insumo.UnidadMedida} de {insumo.Nombre}. Motivo: {dto.Motivo}. Stock resultante: {insumo.StockActual} {insumo.UnidadMedida}.",
             dto.UsuarioId, "Insumo", insumo.Id);
+    }
+
+    public async Task<int> CrearInsumoAsync(NuevoInsumoDto dto, int usuarioId)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Nombre))
+        {
+            throw new InvalidOperationException("El nombre del insumo es obligatorio.");
+        }
+        if (string.IsNullOrWhiteSpace(dto.UnidadMedida))
+        {
+            throw new InvalidOperationException("La unidad de medida es obligatoria.");
+        }
+        if (dto.StockInicial < 0 || dto.StockMinimo < 0)
+        {
+            throw new InvalidOperationException("El stock inicial y el mínimo no pueden ser negativos.");
+        }
+
+        var insumo = new Insumo
+        {
+            Nombre = dto.Nombre.Trim(),
+            Categoria = dto.Categoria,
+            UnidadMedida = dto.UnidadMedida.Trim(),
+            StockActual = dto.StockInicial,
+            StockMinimo = dto.StockMinimo,
+            Activo = true
+        };
+
+        _context.Insumos.Add(insumo);
+        await _context.SaveChangesAsync();
+
+        await _auditoriaService.RegistrarAsync(
+            "INSUMO_CREADO",
+            $"Nuevo insumo '{insumo.Nombre}' ({insumo.UnidadMedida}), stock inicial {insumo.StockActual}, mínimo {insumo.StockMinimo}.",
+            usuarioId, "Insumo", insumo.Id);
+
+        return insumo.Id;
+    }
+
+    public async Task EditarInsumoAsync(EditarInsumoDto dto, int usuarioId)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Nombre))
+        {
+            throw new InvalidOperationException("El nombre del insumo es obligatorio.");
+        }
+        if (string.IsNullOrWhiteSpace(dto.UnidadMedida))
+        {
+            throw new InvalidOperationException("La unidad de medida es obligatoria.");
+        }
+        if (dto.StockMinimo < 0)
+        {
+            throw new InvalidOperationException("El stock mínimo no puede ser negativo.");
+        }
+
+        // AsTracking(): se modifica (Nombre/UnidadMedida/StockMinimo) y se guarda.
+        var insumo = await _context.Insumos.AsTracking().FirstOrDefaultAsync(i => i.Id == dto.Id);
+        if (insumo is null)
+        {
+            throw new InvalidOperationException("El insumo no existe.");
+        }
+
+        insumo.Nombre = dto.Nombre.Trim();
+        insumo.UnidadMedida = dto.UnidadMedida.Trim();
+        insumo.StockMinimo = dto.StockMinimo;
+        await _context.SaveChangesAsync();
+
+        await _auditoriaService.RegistrarAsync(
+            "INSUMO_EDITADO",
+            $"Insumo '{insumo.Nombre}' editado — mínimo actualizado a {insumo.StockMinimo} {insumo.UnidadMedida}.",
+            usuarioId, "Insumo", insumo.Id);
     }
 }
 
