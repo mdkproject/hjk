@@ -589,6 +589,11 @@ public interface IHabitacionService
     Task FinalizarLimpiezaAsync(int habitacionId, int usuarioId);
     Task RegistrarLimpiezaIntermediaAsync(int habitacionId, int usuarioId);
 
+    /// <summary>Cambia la tarifa por noche de una habitación de acá en adelante — NO
+    /// afecta el TotalAcumulado de estadías ya en curso (esas ya cobraron su tarifa al
+    /// hacer Check-in). Restringido a Gerencia/Desarrollador.</summary>
+    Task EditarTarifaAsync(int habitacionId, decimal nuevaTarifa, int usuarioId);
+
     /// <summary>Datos de una Estadia ya cerrada (Check-out hecho), listos para
     /// imprimir el comprobante. Null si la estadía no existe o todavía está Activa
     /// (el total y el número de comprobante recién quedan definitivos al Check-out).</summary>
@@ -673,15 +678,16 @@ public class HabitacionService : IHabitacionService
     }
 
     /// <summary>Repite el mismo chequeo de rol que ya usan GastosService/AuditoriaService
-    /// para sus acciones sensibles — acá protege que alguien "mueva" la fecha real de un
-    /// Check-in/Check-out, algo que cambia a qué día se le atribuye un ingreso en los
-    /// reportes.</summary>
-    private void ExigirRolParaFechaManual()
+    /// para sus acciones sensibles — protege tanto "mover" la fecha real de un
+    /// Check-in/Check-out (cambia a qué día se le atribuye un ingreso en los reportes)
+    /// como editar la tarifa de una habitación (cambia cuánto se cobra a partir de
+    /// ahora).</summary>
+    private void ExigirRolGerencial(string accion)
     {
         var rol = _sessionService.UsuarioActual?.Rol;
         if (rol != RolUsuario.Gerencia && rol != RolUsuario.Desarrollador)
         {
-            throw new UnauthorizedAccessException("Solo Gerencia/Desarrollador puede fijar una fecha distinta a la actual.");
+            throw new UnauthorizedAccessException($"Solo Gerencia/Desarrollador puede {accion}.");
         }
     }
 
@@ -766,7 +772,7 @@ public class HabitacionService : IHabitacionService
         var fechaCheckIn = DateTime.Now;
         if (dto.FechaCheckInManual is { } fechaManual)
         {
-            ExigirRolParaFechaManual();
+            ExigirRolGerencial("fijar una fecha de Check-in distinta a la actual");
             if (fechaManual > DateTime.Now)
             {
                 throw new InvalidOperationException("La fecha de Check-in no puede ser en el futuro.");
@@ -847,7 +853,7 @@ public class HabitacionService : IHabitacionService
         var fechaCheckOut = DateTime.Now;
         if (fechaCheckOutManual is { } fechaManual)
         {
-            ExigirRolParaFechaManual();
+            ExigirRolGerencial("fijar una fecha de Check-out distinta a la actual");
             if (fechaManual > DateTime.Now)
             {
                 throw new InvalidOperationException("La fecha de Check-out no puede ser en el futuro.");
@@ -1000,6 +1006,34 @@ public class HabitacionService : IHabitacionService
         await _auditoriaService.RegistrarAsync(
             "SOLICITUD_LIMPIEZA",
             $"Se solicitó limpieza intermedia para la habitación {habitacion.Numero} (sin cambio de estado).",
+            usuarioId, "Habitacion", habitacion.Id);
+    }
+
+    public async Task EditarTarifaAsync(int habitacionId, decimal nuevaTarifa, int usuarioId)
+    {
+        ExigirRolGerencial("editar la tarifa de una habitación");
+
+        if (nuevaTarifa <= 0)
+        {
+            throw new InvalidOperationException("La tarifa debe ser mayor a cero.");
+        }
+
+        // AsTracking(): se modifica (TarifaNoche) y se guarda. No toca Estado (el
+        // ConcurrencyToken es sobre esa propiedad, no sobre esta) así que no hay riesgo
+        // de chocar con un Check-in concurrente por este cambio.
+        var habitacion = await _context.Habitaciones.AsTracking().FirstOrDefaultAsync(h => h.Id == habitacionId);
+        if (habitacion is null)
+        {
+            throw new InvalidOperationException("La habitación no existe.");
+        }
+
+        var tarifaAnterior = habitacion.TarifaNoche;
+        habitacion.TarifaNoche = nuevaTarifa;
+        await _context.SaveChangesAsync();
+
+        await _auditoriaService.RegistrarAsync(
+            "HABITACION_TARIFA_EDITADA",
+            $"Tarifa de la habitación {habitacion.Numero} cambió de S/ {tarifaAnterior:0.00} a S/ {nuevaTarifa:0.00}.",
             usuarioId, "Habitacion", habitacion.Id);
     }
 

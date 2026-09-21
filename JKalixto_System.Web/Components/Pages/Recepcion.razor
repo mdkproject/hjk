@@ -17,6 +17,12 @@
             <h1>Registro Hotel</h1>
             <p class="page-subtitle">Tablero de habitaciones en tiempo real</p>
         </div>
+        @if (_puedeFijarFecha)
+        {
+            <div class="page-actions">
+                <button class="btn btn-secundario" @onclick="() => _vistaTarifas = true">Editar tarifas</button>
+            </div>
+        }
     </div>
 
     @if (_error is not null)
@@ -248,6 +254,29 @@
     }
 }
 
+@if (_vistaTarifas)
+{
+    <ModalBase Titulo="Editar tarifas por noche" OnCerrar="() => _vistaTarifas = false">
+        @if (_errorTarifas is not null)
+        {
+            <div class="caja-error"><p>@_errorTarifas</p></div>
+        }
+        <p style="font-size:0.8rem; color:var(--text-muted); margin-top:0;">Solo afecta a reservas/check-ins nuevos — no cambia el total de una estadía ya en curso.</p>
+        <div style="max-height:60vh; overflow-y:auto;">
+            @foreach (var hab in _habitaciones.OrderBy(x => x.Piso).ThenBy(x => x.Numero))
+            {
+                <div style="display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--border); padding:8px 0;">
+                    <div style="flex:1;">
+                        <strong>@hab.Numero</strong> — @hab.EtiquetaTipo
+                    </div>
+                    <input type="text" style="width:90px;" value="@TarifaTextoEdicion(hab)" @oninput="e => _edicionTarifas[hab.HabitacionId] = e.Value?.ToString() ?? string.Empty" />
+                    <button class="btn btn-secundario" style="padding:6px 12px; font-size:0.8rem;" disabled="@_guardandoTarifa" @onclick="() => GuardarTarifaAsync(hab)">Guardar</button>
+                </div>
+            }
+        </div>
+    </ModalBase>
+}
+
 @code {
     private enum VistaModal
     {
@@ -269,6 +298,11 @@
     private VistaModal _vistaModal;
     private string _motivoMantenimiento = string.Empty;
     private bool _guardando;
+
+    private bool _vistaTarifas;
+    private string? _errorTarifas;
+    private bool _guardandoTarifa;
+    private readonly Dictionary<int, string> _edicionTarifas = new();
     private bool _puedeFijarFecha;
     private DateTime? _fechaCheckOutManual;
 
@@ -366,6 +400,42 @@
         _habitacionSeleccionada = null;
         _errorModal = null;
         _fechaCheckOutManual = null;
+    }
+
+    private string TarifaTextoEdicion(HabitacionCardDto hab) =>
+        _edicionTarifas.TryGetValue(hab.HabitacionId, out var texto) ? texto : hab.TarifaNoche.ToString("0.00");
+
+    private async Task GuardarTarifaAsync(HabitacionCardDto hab)
+    {
+        if (_guardandoTarifa)
+        {
+            return;
+        }
+
+        if (!decimal.TryParse(TarifaTextoEdicion(hab), out var nuevaTarifa))
+        {
+            _errorTarifas = $"Tarifa inválida para la habitación {hab.Numero}.";
+            return;
+        }
+
+        _guardandoTarifa = true;
+        _errorTarifas = null;
+        try
+        {
+            var usuario = await Sesion.ObtenerUsuarioActualAsync();
+            await HabitacionService.EditarTarifaAsync(hab.HabitacionId, nuevaTarifa, usuario.Id);
+            _edicionTarifas.Remove(hab.HabitacionId);
+            await CargarAsync();
+            Notificador.Avisar("habitaciones");
+        }
+        catch (Exception ex)
+        {
+            _errorTarifas = ex.Message;
+        }
+        finally
+        {
+            _guardandoTarifa = false;
+        }
     }
 
     private async Task ConfirmarIniciarMantenimientoAsync(HabitacionCardDto h)

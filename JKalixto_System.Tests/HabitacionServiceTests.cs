@@ -240,4 +240,65 @@ public class HabitacionServiceTests
         var estadiaActualizada = await bd.Contexto.Estadias.FindAsync(estadia.Id);
         Assert.Equal(fechaCheckOutEsperada, estadiaActualizada!.FechaCheckOut);
     }
+
+    [Fact]
+    public async Task EditarTarifaAsync_ComoRecepcionista_LanzaExcepcionYNoCambiaNada()
+    {
+        using var bd = new BaseDeDatosDePrueba();
+        var habitacion = await bd.Contexto.Habitaciones.FirstAsync();
+        var tarifaOriginal = habitacion.TarifaNoche;
+        var sesion = new SessionService { UsuarioActual = await bd.Contexto.Usuarios.FindAsync(IdUsuarioRecepcion) };
+        var servicio = NuevoServicio(bd.Contexto, sesion);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(
+            () => servicio.EditarTarifaAsync(habitacion.Id, 999m, IdUsuarioRecepcion));
+
+        var habitacionActualizada = await bd.Contexto.Habitaciones.FindAsync(habitacion.Id);
+        Assert.Equal(tarifaOriginal, habitacionActualizada!.TarifaNoche);
+    }
+
+    [Fact]
+    public async Task EditarTarifaAsync_ComoGerencia_ActualizaLaTarifa()
+    {
+        using var bd = new BaseDeDatosDePrueba();
+        var habitacion = await bd.Contexto.Habitaciones.FirstAsync();
+        var sesion = new SessionService { UsuarioActual = await bd.Contexto.Usuarios.FindAsync(IdUsuarioGerencia) };
+        var servicio = NuevoServicio(bd.Contexto, sesion);
+
+        await servicio.EditarTarifaAsync(habitacion.Id, 175.50m, IdUsuarioGerencia);
+
+        var habitacionActualizada = await bd.Contexto.Habitaciones.FindAsync(habitacion.Id);
+        Assert.Equal(175.50m, habitacionActualizada!.TarifaNoche);
+    }
+
+    [Fact]
+    public async Task EditarTarifaAsync_TarifaCeroONegativa_LanzaExcepcion()
+    {
+        using var bd = new BaseDeDatosDePrueba();
+        var habitacion = await bd.Contexto.Habitaciones.FirstAsync();
+        var sesion = new SessionService { UsuarioActual = await bd.Contexto.Usuarios.FindAsync(IdUsuarioGerencia) };
+        var servicio = NuevoServicio(bd.Contexto, sesion);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => servicio.EditarTarifaAsync(habitacion.Id, 0m, IdUsuarioGerencia));
+    }
+
+    [Fact]
+    public async Task EditarTarifaAsync_NoAfectaElTotalDeUnaEstadiaYaEnCurso()
+    {
+        using var bd = new BaseDeDatosDePrueba();
+        var sesion = new SessionService { UsuarioActual = await bd.Contexto.Usuarios.FindAsync(IdUsuarioGerencia) };
+        var servicio = NuevoServicio(bd.Contexto, sesion);
+        var habitacion = await bd.Contexto.Habitaciones.FirstAsync(h => h.Estado == EstadoHabitacion.Disponible);
+        var tarifaAlHacerCheckIn = habitacion.TarifaNoche;
+
+        await servicio.CheckInAsync(new NuevoCheckInDto { HabitacionId = habitacion.Id, NumeroDocumento = "12345678", NombreCompleto = "Juan Pérez", UsuarioId = IdUsuarioGerencia });
+        var estadia = await bd.Contexto.Estadias.SingleAsync(e => e.HabitacionId == habitacion.Id);
+        Assert.Equal(tarifaAlHacerCheckIn, estadia.TotalAcumulado);
+
+        await servicio.EditarTarifaAsync(habitacion.Id, tarifaAlHacerCheckIn + 100m, IdUsuarioGerencia);
+
+        var estadiaSinCambios = await bd.Contexto.Estadias.FindAsync(estadia.Id);
+        Assert.Equal(tarifaAlHacerCheckIn, estadiaSinCambios!.TotalAcumulado);
+    }
 }
