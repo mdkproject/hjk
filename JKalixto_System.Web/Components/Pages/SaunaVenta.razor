@@ -5,6 +5,7 @@
 @inject ISaunaService SaunaService
 @inject INotificadorCambios Notificador
 @inject SesionWebService Sesion
+@inject AuthenticationStateProvider AuthProvider
 @inject NavigationManager Navegacion
 
 <PageTitle>Venta</PageTitle>
@@ -14,7 +15,15 @@
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6" /></svg>
         Volver
     </a>
-    <div class="page-header"><h1>@(EstadiaId.HasValue ? $"Cafetería — Hab. {Numero}" : $"Venta — {Nombre}")</h1></div>
+    <div class="page-header">
+        <h1>@(EstadiaId.HasValue ? $"Cafetería — Hab. {Numero}" : $"Venta — {Nombre}")</h1>
+        @if (_puedeEditarPrecios)
+        {
+            <div class="page-actions">
+                <button class="btn btn-secundario" @onclick="() => _vistaModal = VistaModal.EditarPrecios">Editar precios</button>
+            </div>
+        }
+    </div>
 
     @if (_error is not null)
     {
@@ -88,10 +97,39 @@
             }
         </ModalBase>
         break;
+
+    case VistaModal.EditarPrecios:
+        <ModalBase Titulo="Editar precios del catálogo" OnCerrar="() => _vistaModal = VistaModal.Ninguno">
+            @if (_errorPrecios is not null)
+            {
+                <div class="caja-error"><p>@_errorPrecios</p></div>
+            }
+            <div style="max-height:60vh; overflow-y:auto;">
+                @foreach (var producto in _catalogo)
+                {
+                    <div style="display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--border); padding:10px 0;">
+                        <div style="flex:1; min-width:0;">
+                            <div style="font-weight:600;">@producto.Icono @producto.Nombre</div>
+                        </div>
+                        @if (producto.EsAlquilerVenta)
+                        {
+                            <input type="text" style="width:80px;" placeholder="Alquiler" value="@PrecioTextoEdicion(producto.ProductoId, alquiler: true)" @oninput="e => ActualizarPrecioEdicion(producto.ProductoId, alquiler: true, e.Value?.ToString())" />
+                            <input type="text" style="width:80px;" placeholder="Venta" value="@PrecioTextoEdicion(producto.ProductoId, alquiler: false)" @oninput="e => ActualizarPrecioEdicion(producto.ProductoId, alquiler: false, e.Value?.ToString())" />
+                        }
+                        else
+                        {
+                            <input type="text" style="width:80px;" value="@PrecioTextoEdicion(producto.ProductoId, alquiler: false)" @oninput="e => ActualizarPrecioEdicion(producto.ProductoId, alquiler: false, e.Value?.ToString())" />
+                        }
+                        <button class="btn btn-secundario" style="padding:6px 12px; font-size:0.8rem;" disabled="@_guardandoPrecios" @onclick="() => GuardarPrecioAsync(producto)">Guardar</button>
+                    </div>
+                }
+            </div>
+        </ModalBase>
+        break;
 }
 
 @code {
-    private enum VistaModal { Ninguno, ElegirAlquilerOVenta, ElegirCargoOCobro, ElegirMetodoPago }
+    private enum VistaModal { Ninguno, ElegirAlquilerOVenta, ElegirCargoOCobro, ElegirMetodoPago, EditarPrecios }
 
     [SupplyParameterFromQuery] public int? ClienteSaunaId { get; set; }
     [SupplyParameterFromQuery] public int? EstadiaId { get; set; }
@@ -107,6 +145,10 @@
     private ProductoCatalogoDto? _productoAlquilerVenta;
     private bool _esHuespedHotel;
     private bool _guardando;
+    private bool _puedeEditarPrecios;
+    private string? _errorPrecios;
+    private bool _guardandoPrecios;
+    private readonly Dictionary<(int ProductoId, bool Alquiler), string> _edicionPrecios = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -118,6 +160,79 @@
         catch (Exception ex)
         {
             _error = $"No se pudo cargar el catálogo: {ex.Message}";
+        }
+
+        var estadoAuth = await AuthProvider.GetAuthenticationStateAsync();
+        var rol = estadoAuth.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+        _puedeEditarPrecios = rol is "Gerencia" or "Desarrollador";
+    }
+
+    private string PrecioTextoEdicion(int productoId, bool alquiler)
+    {
+        if (_edicionPrecios.TryGetValue((productoId, alquiler), out var texto))
+        {
+            return texto;
+        }
+
+        var producto = _catalogo.First(p => p.ProductoId == productoId);
+        return (alquiler ? producto.PrecioAlquiler : (producto.EsAlquilerVenta ? producto.PrecioVenta : producto.Precio)).ToString("0.00");
+    }
+
+    private void ActualizarPrecioEdicion(int productoId, bool alquiler, string? valor)
+    {
+        _edicionPrecios[(productoId, alquiler)] = valor ?? string.Empty;
+    }
+
+    private async Task GuardarPrecioAsync(ProductoCatalogoDto producto)
+    {
+        if (_guardandoPrecios)
+        {
+            return;
+        }
+
+        decimal precio = producto.Precio;
+        decimal precioAlquiler = producto.PrecioAlquiler;
+        decimal precioVenta = producto.PrecioVenta;
+
+        if (producto.EsAlquilerVenta)
+        {
+            if (!decimal.TryParse(PrecioTextoEdicion(producto.ProductoId, alquiler: true), out precioAlquiler) ||
+                !decimal.TryParse(PrecioTextoEdicion(producto.ProductoId, alquiler: false), out precioVenta))
+            {
+                _errorPrecios = $"Precio inválido para '{producto.Nombre}'.";
+                return;
+            }
+        }
+        else if (!decimal.TryParse(PrecioTextoEdicion(producto.ProductoId, alquiler: false), out precio))
+        {
+            _errorPrecios = $"Precio inválido para '{producto.Nombre}'.";
+            return;
+        }
+
+        _guardandoPrecios = true;
+        _errorPrecios = null;
+        try
+        {
+            var usuario = await Sesion.ObtenerUsuarioActualAsync();
+            await SaunaService.EditarPrecioProductoAsync(new EditarPrecioProductoDto
+            {
+                ProductoId = producto.ProductoId,
+                Precio = precio,
+                PrecioAlquiler = precioAlquiler,
+                PrecioVenta = precioVenta
+            }, usuario.Id);
+
+            _catalogo = await SaunaService.ObtenerCatalogoAsync();
+            _edicionPrecios.Remove((producto.ProductoId, true));
+            _edicionPrecios.Remove((producto.ProductoId, false));
+        }
+        catch (Exception ex)
+        {
+            _errorPrecios = ex.Message;
+        }
+        finally
+        {
+            _guardandoPrecios = false;
         }
     }
 

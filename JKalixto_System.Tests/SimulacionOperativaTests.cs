@@ -49,7 +49,7 @@ public class SimulacionOperativaTests
         var comprobantes = new ComprobanteNumeracionService(contexto);
         var habitacionesSvc = new HabitacionService(contexto, auditoria, comprobantes, sesion);
         var reservasSvc = new ReservaService(contexto, auditoria);
-        var saunaSvc = new SaunaService(contexto, auditoria, comprobantes);
+        var saunaSvc = new SaunaService(contexto, auditoria, comprobantes, sesion);
         var gastosSvc = new GastosService(contexto, auditoria, sesion);
         var inventarioSvc = new InventarioService(contexto, auditoria);
         var cierreCajaSvc = new CierreCajaService(contexto, auditoria, gastosSvc);

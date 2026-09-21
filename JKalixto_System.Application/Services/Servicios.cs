@@ -2691,6 +2691,19 @@ public class ItemCarritoDto
     public decimal Subtotal => Cantidad * PrecioUnitario;
 }
 
+/// <summary>Cambio de precio sobre un producto del catálogo del POS — a propósito
+/// solo toca precio(s), no nombre/categoría/ícono (eso es catálogo, no algo que
+/// cambie con la frecuencia con la que sube un precio). Restringido a
+/// Gerencia/Desarrollador, igual que el resto de acciones que afectan cuánto se
+/// le cobra a un cliente.</summary>
+public class EditarPrecioProductoDto
+{
+    public int ProductoId { get; set; }
+    public decimal Precio { get; set; }
+    public decimal PrecioAlquiler { get; set; }
+    public decimal PrecioVenta { get; set; }
+}
+
 // ============================================================
 // MÓDULO SAUNA + POS — Servicio
 // ============================================================
@@ -3019,6 +3032,7 @@ public class InventarioService : IInventarioService
 public interface ISaunaService
 {
     Task<List<ProductoCatalogoDto>> ObtenerCatalogoAsync();
+    Task EditarPrecioProductoAsync(EditarPrecioProductoDto dto, int usuarioId);
     Task<List<ClienteSaunaCardDto>> ObtenerClientesActivosAsync();
     Task<int> RegistrarClienteAsync(NuevoClienteSaunaDto dto, int usuarioId);
     Task<List<HabitacionCardDto>> BuscarHuespedesActivosAsync();
@@ -3052,12 +3066,14 @@ public class SaunaService : ISaunaService
     private readonly AppDbContext _context;
     private readonly IAuditoriaService _auditoriaService;
     private readonly IComprobanteNumeracionService _comprobanteNumeracionService;
+    private readonly ISessionService _sessionService;
 
-    public SaunaService(AppDbContext context, IAuditoriaService auditoriaService, IComprobanteNumeracionService comprobanteNumeracionService)
+    public SaunaService(AppDbContext context, IAuditoriaService auditoriaService, IComprobanteNumeracionService comprobanteNumeracionService, ISessionService sessionService)
     {
         _context = context;
         _auditoriaService = auditoriaService;
         _comprobanteNumeracionService = comprobanteNumeracionService;
+        _sessionService = sessionService;
     }
 
     public async Task<List<ProductoCatalogoDto>> ObtenerCatalogoAsync()
@@ -3079,6 +3095,45 @@ public class SaunaService : ISaunaService
             PrecioAlquiler = p.PrecioAlquiler,
             PrecioVenta = p.PrecioVenta
         }).ToList();
+    }
+
+    public async Task EditarPrecioProductoAsync(EditarPrecioProductoDto dto, int usuarioId)
+    {
+        var rol = _sessionService.UsuarioActual?.Rol;
+        if (rol != RolUsuario.Gerencia && rol != RolUsuario.Desarrollador)
+        {
+            throw new UnauthorizedAccessException("No tienes permiso para cambiar precios del catálogo.");
+        }
+
+        if (dto.Precio < 0 || dto.PrecioAlquiler < 0 || dto.PrecioVenta < 0)
+        {
+            throw new InvalidOperationException("Los precios no pueden ser negativos.");
+        }
+
+        // AsTracking(): se modifica (Precio/PrecioAlquiler/PrecioVenta) y se guarda.
+        var producto = await _context.ProductosPOS.AsTracking().FirstOrDefaultAsync(p => p.Id == dto.ProductoId);
+        if (producto is null)
+        {
+            throw new InvalidOperationException("El producto no existe.");
+        }
+
+        var precioAnteriorTexto = producto.EsAlquilerVenta
+            ? $"Alquiler S/ {producto.PrecioAlquiler:0.00} / Venta S/ {producto.PrecioVenta:0.00}"
+            : $"S/ {producto.Precio:0.00}";
+
+        producto.Precio = dto.Precio;
+        producto.PrecioAlquiler = dto.PrecioAlquiler;
+        producto.PrecioVenta = dto.PrecioVenta;
+        await _context.SaveChangesAsync();
+
+        var precioNuevoTexto = producto.EsAlquilerVenta
+            ? $"Alquiler S/ {producto.PrecioAlquiler:0.00} / Venta S/ {producto.PrecioVenta:0.00}"
+            : $"S/ {producto.Precio:0.00}";
+
+        await _auditoriaService.RegistrarAsync(
+            "PRODUCTO_PRECIO_EDITADO",
+            $"Precio de '{producto.Nombre}' cambió de {precioAnteriorTexto} a {precioNuevoTexto}.",
+            usuarioId, "ProductoPOS", producto.Id);
     }
 
     public async Task<List<ClienteSaunaCardDto>> ObtenerClientesActivosAsync()
