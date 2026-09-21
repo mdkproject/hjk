@@ -1,5 +1,6 @@
 using System.IO;
 using System.Security.Claims;
+using System.Threading.RateLimiting;
 using ClosedXML.Excel;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -103,6 +104,32 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddCascadingAuthenticationState();
 
 // ------------------------------------------------------------------
+// LIMITADOR DE INTENTOS DE LOGIN — AuthService ya bloquea una CUENTA
+// puntual tras 5 intentos fallidos (ver IntentosFallidos/BloqueadoHasta en
+// Usuario), pero eso no frena a alguien probando muchos usuarios distintos
+// (o mandando el formulario en bucle) desde la misma máquina. Partición por
+// IP (no un límite global) para que un abuso desde una terminal no le
+// bloquee el login a las demás terminales del hotel.
+// ------------------------------------------------------------------
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddPolicy("login", httpContext => RateLimitPartition.GetFixedWindowLimiter(
+        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "sin-ip",
+        factory: _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 10,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
+
+    options.OnRejected = (context, token) =>
+    {
+        context.HttpContext.Response.Redirect("/login?error=1&mensaje=" + Uri.EscapeDataString("Demasiados intentos seguidos. Esperá un minuto e intentá de nuevo."));
+        return ValueTask.CompletedTask;
+    };
+});
+
+// ------------------------------------------------------------------
 // BASE DE DATOS — mismo archivo SQLite que ya usa la app de escritorio (MAUI),
 // pero ahora accedido por UN SOLO proceso: este servidor. Eso es justo lo que
 // resuelve, de raíz, el riesgo de compartir un .db por red entre varias
@@ -191,10 +218,52 @@ if (!app.Environment.IsDevelopment())
 // hotel (LAN), sin certificado propio — forzar HTTPS acá solo generaría
 // advertencias de "sitio no seguro" en el navegador de cada terminal sin
 // aportar nada, porque el tráfico ya está dentro de la red del negocio.
+
+// ------------------------------------------------------------------
+// CABECERAS DE SEGURIDAD — mitigan clickjacking (X-Frame-Options), que el
+// navegador "adivine" un tipo de contenido distinto al declarado
+// (X-Content-Type-Options), fuga de URLs internas a sitios externos
+// (Referrer-Policy), acceso a cámara/micrófono/ubicación desde este origen
+// (Permissions-Policy), e inyección de scripts (Content-Security-Policy).
+// Nada de esto necesita certificado ni infraestructura externa — son cabeceras
+// que el propio servidor agrega a cada respuesta.
+//
+// La CSP deja afuera scripts/estilos de otros orígenes y cualquier conexión
+// que no sea a este mismo servidor (así que un script inyectado por XSS no
+// puede cargar código externo ni exfiltrar datos a otro dominio), pero
+// permite 'unsafe-inline' en script-src y style-src: se probó primero sin
+// esa excepción y ASP.NET Core / Blazor rompían solo con eso (el propio
+// <ImportMap /> de App.razor imprime un <script type="importmap"> inline
+// cuyo contenido cambia con cada build, así que fijarlo por hash sha256 a
+// mano sería frágil -- se rompería en el próximo publish). Igual queda
+// bastante más restrictivo que no tener CSP: bloquea cargar o conectar a
+// cualquier dominio que no sea este mismo servidor.
+// ------------------------------------------------------------------
+app.Use(async (context, next) =>
+{
+    var headers = context.Response.Headers;
+    headers["X-Content-Type-Options"] = "nosniff";
+    headers["X-Frame-Options"] = "DENY";
+    headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()";
+    headers["Content-Security-Policy"] =
+        "default-src 'self'; " +
+        "script-src 'self' 'unsafe-inline'; " +
+        "style-src 'self' 'unsafe-inline'; " +
+        "img-src 'self' data:; " +
+        "font-src 'self'; " +
+        "connect-src 'self' ws: wss:; " +
+        "frame-ancestors 'none'; " +
+        "base-uri 'self'; " +
+        "form-action 'self';";
+    await next();
+});
+
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 app.UseAntiforgery();
 
@@ -243,7 +312,8 @@ app.MapPost("/account/login", async (HttpContext http, IAuthService authService)
     var returnUrl = form["returnUrl"].ToString();
     var destino = !string.IsNullOrWhiteSpace(returnUrl) && returnUrl.StartsWith('/') ? returnUrl : "/recepcion";
     return Results.Redirect(destino);
-}).AllowAnonymous(); // si no, el FallbackPolicy de arriba bloquearía el propio POST de login
+}).AllowAnonymous() // si no, el FallbackPolicy de arriba bloquearía el propio POST de login
+  .RequireRateLimiting("login");
 
 app.MapPost("/account/logout", async (HttpContext http) =>
 {

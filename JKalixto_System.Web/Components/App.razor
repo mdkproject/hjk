@@ -7,19 +7,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="64x64" href="/favicon-64.png" />
     <base href="/" />
-    <script>
-        // Aplica el tema guardado ANTES de que se pinte la página (si esto
-        // fuera parte de theme.js, cargado normalmente, se vería un
-        // parpadeo: un instante en oscuro y después el cambio a claro).
-        (function () {
-            try {
-                var tema = localStorage.getItem('jkalixto-tema');
-                if (tema === 'light' || tema === 'dark') {
-                    document.documentElement.setAttribute('data-theme', tema);
-                }
-            } catch (e) { }
-        })();
-    </script>
+    <script src="@Assets["theme-init.js"]"></script>
     <ResourcePreloader />
     <link rel="stylesheet" href="@Assets["app.css"]" />
     <script src="@Assets["theme.js"]"></script>
