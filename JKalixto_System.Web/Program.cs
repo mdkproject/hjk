@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using JKalixto_System.Application.Services;
+using JKalixto_System.Domain.Models;
 using JKalixto_System.Infrastructure.Data;
 using JKalixto_System.Infrastructure.Repositories;
 using JKalixto_System.Web.Components;
@@ -58,6 +59,34 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.AccessDeniedPath = "/login";
         options.ExpireTimeSpan = TimeSpan.FromHours(12);
         options.SlidingExpiration = true;
+
+        // "Cerrar sesión en todos los dispositivos" sin llevar una lista de
+        // sesiones activas: la cookie guarda el SecurityStamp vigente al momento
+        // del login; acá, en CADA request autenticado, se lo compara contra el
+        // valor actual en la base. Si no coincide (la contraseña cambió después
+        // de que se emitió esta cookie, en este mismo navegador o en cualquier
+        // otro), se rechaza la sesión y se manda a /login -- sin esperar a que
+        // expire sola en 12 horas.
+        options.Events.OnValidatePrincipal = async context =>
+        {
+            var usuarioIdTexto = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var stampDeLaCookie = context.Principal?.FindFirst("SecurityStamp")?.Value;
+            if (!int.TryParse(usuarioIdTexto, out var usuarioId))
+            {
+                context.RejectPrincipal();
+                return;
+            }
+
+            using var scope = context.HttpContext.RequestServices.CreateScope();
+            var repo = scope.ServiceProvider.GetRequiredService<IUsuarioRepository>();
+            var usuario = await repo.ObtenerPorIdAsync(usuarioId);
+
+            if (usuario is null || !usuario.Activo || usuario.SecurityStamp != stampDeLaCookie)
+            {
+                context.RejectPrincipal();
+                await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            }
+        };
     });
 // FallbackPolicy en vez de un simple AddAuthorization(): sin esto,
 // AuthorizeRouteView (Routes.razor) NO exige sesión en ninguna página a menos
@@ -121,6 +150,7 @@ builder.Services.AddScoped<IComprobanteNumeracionService, ComprobanteNumeracionS
 builder.Services.AddScoped<IRegistroHuespedesService, RegistroHuespedesService>();
 builder.Services.AddScoped<IReclamosService, ReclamosService>();
 builder.Services.AddScoped<IInformeMensualService, InformeMensualService>();
+builder.Services.AddScoped<IUsuarioAdminService, UsuarioAdminService>();
 
 // ISessionService sigue siendo Singleton en MAUI porque solo hay UN usuario por
 // instalación de escritorio. Acá NO puede ser Singleton — varias personas están
@@ -194,23 +224,18 @@ app.MapPost("/account/login", async (HttpContext http, IAuthService authService)
     var resultado = await authService.IniciarSesionAsync(username, password);
     if (!resultado.Exito || resultado.Usuario is null)
     {
-        return Results.Redirect("/login?error=1");
+        return Results.Redirect($"/login?error=1&mensaje={Uri.EscapeDataString(resultado.Mensaje)}");
     }
 
     var usuario = resultado.Usuario;
-    var claims = new List<Claim>
-    {
-        new(ClaimTypes.NameIdentifier, usuario.Id.ToString()),
-        new(ClaimTypes.Name, usuario.Username),
-        new(ClaimTypes.Role, usuario.Rol.ToString()),
-        new("NombreCompleto", usuario.NombreCompleto),
-    };
-    var identidad = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+    await FirmarSesionAsync(http, usuario);
 
-    await http.SignInAsync(
-        CookieAuthenticationDefaults.AuthenticationScheme,
-        new ClaimsPrincipal(identidad),
-        new AuthenticationProperties { IsPersistent = true, ExpiresUtc = DateTimeOffset.UtcNow.AddHours(12) });
+    // Cuenta sembrada con contraseña conocida (ej. "1234"): no la dejamos
+    // seguir de largo hasta que elija una propia.
+    if (usuario.DebeCambiarPassword)
+    {
+        return Results.Redirect("/cambiar-password?obligatorio=1");
+    }
 
     var returnUrl = form["returnUrl"].ToString();
     var destino = !string.IsNullOrWhiteSpace(returnUrl) && returnUrl.StartsWith('/') ? returnUrl : "/recepcion";
@@ -222,6 +247,69 @@ app.MapPost("/account/logout", async (HttpContext http) =>
     await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
     return Results.Redirect("/login");
 }).AllowAnonymous();
+
+// ------------------------------------------------------------------
+// CAMBIAR CONTRASEÑA — mismo motivo que /account/login para ser un endpoint
+// mínimo y no una página Blazor: hay que volver a firmar la cookie (con el
+// SecurityStamp nuevo) para que ESTA misma sesión no quede deslogueada por su
+// propio cambio de contraseña, y eso solo se puede hacer antes de que la
+// respuesta HTTP empiece a enviarse.
+// ------------------------------------------------------------------
+app.MapPost("/account/cambiar-password", async (HttpContext http, IUsuarioRepository usuarioRepo) =>
+{
+    if (http.User.Identity?.IsAuthenticated != true)
+    {
+        return Results.Redirect("/login");
+    }
+
+    var usuarioId = int.Parse(http.User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+    var usuario = await usuarioRepo.ObtenerPorIdAsync(usuarioId);
+    if (usuario is null)
+    {
+        return Results.Redirect("/login");
+    }
+
+    var form = await http.Request.ReadFormAsync();
+    var actual = form["actual"].ToString();
+    var nueva = form["nueva"].ToString();
+    var confirmacion = form["confirmacion"].ToString();
+
+    string? error = null;
+    if (!usuario.DebeCambiarPassword && !BCrypt.Net.BCrypt.Verify(actual, usuario.PasswordHash))
+    {
+        error = "La contraseña actual no es correcta.";
+    }
+    else if (nueva.Length < 6)
+    {
+        error = "La contraseña nueva debe tener al menos 6 caracteres.";
+    }
+    else if (nueva != confirmacion)
+    {
+        error = "La confirmación no coincide con la contraseña nueva.";
+    }
+    else if (BCrypt.Net.BCrypt.Verify(nueva, usuario.PasswordHash))
+    {
+        error = "La contraseña nueva tiene que ser distinta de la actual.";
+    }
+
+    if (error is not null)
+    {
+        var obligatorioTexto = usuario.DebeCambiarPassword ? "&obligatorio=1" : "";
+        return Results.Redirect($"/cambiar-password?error={Uri.EscapeDataString(error)}{obligatorioTexto}");
+    }
+
+    usuario.PasswordHash = BCrypt.Net.BCrypt.HashPassword(nueva);
+    usuario.DebeCambiarPassword = false;
+    usuario.SecurityStamp = Guid.NewGuid().ToString("N");
+    await usuarioRepo.ActualizarAsync(usuario);
+
+    // Re-firma esta misma sesión con el stamp nuevo -- si no, OnValidatePrincipal
+    // (arriba) la rechazaría en el próximo request, como corresponde a cualquier
+    // OTRA sesión abierta en otro dispositivo con la contraseña vieja.
+    await FirmarSesionAsync(http, usuario);
+
+    return Results.Redirect("/recepcion?password-cambiada=1");
+});
 
 // ------------------------------------------------------------------
 // EXPORTAR REPORTES A EXCEL — endpoint mínimo, no una página Blazor, porque
@@ -406,6 +494,30 @@ if (app.Environment.IsDevelopment())
 }
 
 app.Run();
+
+/// <summary>
+/// Arma los claims y firma la cookie de sesión para "usuario" — un solo lugar
+/// para esta lógica, usado tanto por /account/login como por
+/// /account/cambiar-password (que tiene que volver a firmar la MISMA sesión
+/// con el SecurityStamp nuevo después de un cambio de contraseña propio).
+/// </summary>
+static async Task FirmarSesionAsync(HttpContext http, Usuario usuario)
+{
+    var claims = new List<Claim>
+    {
+        new(ClaimTypes.NameIdentifier, usuario.Id.ToString()),
+        new(ClaimTypes.Name, usuario.Username),
+        new(ClaimTypes.Role, usuario.Rol.ToString()),
+        new("NombreCompleto", usuario.NombreCompleto),
+        new("SecurityStamp", usuario.SecurityStamp),
+    };
+    var identidad = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+
+    await http.SignInAsync(
+        CookieAuthenticationDefaults.AuthenticationScheme,
+        new ClaimsPrincipal(identidad),
+        new AuthenticationProperties { IsPersistent = true, ExpiresUtc = DateTimeOffset.UtcNow.AddHours(12) });
+}
 
 /// <summary>
 /// A propósito NO es igual a MauiProgram.InicializarBaseDeDatos: esa versión borra

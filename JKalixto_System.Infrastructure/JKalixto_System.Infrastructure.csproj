@@ -21,6 +21,15 @@
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
+		<!-- Overrides directos de dependencias TRANSITIVAS de
+		     Microsoft.EntityFrameworkCore.Sqlite que NuGet reportaba con
+		     vulnerabilidades conocidas (NU1903) en cada build. Fijar acá una
+		     versión más nueva y compatible hace que NuGet la use en todo el
+		     árbol de dependencias en vez de la que trae EF Core 10.0.10 por
+		     defecto. Revisar si se puede quitar este override cuando
+		     Microsoft.EntityFrameworkCore.Sqlite actualice su propia referencia. -->
+		<PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.13" />
+		<PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.12" />
 	</ItemGroup>
 
 	<ItemGroup>

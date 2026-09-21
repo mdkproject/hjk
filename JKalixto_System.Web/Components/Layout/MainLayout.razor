@@ -112,6 +112,11 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" /><path d="m9 12 2 2 4-4" /></svg>
                     <span>Ver Auditoría</span>
                 </NavLink>
+
+                <NavLink class="app-nav-link" href="/usuarios" Match="NavLinkMatch.Prefix">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+                    <span>Usuarios</span>
+                </NavLink>
             }
 
             <NavLink class="app-nav-link" href="/reportes" Match="NavLinkMatch.Prefix">
@@ -138,6 +143,9 @@
                             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z" /></svg>
                         }
                     </button>
+                    <a class="app-logout-btn" href="/cambiar-password" title="Cambiar mi contraseña" aria-label="Cambiar mi contraseña" style="display:flex; align-items:center; justify-content:center;">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5" /><path d="m10.6 12.4 6.9-6.9M15.5 7.5l2 2M18.5 4.5l2 2" /></svg>
+                    </a>
                     <form method="post" action="/account/logout">
                         <button class="app-logout-btn" type="submit" title="Cerrar sesión" aria-label="Cerrar sesión">
                             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></svg>

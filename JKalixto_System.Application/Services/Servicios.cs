@@ -77,14 +77,23 @@ public interface IAuthService
 /// <summary>
 /// Implementación del login. Compara la contraseña ingresada contra el hash
 /// guardado en BD usando BCrypt (nunca se compara texto plano contra texto plano).
+///
+/// Además bloquea la cuenta temporalmente después de varios intentos fallidos
+/// seguidos (fuerza bruta) y deja constancia en auditoría de cada intento sobre
+/// una cuenta real — agregado en la jornada de seguridad.
 /// </summary>
 public class AuthService : IAuthService
 {
     private readonly IUsuarioRepository _usuarioRepository;
+    private readonly IAuditoriaService _auditoriaService;
 
-    public AuthService(IUsuarioRepository usuarioRepository)
+    private const int MaxIntentosFallidos = 5;
+    private static readonly TimeSpan DuracionBloqueo = TimeSpan.FromMinutes(15);
+
+    public AuthService(IUsuarioRepository usuarioRepository, IAuditoriaService auditoriaService)
     {
         _usuarioRepository = usuarioRepository;
+        _auditoriaService = auditoriaService;
     }
 
     public async Task<ResultadoLogin> IniciarSesionAsync(string username, string password)
@@ -93,10 +102,27 @@ public class AuthService : IAuthService
 
         if (usuario is null)
         {
+            // No hay auditoría para este caso a propósito: LogAuditoria.UsuarioId tiene
+            // una clave foránea real a Usuario (ver AppDbContext), y un username que no
+            // existe no tiene ningún Id válido al cual atribuirle el intento.
             return new ResultadoLogin
             {
                 Exito = false,
                 Mensaje = "Usuario o contraseña incorrectos."
+            };
+        }
+
+        if (usuario.BloqueadoHasta.HasValue && usuario.BloqueadoHasta.Value > DateTime.Now)
+        {
+            var minutosRestantes = Math.Max(1, (int)Math.Ceiling((usuario.BloqueadoHasta.Value - DateTime.Now).TotalMinutes));
+            await _auditoriaService.RegistrarAsync(
+                "LOGIN_BLOQUEADO",
+                $"Intento de inicio de sesión de '{usuario.Username}' mientras la cuenta estaba bloqueada temporalmente por intentos fallidos.",
+                usuario.Id, "Usuario", usuario.Id);
+            return new ResultadoLogin
+            {
+                Exito = false,
+                Mensaje = $"Cuenta bloqueada temporalmente por demasiados intentos fallidos. Probá de nuevo en {minutosRestantes} minuto(s)."
             };
         }
 
@@ -113,12 +139,33 @@ public class AuthService : IAuthService
 
         if (!passwordValida)
         {
-            return new ResultadoLogin
+            usuario.IntentosFallidos++;
+            var mensaje = "Usuario o contraseña incorrectos.";
+
+            if (usuario.IntentosFallidos >= MaxIntentosFallidos)
             {
-                Exito = false,
-                Mensaje = "Usuario o contraseña incorrectos."
-            };
+                usuario.BloqueadoHasta = DateTime.Now.Add(DuracionBloqueo);
+                mensaje = $"Demasiados intentos fallidos. La cuenta quedó bloqueada por {(int)DuracionBloqueo.TotalMinutes} minutos.";
+            }
+
+            await _usuarioRepository.ActualizarAsync(usuario);
+            await _auditoriaService.RegistrarAsync(
+                "LOGIN_FALLIDO",
+                $"Contraseña incorrecta para '{usuario.Username}' (intento {usuario.IntentosFallidos} de {MaxIntentosFallidos}).",
+                usuario.Id, "Usuario", usuario.Id);
+
+            return new ResultadoLogin { Exito = false, Mensaje = mensaje };
         }
+
+        // Login correcto: resetea el contador de intentos y cualquier bloqueo vigente.
+        usuario.IntentosFallidos = 0;
+        usuario.BloqueadoHasta = null;
+        await _usuarioRepository.ActualizarAsync(usuario);
+
+        await _auditoriaService.RegistrarAsync(
+            "LOGIN_EXITOSO",
+            $"Inicio de sesión de '{usuario.Username}'.",
+            usuario.Id, "Usuario", usuario.Id);
 
         return new ResultadoLogin
         {
@@ -149,6 +196,187 @@ public class SessionService : ISessionService
     public void CerrarSesion()
     {
         UsuarioActual = null;
+    }
+}
+
+// ============================================================
+// GESTIÓN DE USUARIOS (implementación pendiente #3 de la jornada de
+// seguridad: antes solo se podían crear/editar usuarios a mano en la base).
+// ============================================================
+
+public class UsuarioListaDto
+{
+    public int Id { get; set; }
+    public string Username { get; set; } = string.Empty;
+    public string NombreCompleto { get; set; } = string.Empty;
+    public RolUsuario Rol { get; set; }
+    public bool Activo { get; set; }
+    public bool DebeCambiarPassword { get; set; }
+    public bool Bloqueado { get; set; }
+    public DateTime FechaCreacion { get; set; }
+}
+
+public class NuevoUsuarioDto
+{
+    public string Username { get; set; } = string.Empty;
+    public string NombreCompleto { get; set; } = string.Empty;
+    public RolUsuario Rol { get; set; }
+    public string PasswordInicial { get; set; } = string.Empty;
+}
+
+public class EditarUsuarioDto
+{
+    public int Id { get; set; }
+    public string NombreCompleto { get; set; } = string.Empty;
+    public RolUsuario Rol { get; set; }
+    public bool Activo { get; set; }
+}
+
+public interface IUsuarioAdminService
+{
+    Task<List<UsuarioListaDto>> ObtenerTodosAsync();
+    Task<int> CrearAsync(NuevoUsuarioDto dto, int usuarioQueCreaId);
+    Task ActualizarAsync(EditarUsuarioDto dto, int usuarioQueEditaId);
+
+    /// <summary>Gerencia/Desarrollador resetean la clave de alguien que la
+    /// olvidó — la cuenta queda obligada a elegir una nueva en el próximo login
+    /// (igual que las 3 cuentas sembradas) y se invalidan sus sesiones activas
+    /// en cualquier dispositivo (SecurityStamp nuevo).</summary>
+    Task ResetearPasswordAsync(int usuarioId, string passwordTemporal, int usuarioQueReseteaId);
+}
+
+/// <summary>
+/// CRUD de usuarios para la pantalla de administración — solo Gerencia/
+/// Desarrollador pueden usarlo (mismo criterio que ObtenerRecientesAsync en
+/// AuditoriaService: el chequeo de rol vive en el servicio, no solo en la UI,
+/// para que nadie lo salte llamando al método directo).
+/// </summary>
+public class UsuarioAdminService : IUsuarioAdminService
+{
+    private readonly IUsuarioRepository _usuarioRepository;
+    private readonly IAuditoriaService _auditoriaService;
+    private readonly ISessionService _sessionService;
+
+    public UsuarioAdminService(IUsuarioRepository usuarioRepository, IAuditoriaService auditoriaService, ISessionService sessionService)
+    {
+        _usuarioRepository = usuarioRepository;
+        _auditoriaService = auditoriaService;
+        _sessionService = sessionService;
+    }
+
+    private void ExigirPermiso()
+    {
+        var rol = _sessionService.UsuarioActual?.Rol;
+        if (rol != RolUsuario.Gerencia && rol != RolUsuario.Desarrollador)
+        {
+            throw new UnauthorizedAccessException("No tenés permiso para administrar usuarios.");
+        }
+    }
+
+    public async Task<List<UsuarioListaDto>> ObtenerTodosAsync()
+    {
+        ExigirPermiso();
+        var usuarios = await _usuarioRepository.ObtenerTodosAsync();
+        return usuarios.Select(u => new UsuarioListaDto
+        {
+            Id = u.Id,
+            Username = u.Username,
+            NombreCompleto = u.NombreCompleto,
+            Rol = u.Rol,
+            Activo = u.Activo,
+            DebeCambiarPassword = u.DebeCambiarPassword,
+            Bloqueado = u.BloqueadoHasta.HasValue && u.BloqueadoHasta.Value > DateTime.Now,
+            FechaCreacion = u.FechaCreacion
+        }).ToList();
+    }
+
+    public async Task<int> CrearAsync(NuevoUsuarioDto dto, int usuarioQueCreaId)
+    {
+        ExigirPermiso();
+
+        if (string.IsNullOrWhiteSpace(dto.Username) || string.IsNullOrWhiteSpace(dto.NombreCompleto))
+        {
+            throw new InvalidOperationException("Usuario y nombre completo son obligatorios.");
+        }
+        if (dto.PasswordInicial.Length < 6)
+        {
+            throw new InvalidOperationException("La contraseña inicial debe tener al menos 6 caracteres.");
+        }
+        if (await _usuarioRepository.ExisteUsernameAsync(dto.Username))
+        {
+            throw new InvalidOperationException($"Ya existe un usuario con el nombre '{dto.Username}'.");
+        }
+
+        var usuario = new Usuario
+        {
+            Username = dto.Username.Trim(),
+            NombreCompleto = dto.NombreCompleto.Trim(),
+            Rol = dto.Rol,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.PasswordInicial),
+            Activo = true,
+            FechaCreacion = DateTime.Now,
+            // Un admin eligió esta contraseña por la persona -- se la hace elegir
+            // una propia apenas entre, mismo criterio que las cuentas sembradas.
+            DebeCambiarPassword = true,
+            SecurityStamp = Guid.NewGuid().ToString("N")
+        };
+
+        var id = await _usuarioRepository.CrearAsync(usuario);
+
+        await _auditoriaService.RegistrarAsync(
+            "USUARIO_CREADO",
+            $"Se creó el usuario '{usuario.Username}' ({usuario.NombreCompleto}, rol {usuario.Rol}).",
+            usuarioQueCreaId, "Usuario", id);
+
+        return id;
+    }
+
+    public async Task ActualizarAsync(EditarUsuarioDto dto, int usuarioQueEditaId)
+    {
+        ExigirPermiso();
+
+        var usuario = await _usuarioRepository.ObtenerPorIdAsync(dto.Id)
+            ?? throw new InvalidOperationException("El usuario no existe.");
+
+        if (string.IsNullOrWhiteSpace(dto.NombreCompleto))
+        {
+            throw new InvalidOperationException("El nombre completo es obligatorio.");
+        }
+
+        usuario.NombreCompleto = dto.NombreCompleto.Trim();
+        usuario.Rol = dto.Rol;
+        usuario.Activo = dto.Activo;
+        await _usuarioRepository.ActualizarAsync(usuario);
+
+        await _auditoriaService.RegistrarAsync(
+            "USUARIO_EDITADO",
+            $"Se editó el usuario '{usuario.Username}' (rol {usuario.Rol}, {(usuario.Activo ? "activo" : "desactivado")}).",
+            usuarioQueEditaId, "Usuario", usuario.Id);
+    }
+
+    public async Task ResetearPasswordAsync(int usuarioId, string passwordTemporal, int usuarioQueReseteaId)
+    {
+        ExigirPermiso();
+
+        if (passwordTemporal.Length < 6)
+        {
+            throw new InvalidOperationException("La contraseña temporal debe tener al menos 6 caracteres.");
+        }
+
+        var usuario = await _usuarioRepository.ObtenerPorIdAsync(usuarioId)
+            ?? throw new InvalidOperationException("El usuario no existe.");
+
+        usuario.PasswordHash = BCrypt.Net.BCrypt.HashPassword(passwordTemporal);
+        usuario.DebeCambiarPassword = true;
+        usuario.IntentosFallidos = 0;
+        usuario.BloqueadoHasta = null;
+        usuario.SecurityStamp = Guid.NewGuid().ToString("N");
+        await _usuarioRepository.ActualizarAsync(usuario);
+
+        await _auditoriaService.RegistrarAsync(
+            "USUARIO_PASSWORD_RESETEADA",
+            $"Se reseteó la contraseña de '{usuario.Username}' — va a tener que elegir una nueva en el próximo login.",
+            usuarioQueReseteaId, "Usuario", usuario.Id);
     }
 }
 

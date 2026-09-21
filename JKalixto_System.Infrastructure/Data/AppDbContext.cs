@@ -378,20 +378,19 @@ public class AppDbContext : DbContext
 
     private static void SeedUsuarios(ModelBuilder modelBuilder)
     {
-        // ⚠️ ATENCIÓN ANTES DE INSTALAR EN EL HOTEL: estos 3 usuarios (incluido el
-        // de rol Desarrollador, que tiene acceso total) se crean SIEMPRE la primera
-        // vez que corre la app —también en una build Release— con la misma
-        // contraseña "1234" para los tres. Hoy no existe pantalla de "cambiar
-        // contraseña" en el sistema, así que hay que decidir cómo reemplazarla
-        // antes de usar datos reales (a mano en la base, o construyendo esa
-        // pantalla). No depender de esta contraseña por defecto en producción.
+        // Estos 3 usuarios (incluido el de rol Desarrollador, que tiene acceso
+        // total) se crean SIEMPRE la primera vez que corre la app —también en una
+        // build Release— con la misma contraseña "1234" para los tres.
+        // DebeCambiarPassword = true los obliga a elegir una propia en el primer
+        // login (ver /account/cambiar-password en Program.cs) — ya no dependen de
+        // que alguien se acuerde de cambiarla a mano antes de usar datos reales.
         const string hashPasswordDemo = "$2b$11$JucXsFC6/Xlkhh/qvHvjDejcGLdbOjdbfzyCbQEDTMJYxxWIf6Gf2";
         var fechaSeed = new DateTime(2026, 1, 1);
 
         modelBuilder.Entity<Usuario>().HasData(
-            new Usuario { Id = 1, Username = "gerencia.1", NombreCompleto = "Gerencia", Rol = RolUsuario.Gerencia, PasswordHash = hashPasswordDemo, Activo = true, FechaCreacion = fechaSeed },
-            new Usuario { Id = 5, Username = "recepcion", NombreCompleto = "Recepción General", Rol = RolUsuario.Recepcionista, PasswordHash = hashPasswordDemo, Activo = true, FechaCreacion = fechaSeed },
-            new Usuario { Id = 6, Username = "marcelo.dev", NombreCompleto = "Marcelo López", Rol = RolUsuario.Desarrollador, PasswordHash = hashPasswordDemo, Activo = true, FechaCreacion = fechaSeed }
+            new Usuario { Id = 1, Username = "gerencia.1", NombreCompleto = "Gerencia", Rol = RolUsuario.Gerencia, PasswordHash = hashPasswordDemo, Activo = true, FechaCreacion = fechaSeed, IntentosFallidos = 0, BloqueadoHasta = null, DebeCambiarPassword = true, SecurityStamp = "seed-gerencia-1" },
+            new Usuario { Id = 5, Username = "recepcion", NombreCompleto = "Recepción General", Rol = RolUsuario.Recepcionista, PasswordHash = hashPasswordDemo, Activo = true, FechaCreacion = fechaSeed, IntentosFallidos = 0, BloqueadoHasta = null, DebeCambiarPassword = true, SecurityStamp = "seed-recepcion-5" },
+            new Usuario { Id = 6, Username = "marcelo.dev", NombreCompleto = "Marcelo López", Rol = RolUsuario.Desarrollador, PasswordHash = hashPasswordDemo, Activo = true, FechaCreacion = fechaSeed, IntentosFallidos = 0, BloqueadoHasta = null, DebeCambiarPassword = true, SecurityStamp = "seed-marcelo-6" }
         );
     }
 

@@ -805,6 +805,17 @@ h1, h2, h3, h4 {
     box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
+/* Checkboxes nativos (ej. "Es menor de edad", "Requiere factura", "Cuenta
+   activa"): sin esto usan el estilo por defecto del navegador, que desentona
+   del resto del diseño. accent-color alcanza para tintarlos del dorado de la
+   marca sin perder el control nativo del sistema operativo. */
+.form-grupo input[type=checkbox] {
+    width: 17px;
+    height: 17px;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
 .form-grupo .campo-invalido {
     border-color: var(--danger) !important;
 }
@@ -1245,6 +1256,13 @@ h1, h2, h3, h4 {
        encabezado a la derecha lo suficiente para no superponerse. */
     .app-sidebar-header {
         padding-left: 60px;
+    }
+
+    /* El placeholder del buscador ("Buscar por número, huésped, celular o
+       documento…") se corta a la mitad de una palabra en pantallas angostas
+       — un pelo más chico entra completo sin perder legibilidad. */
+    .search-input input {
+        font-size: 0.82rem;
     }
 }
 

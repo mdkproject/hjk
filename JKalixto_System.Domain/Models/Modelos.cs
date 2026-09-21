@@ -37,6 +37,30 @@ public class Usuario
     public bool Activo { get; set; } = true;
 
     public DateTime FechaCreacion { get; set; }
+
+    // --- Seguridad de acceso (agregado en la jornada de seguridad) ---
+
+    /// <summary>Intentos de contraseña incorrecta consecutivos desde el último login
+    /// exitoso. Se resetea a 0 en cada login exitoso. Ver IAuthService — al llegar a
+    /// 5, la cuenta se bloquea temporalmente (BloqueadoHasta).</summary>
+    public int IntentosFallidos { get; set; }
+
+    /// <summary>Mientras esta fecha sea futura, el login se rechaza sin siquiera
+    /// verificar la contraseña, aunque sea la correcta — es el bloqueo temporal por
+    /// fuerza bruta.</summary>
+    public DateTime? BloqueadoHasta { get; set; }
+
+    /// <summary>True fuerza a este usuario a elegir una contraseña nueva antes de
+    /// poder usar el sistema — se activa al sembrar una cuenta con contraseña
+    /// conocida (ej. "1234") y se apaga sola la primera vez que la cambia.</summary>
+    public bool DebeCambiarPassword { get; set; }
+
+    /// <summary>Cambia cada vez que se actualiza la contraseña. La cookie de sesión
+    /// guarda el valor vigente al momento del login; si no coincide con el actual,
+    /// la sesión se da por vencida — es lo que permite "cerrar sesión en todos los
+    /// dispositivos" con solo cambiar la contraseña, sin llevar una lista de
+    /// sesiones activas.</summary>
+    public string SecurityStamp { get; set; } = Guid.NewGuid().ToString("N");
 }
 
 // ============================================================

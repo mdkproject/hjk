@@ -16,7 +16,7 @@
 
         @if (Error)
         {
-            <div class="caja-error"><p>Usuario o contraseña incorrectos.</p></div>
+            <div class="caja-error"><p>@(string.IsNullOrWhiteSpace(MensajeParam) ? "Usuario o contraseña incorrectos." : MensajeParam)</p></div>
         }
 
         <form method="post" action="/account/login">
@@ -40,6 +40,9 @@
 @code {
     [SupplyParameterFromQuery(Name = "error")]
     public string? ErrorParam { get; set; }
+
+    [SupplyParameterFromQuery(Name = "mensaje")]
+    public string? MensajeParam { get; set; }
 
     [SupplyParameterFromQuery(Name = "returnUrl")]
     public string? ReturnUrl { get; set; }
