@@ -173,6 +173,9 @@ builder.Services.AddScoped<SesionWebService>();
 // Respaldo periódico de la base de datos — ver RespaldoBaseDeDatosService.cs.
 builder.Services.AddHostedService<RespaldoBaseDeDatosService>();
 
+// Panel de Salud del Sistema (/salud) — ver SaludSistemaService.cs.
+builder.Services.AddScoped<SaludSistemaService>();
+
 var app = builder.Build();
 
 InicializarBaseDeDatos(app.Services, dbPath);
@@ -472,6 +475,127 @@ app.MapGet("/reportes/mensual/exportar-excel", async (HttpContext http, IInforme
         stream.ToArray(),
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         $"informe-mensual-{anio:0000}-{mes:00}.xlsx");
+});
+
+// ------------------------------------------------------------------
+// EXPORTAR GASTOS (caja chica del día) A EXCEL — mismo mecanismo que los dos
+// de arriba. A diferencia del Dashboard/Informe Mensual, Gastos.razor no
+// esconde montos a ningún rol (ver esa página), así que este export tampoco
+// enmascara nada — coincide con lo que cualquiera que entra a /gastos ya ve.
+// ------------------------------------------------------------------
+app.MapGet("/gastos/exportar-excel", async (HttpContext http, IGastosService gastosService) =>
+{
+    var hoy = DateTime.Now;
+    var movimientos = await gastosService.ObtenerDelDiaAsync(hoy);
+    var resumen = await gastosService.ObtenerResumenCajaChicaAsync(hoy);
+
+    using var libro = new XLWorkbook();
+    var hoja = libro.Worksheets.Add("Gastos");
+
+    hoja.Cell(1, 1).Value = "Movimientos de caja chica — " + hoy.ToString("dd/MM/yyyy");
+    hoja.Cell(1, 1).Style.Font.Bold = true;
+    hoja.Cell(1, 1).Style.Font.FontSize = 14;
+
+    hoja.Cell(3, 1).Value = "Caja Chica Hotel (base " + resumen.MontoBaseHotel.ToString("C") + ")";
+    hoja.Cell(3, 2).Value = resumen.MontoEsperadoHotel.ToString("C");
+    hoja.Cell(4, 1).Value = "Caja Chica Sauna (base " + resumen.MontoBaseSauna.ToString("C") + ")";
+    hoja.Cell(4, 2).Value = resumen.MontoEsperadoSauna.ToString("C");
+
+    var fila = 6;
+    hoja.Cell(fila, 1).Value = "Hora";
+    hoja.Cell(fila, 2).Value = "Origen";
+    hoja.Cell(fila, 3).Value = "Categoría";
+    hoja.Cell(fila, 4).Value = "Descripción";
+    hoja.Cell(fila, 5).Value = "Personal relacionado";
+    hoja.Cell(fila, 6).Value = "Cajero";
+    hoja.Cell(fila, 7).Value = "Método";
+    hoja.Cell(fila, 8).Value = "Monto";
+    hoja.Range(fila, 1, fila, 8).Style.Font.Bold = true;
+    fila++;
+
+    foreach (var m in movimientos)
+    {
+        hoja.Cell(fila, 1).Value = m.FechaHora.ToString("HH:mm");
+        hoja.Cell(fila, 2).Value = m.OrigenCaja.ToString();
+        hoja.Cell(fila, 3).Value = m.Categoria.ToString();
+        hoja.Cell(fila, 4).Value = m.Descripcion;
+        hoja.Cell(fila, 5).Value = m.PersonalRelacionado ?? "";
+        hoja.Cell(fila, 6).Value = m.UsuarioNombre;
+        hoja.Cell(fila, 7).Value = m.MetodoPago.ToString();
+        var signo = m.Direccion == DireccionMovimiento.Ingreso ? "+" : "-";
+        hoja.Cell(fila, 8).Value = signo + m.Monto.ToString("C");
+        fila++;
+    }
+
+    hoja.Columns(1, 8).AdjustToContents();
+
+    using var stream = new MemoryStream();
+    libro.SaveAs(stream);
+
+    return Results.File(
+        stream.ToArray(),
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        $"gastos-{hoy:yyyyMMdd}.xlsx");
+});
+
+// ------------------------------------------------------------------
+// EXPORTAR AUDITORÍA A EXCEL — mismo mecanismo, pero además exige rol
+// Gerencia/Desarrollador (igual que /auditoria). IAuditoriaService.
+// ObtenerRecientesAsync repite ese mismo chequeo puertas adentro leyendo
+// ISessionService.UsuarioActual — que en un endpoint minimal API (no un
+// circuito Blazor) nadie pobló todavía, así que acá se resuelve el usuario
+// directo desde la cookie ya autenticada por el middleware antes de llamar
+// al servicio (mismo Usuario que vería la sesión real, sin pasar por
+// AuthenticationStateProvider, que es específico de componentes Blazor).
+// ------------------------------------------------------------------
+app.MapGet("/auditoria/exportar-excel", async (HttpContext http, AppDbContext db, ISessionService sessionService, IAuditoriaService auditoriaService) =>
+{
+    var rol = http.User.FindFirst(ClaimTypes.Role)?.Value;
+    if (rol != "Gerencia" && rol != "Desarrollador")
+    {
+        return Results.Forbid();
+    }
+
+    var usuarioId = int.Parse(http.User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+    sessionService.UsuarioActual = await db.Usuarios.FirstAsync(u => u.Id == usuarioId);
+
+    var logs = await auditoriaService.ObtenerRecientesAsync(1000);
+
+    using var libro = new XLWorkbook();
+    var hoja = libro.Worksheets.Add("Auditoría");
+
+    hoja.Cell(1, 1).Value = "Registro de auditoría — " + DateTime.Now.ToString("dd/MM/yyyy HH:mm");
+    hoja.Cell(1, 1).Style.Font.Bold = true;
+    hoja.Cell(1, 1).Style.Font.FontSize = 14;
+
+    var fila = 3;
+    hoja.Cell(fila, 1).Value = "Fecha/Hora";
+    hoja.Cell(fila, 2).Value = "Acción";
+    hoja.Cell(fila, 3).Value = "Descripción";
+    hoja.Cell(fila, 4).Value = "Usuario";
+    hoja.Cell(fila, 5).Value = "Entidad";
+    hoja.Range(fila, 1, fila, 5).Style.Font.Bold = true;
+    fila++;
+
+    foreach (var log in logs)
+    {
+        hoja.Cell(fila, 1).Value = log.Timestamp.ToString("dd/MM/yyyy HH:mm:ss");
+        hoja.Cell(fila, 2).Value = log.TipoAccion;
+        hoja.Cell(fila, 3).Value = log.Descripcion;
+        hoja.Cell(fila, 4).Value = log.UsuarioNombre;
+        hoja.Cell(fila, 5).Value = log.EntidadAfectada + (log.EntidadId is { } id ? $" #{id}" : "");
+        fila++;
+    }
+
+    hoja.Columns(1, 5).AdjustToContents();
+
+    using var stream = new MemoryStream();
+    libro.SaveAs(stream);
+
+    return Results.File(
+        stream.ToArray(),
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        $"auditoria-{DateTime.Now:yyyyMMdd-HHmm}.xlsx");
 });
 
 // ------------------------------------------------------------------

@@ -10,7 +10,18 @@
 <PageTitle>Ver Auditoría</PageTitle>
 
 <div class="page">
-    <div class="page-header"><h1>Ver Auditoría</h1></div>
+    <div class="page-header">
+        <h1>Ver Auditoría</h1>
+        @if (!_sinPermiso)
+        {
+            <div class="page-actions">
+                <a class="btn btn-secundario" href="/auditoria/exportar-excel">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v13m0 0-4-4m4 4 4-4M4 20h16" /></svg>
+                    Exportar Excel
+                </a>
+            </div>
+        }
+    </div>
 
     @if (_sinPermiso)
     {

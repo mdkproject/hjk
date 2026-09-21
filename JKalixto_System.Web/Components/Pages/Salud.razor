@@ -1,0 +1,207 @@
+@page "/salud"
+@using JKalixto_System.Web.Services
+@inject SaludSistemaService SaludService
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>Salud del Sistema</PageTitle>
+
+<div class="page">
+    <div class="page-header">
+        <div>
+            <h1>Salud del Sistema</h1>
+            <p class="page-subtitle">Estado técnico del servidor — base de datos, respaldos y espacio en disco</p>
+        </div>
+        @if (_puedeVer)
+        {
+            <div class="page-actions">
+                <button class="btn btn-secundario" @onclick="CargarAsync">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-3-6.7" /><path d="M21 3v6h-6" /></svg>
+                    Actualizar
+                </button>
+            </div>
+        }
+    </div>
+
+    @if (!_puedeVer)
+    {
+        <div class="caja-error"><p>No tenés permiso para ver esta pantalla (solo Gerencia/Desarrollador).</p></div>
+    }
+    else if (_cargando)
+    {
+        <p class="empty-state">Cargando…</p>
+    }
+    else if (_error is not null)
+    {
+        <div class="caja-error"><p>@_error</p></div>
+    }
+    else if (_salud is { } s)
+    {
+        @if (s.HayMigracionesPendientes)
+        {
+            <div class="caja-error" style="margin-bottom:16px;">
+                <p><strong>Atención:</strong> hay @s.MigracionesPendientes.Count migración(es) de base de datos sin aplicar (@string.Join(", ", s.MigracionesPendientes)). El servidor debería haberlas aplicado solo al arrancar — si seguís viendo esto después de reiniciar el servicio, avisale a soporte técnico.</p>
+            </div>
+        }
+
+        <div class="kpi-grid" style="margin-bottom:18px;">
+            <div class="kpi-card">
+                <div class="kpi-label">Tamaño de la base de datos</div>
+                <div class="kpi-value">@FormatoBytes(s.TamanoBaseDeDatosBytes)</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Espacio libre en disco</div>
+                <div class="kpi-value" style="@(EspacioBajo(s) ? "color:var(--danger);" : "")">@FormatoBytes(s.EspacioLibreDiscoBytes)</div>
+                @if (s.EspacioTotalDiscoBytes > 0)
+                {
+                    <div style="color:var(--text-muted); font-size:0.78rem; margin-top:2px;">de @FormatoBytes(s.EspacioTotalDiscoBytes) totales</div>
+                }
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Tiempo activo (desde el último arranque)</div>
+                <div class="kpi-value">@FormatoDuracion(s.TiempoActivo)</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Entorno</div>
+                <div class="kpi-value">@s.Entorno</div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px;">
+            <h3 style="margin-top:0;">Respaldos automáticos</h3>
+            <table class="table-pro">
+                <thead>
+                    <tr>
+                        <th>Carpeta</th>
+                        <th>Último respaldo</th>
+                        <th>Copias guardadas</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>@s.CarpetaRespaldoPrincipal <span style="color:var(--text-muted);">(principal)</span></td>
+                        <td>@FormatoUltimoRespaldo(s.UltimoRespaldoPrincipal)</td>
+                        <td>@s.CantidadRespaldosPrincipal</td>
+                        <td>@EstadoRespaldo(s.UltimoRespaldoPrincipal)</td>
+                    </tr>
+                    @if (s.RespaldoSecundarioConfigurado)
+                    {
+                        <tr>
+                            <td>@s.CarpetaRespaldoSecundario <span style="color:var(--text-muted);">(secundaria — redundante)</span></td>
+                            <td>@FormatoUltimoRespaldo(s.UltimoRespaldoSecundario)</td>
+                            <td>@s.CantidadRespaldosSecundario</td>
+                            <td>@EstadoRespaldo(s.UltimoRespaldoSecundario)</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="4" style="color:var(--text-muted);">
+                                No hay carpeta secundaria configurada — los respaldos solo viven en este disco. Se puede activar en appsettings.json ("RespaldoBaseDeDatos:CarpetaSecundaria"), apuntando idealmente a una carpeta ya sincronizada por OneDrive/Google Drive/Dropbox instalado en esta PC.
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-label">Usuarios activos</div>
+                <div class="kpi-value">@s.TotalUsuariosActivos</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Habitaciones registradas</div>
+                <div class="kpi-value">@s.TotalHabitaciones</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Reservas confirmadas</div>
+                <div class="kpi-value">@s.TotalReservasConfirmadas</div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool _puedeVer;
+    private bool _cargando = true;
+    private string? _error;
+    private SaludSistemaDto? _salud;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var estadoAuth = await AuthProvider.GetAuthenticationStateAsync();
+        var rol = estadoAuth.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+        _puedeVer = rol is "Gerencia" or "Desarrollador";
+
+        if (_puedeVer)
+        {
+            await CargarAsync();
+        }
+    }
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        _error = null;
+        try
+        {
+            _salud = await SaludService.ObtenerAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo cargar el panel de salud: {ex.Message}";
+        }
+        finally
+        {
+            _cargando = false;
+        }
+    }
+
+    // Alerta visual si el último respaldo tiene más del doble del intervalo
+    // configurado (6h por defecto → alerta pasadas ~12h) — no hace falta leer
+    // el intervalo real acá, con no haber respaldado en más de un día alcanza
+    // para que sea una señal útil sin generar falsas alarmas por un servidor
+    // que recién arrancó.
+    private static string EstadoRespaldo(DateTime? ultimo)
+    {
+        if (ultimo is null)
+        {
+            return "⚠️ Sin respaldos todavía";
+        }
+        var horas = (DateTime.Now - ultimo.Value).TotalHours;
+        return horas > 24 ? "⚠️ Atrasado" : "✅ Al día";
+    }
+
+    private static bool EspacioBajo(SaludSistemaDto s) =>
+        s.EspacioTotalDiscoBytes > 0 && s.EspacioLibreDiscoBytes < s.EspacioTotalDiscoBytes * 0.10;
+
+    private static string FormatoUltimoRespaldo(DateTime? ultimo) =>
+        ultimo is { } fecha ? fecha.ToString("dd/MM/yyyy HH:mm") : "—";
+
+    private static string FormatoBytes(long bytes)
+    {
+        string[] unidades = { "B", "KB", "MB", "GB", "TB" };
+        double valor = bytes;
+        var i = 0;
+        while (valor >= 1024 && i < unidades.Length - 1)
+        {
+            valor /= 1024;
+            i++;
+        }
+        return $"{valor:0.#} {unidades[i]}";
+    }
+
+    private static string FormatoDuracion(TimeSpan t)
+    {
+        if (t.TotalDays >= 1)
+        {
+            return $"{(int)t.TotalDays}d {t.Hours}h {t.Minutes}m";
+        }
+        if (t.TotalHours >= 1)
+        {
+            return $"{(int)t.TotalHours}h {t.Minutes}m";
+        }
+        return $"{t.Minutes}m {t.Seconds}s";
+    }
+}

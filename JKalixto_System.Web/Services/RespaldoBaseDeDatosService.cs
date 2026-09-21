@@ -16,6 +16,15 @@ namespace JKalixto_System.Web.Services;
 ///
 /// Configurable en appsettings.json bajo "RespaldoBaseDeDatos" — si no se
 /// configura nada, usa los valores por defecto de acá abajo.
+///
+/// Además de la carpeta principal, admite una "CarpetaSecundaria" opcional —
+/// pensada para apuntarla a una carpeta sincronizada por un cliente de nube ya
+/// instalado en la PC (OneDrive, Google Drive, Dropbox, etc.): este servicio
+/// solo necesita escribir un archivo en una carpeta local, y es ese otro
+/// programa el que se encarga de subirlo — sin que este sistema tenga que
+/// manejar ninguna credencial de un servicio externo. Sin esa segunda copia,
+/// un robo o incendio en el hotel se lleva la base Y todos los respaldos
+/// juntos, porque hoy viven en el mismo disco físico.
 /// </summary>
 public class RespaldoBaseDeDatosService : BackgroundService
 {
@@ -40,19 +49,22 @@ public class RespaldoBaseDeDatosService : BackgroundService
     {
         var intervalo = TimeSpan.FromHours(_config.GetValue("RespaldoBaseDeDatos:IntervaloHoras", 6));
         var retener = _config.GetValue("RespaldoBaseDeDatos:RetenerCantidad", 30);
-        var carpeta = ResolverCarpetaDestino();
+        var carpetas = ResolverCarpetasDestino();
 
         // Primer respaldo apenas arranca — un hotel recién instalado no debería
         // depender de esperar 6 horas para tener la primera copia.
         while (!stoppingToken.IsCancellationRequested)
         {
-            try
+            foreach (var carpeta in carpetas)
             {
-                await HacerRespaldoAsync(carpeta, retener, stoppingToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "No se pudo completar el respaldo periódico de la base de datos.");
+                try
+                {
+                    await HacerRespaldoAsync(carpeta, retener, stoppingToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "No se pudo completar el respaldo periódico de la base de datos en {Carpeta}.", carpeta);
+                }
             }
 
             try
@@ -66,12 +78,23 @@ public class RespaldoBaseDeDatosService : BackgroundService
         }
     }
 
-    private string ResolverCarpetaDestino()
+    private List<string> ResolverCarpetasDestino()
     {
-        var configurada = _config["RespaldoBaseDeDatos:Carpeta"];
-        return string.IsNullOrWhiteSpace(configurada)
-            ? Path.Combine(_entorno.ContentRootPath, "Data", "Backups")
-            : configurada;
+        var principal = _config["RespaldoBaseDeDatos:Carpeta"];
+        var carpetas = new List<string>
+        {
+            string.IsNullOrWhiteSpace(principal)
+                ? Path.Combine(_entorno.ContentRootPath, "Data", "Backups")
+                : principal
+        };
+
+        var secundaria = _config["RespaldoBaseDeDatos:CarpetaSecundaria"];
+        if (!string.IsNullOrWhiteSpace(secundaria))
+        {
+            carpetas.Add(secundaria);
+        }
+
+        return carpetas;
     }
 
     private async Task HacerRespaldoAsync(string carpeta, int retener, CancellationToken token)
