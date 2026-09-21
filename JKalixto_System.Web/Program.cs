@@ -56,6 +56,13 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     .AddCookie(options =>
     {
         options.Cookie.Name = "JKalixtoAuth";
+        // HttpOnly y SameSite=Lax ya son los valores por defecto de ASP.NET Core acá,
+        // pero se dejan explícitos a propósito: HttpOnly bloquea que un script (ej.
+        // uno inyectado por XSS) lea la cookie desde JavaScript, y SameSite=Lax evita
+        // que un sitio externo la mande "de prestado" en un request de otro origen
+        // (CSRF) -- son la primera barrera, antes incluso del token de antiforgery.
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
         options.LoginPath = "/login";
         options.AccessDeniedPath = "/login";
         options.ExpireTimeSpan = TimeSpan.FromHours(12);
@@ -352,9 +359,9 @@ app.MapPost("/account/cambiar-password", async (HttpContext http, IUsuarioReposi
     {
         error = "La contraseña actual no es correcta.";
     }
-    else if (nueva.Length < 6)
+    else if (PoliticaPassword.Validar(nueva) is { } errorPolitica)
     {
-        error = "La contraseña nueva debe tener al menos 6 caracteres.";
+        error = errorPolitica;
     }
     else if (nueva != confirmacion)
     {

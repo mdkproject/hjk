@@ -81,7 +81,7 @@ public class UsuarioAdminServiceTests
 
         var antes = (await servicio.ObtenerTodosAsync()).First(u => u.Username == "recepcion");
 
-        await servicio.ResetearPasswordAsync(antes.Id, "nueva-clave-temporal", usuarioQueReseteaId: 1);
+        await servicio.ResetearPasswordAsync(antes.Id, "nueva-clave-temporal1", usuarioQueReseteaId: 1);
 
         var despues = (await servicio.ObtenerTodosAsync()).First(u => u.Username == "recepcion");
         Assert.True(despues.DebeCambiarPassword);

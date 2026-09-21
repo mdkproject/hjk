@@ -58,6 +58,35 @@ internal static class EtiquetaCategoriaMovimiento
 }
 
 /// <summary>
+/// Un solo lugar para la regla de "contraseña válida" — usado por el cambio de
+/// contraseña propio (Program.cs), la creación de usuarios y el reseteo de
+/// contraseña (UsuarioAdminService), para que las 3 pantallas exijan exactamente lo
+/// mismo. Mínimo 8 caracteres + al menos una letra y un número (no exige mayúsculas
+/// ni símbolos a propósito: personal de hotel sin mucha costumbre con sistemas, una
+/// regla más estricta termina en contraseñas anotadas en un papel al lado de la PC,
+/// que es peor que la que se busca evitar).
+/// </summary>
+public static class PoliticaPassword
+{
+    public static string? Validar(string password)
+    {
+        if (password.Length < 8)
+        {
+            return "La contraseña debe tener al menos 8 caracteres.";
+        }
+        if (!password.Any(char.IsLetter))
+        {
+            return "La contraseña debe incluir al menos una letra.";
+        }
+        if (!password.Any(char.IsDigit))
+        {
+            return "La contraseña debe incluir al menos un número.";
+        }
+        return null;
+    }
+}
+
+/// <summary>
 /// Resultado de un intento de inicio de sesión. Se usa "Exito" en vez de excepciones
 /// para que el ViewModel pueda mostrar un mensaje claro al recepcionista/gerente.
 /// </summary>
@@ -298,9 +327,9 @@ public class UsuarioAdminService : IUsuarioAdminService
         {
             throw new InvalidOperationException("Usuario y nombre completo son obligatorios.");
         }
-        if (dto.PasswordInicial.Length < 6)
+        if (PoliticaPassword.Validar(dto.PasswordInicial) is { } errorPassword)
         {
-            throw new InvalidOperationException("La contraseña inicial debe tener al menos 6 caracteres.");
+            throw new InvalidOperationException(errorPassword);
         }
         if (await _usuarioRepository.ExisteUsernameAsync(dto.Username))
         {
@@ -358,9 +387,9 @@ public class UsuarioAdminService : IUsuarioAdminService
     {
         ExigirPermiso();
 
-        if (passwordTemporal.Length < 6)
+        if (PoliticaPassword.Validar(passwordTemporal) is { } errorPassword)
         {
-            throw new InvalidOperationException("La contraseña temporal debe tener al menos 6 caracteres.");
+            throw new InvalidOperationException(errorPassword);
         }
 
         var usuario = await _usuarioRepository.ObtenerPorIdAsync(usuarioId)

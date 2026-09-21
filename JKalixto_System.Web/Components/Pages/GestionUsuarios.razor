@@ -121,7 +121,7 @@
                 </select>
             </div>
             <div class="form-grupo">
-                <label>Contraseña inicial (mínimo 6 caracteres)</label>
+                <label>Contraseña inicial (mínimo 8 caracteres, con una letra y un número)</label>
                 <input type="text" @bind="_nuevoPassword" @bind:event="oninput" placeholder="Se la vas a decir vos a la persona" />
                 <span style="font-size:0.78rem; color:var(--text-muted);">Va a tener que cambiarla apenas inicie sesión por primera vez.</span>
             </div>
@@ -184,7 +184,7 @@
             <p style="font-size:0.85rem; color:var(--text-secondary);">Se va a cerrar cualquier sesión abierta de este usuario en otros dispositivos, y va a tener que elegir una contraseña nueva la próxima vez que entre.</p>
 
             <div class="form-grupo">
-                <label>Contraseña temporal (mínimo 6 caracteres)</label>
+                <label>Contraseña temporal (mínimo 8 caracteres, con una letra y un número)</label>
                 <input type="text" @bind="_resetPassword" @bind:event="oninput" />
             </div>
 
