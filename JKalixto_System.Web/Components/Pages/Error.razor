@@ -1,28 +1,32 @@
 ﻿@page "/Error"
 @using System.Diagnostics
 
-<PageTitle>Error</PageTitle>
+<PageTitle>Error — JKalixto</PageTitle>
 
-<h1 class="text-danger">Error.</h1>
-<h2 class="text-danger">An error occurred while processing your request.</h2>
+@* Página que ve cualquiera cuando algo se rompe de verdad (excepción no
+   manejada) — a propósito NUNCA muestra el detalle técnico del error acá,
+   solo un "Request ID" para que soporte pueda buscarlo en los logs del
+   servidor sin exponerle a un huésped o recepcionista un stack trace. *@
+<div style="min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px;">
+    <div class="card" style="width:100%; max-width:420px; padding:28px 26px; text-align:center;">
+        <div class="app-logo" style="width:56px; height:56px; border-radius:16px; margin:0 auto 14px; background:transparent;">
+            <img src="/images/logo-transparente.png" alt="HJK" width="56" height="56" style="object-fit:contain;" />
+        </div>
+        <strong style="font-size:1.1rem;">Ocurrió un error inesperado</strong>
+        <p class="page-subtitle" style="margin-top:6px;">
+            Algo falló al procesar la solicitud. Probá de nuevo — si el problema sigue, avisale a soporte técnico.
+        </p>
 
-@if (ShowRequestId)
-{
-    <p>
-        <strong>Request ID:</strong> <code>@RequestId</code>
-    </p>
-}
+        @if (ShowRequestId)
+        {
+            <p style="font-size:0.8rem; color:var(--text-muted); margin-top:16px;">
+                Código de referencia: <code>@RequestId</code>
+            </p>
+        }
 
-<h3>Development Mode</h3>
-<p>
-    Swapping to <strong>Development</strong> environment will display more detailed information about the error that occurred.
-</p>
-<p>
-    <strong>The Development environment shouldn't be enabled for deployed applications.</strong>
-    It can result in displaying sensitive information from exceptions to end users.
-    For local debugging, enable the <strong>Development</strong> environment by setting the <strong>ASPNETCORE_ENVIRONMENT</strong> environment variable to <strong>Development</strong>
-    and restarting the app.
-</p>
+        <a class="btn btn-bloque" href="/" style="margin-top:16px;">Volver al inicio</a>
+    </div>
+</div>
 
 @code{
     [CascadingParameter]
