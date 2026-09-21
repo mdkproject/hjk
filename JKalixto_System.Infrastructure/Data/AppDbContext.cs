@@ -97,6 +97,10 @@ public class AppDbContext : DbContext
                   .WithOne()
                   .HasForeignKey(a => a.ReservaId)
                   .OnDelete(DeleteBehavior.Cascade);
+
+            // Calendario/Reservas cruzan "¿esta habitación tiene una reserva que se
+            // superpone con este rango de fechas?" en cada consulta de disponibilidad.
+            entity.HasIndex(r => new { r.HabitacionId, r.FechaInicio, r.FechaFin });
         });
 
         modelBuilder.Entity<AcompananteReserva>(entity =>
@@ -138,6 +142,17 @@ public class AppDbContext : DbContext
                   .WithOne()
                   .HasForeignKey(a => a.EstadiaId)
                   .OnDelete(DeleteBehavior.Cascade);
+
+            // Todos los reportes financieros (Dashboard, Informe Mensual, Reporte por
+            // Rango) filtran "FechaCheckOut entre X e Y" -- sin índice, cada uno es un
+            // escaneo completo de la tabla, cada vez más lento a medida que se
+            // acumulan años de estadías.
+            entity.HasIndex(e => e.FechaCheckOut);
+
+            // Recepción arma el tablero cruzando TODAS las habitaciones con las
+            // estadías "Activa" (ConstruirTarjetasAsync) -- se consulta en cada carga
+            // de esa pantalla, la más usada del día a día.
+            entity.HasIndex(e => e.Estado);
         });
 
         modelBuilder.Entity<Acompanante>(entity =>
@@ -195,6 +210,10 @@ public class AppDbContext : DbContext
                   .WithMany()
                   .HasForeignKey(v => v.UsuarioId)
                   .OnDelete(DeleteBehavior.Restrict);
+
+            // Mismo motivo que Estadia.FechaCheckOut: los reportes financieros
+            // filtran "Fecha entre X e Y" en cada consulta.
+            entity.HasIndex(v => v.Fecha);
         });
 
         modelBuilder.Entity<DetalleVenta>(entity =>
@@ -257,6 +276,10 @@ public class AppDbContext : DbContext
                   .WithMany()
                   .HasForeignKey(m => m.UsuarioId)
                   .OnDelete(DeleteBehavior.Restrict);
+
+            // Mismo motivo que Estadia.FechaCheckOut: Gastos, Informe Mensual y
+            // Reporte por Rango filtran "FechaHora entre X e Y" en cada consulta.
+            entity.HasIndex(m => m.FechaHora);
         });
 
         // ----------------------------------------------------------------
@@ -301,6 +324,11 @@ public class AppDbContext : DbContext
                   .WithMany()
                   .HasForeignKey(l => l.UsuarioId)
                   .OnDelete(DeleteBehavior.Restrict);
+
+            // ObtenerRecientesAsync ordena "ORDER BY Timestamp DESC" en cada carga de
+            // /auditoria -- sin índice, ordenar toda la tabla se pone más lento a
+            // medida que se acumulan años de registros.
+            entity.HasIndex(l => l.Timestamp);
         });
 
         // ----------------------------------------------------------------
