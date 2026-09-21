@@ -468,83 +468,31 @@ app.MapGet("/reportes/exportar-excel", async (HttpContext http, IDashboardServic
 // ------------------------------------------------------------------
 app.MapGet("/reportes/mensual/exportar-excel", async (HttpContext http, IInformeMensualService informeService, int anio, int mes) =>
 {
-    var rol = http.User.FindFirst(ClaimTypes.Role)?.Value;
-    var puedeVerFinanzas = rol is "Gerencia" or "Desarrollador";
-    string Monto(decimal valor) => puedeVerFinanzas ? valor.ToString("C") : "***";
-
+    var puedeVerFinanzas = EsRolFinanciero(http);
     var informe = await informeService.ObtenerInformeMensualAsync(anio, mes);
-
-    using var libro = new XLWorkbook();
-    var hoja = libro.Worksheets.Add("Informe " + informe.NombreMes);
-
-    hoja.Cell(1, 1).Value = "Informe Mensual — " + informe.NombreMes;
-    hoja.Cell(1, 1).Style.Font.Bold = true;
-    hoja.Cell(1, 1).Style.Font.FontSize = 14;
-
-    var fila = 3;
-    void Kpi(string etiqueta, string valor)
-    {
-        hoja.Cell(fila, 1).Value = etiqueta;
-        hoja.Cell(fila, 2).Value = valor;
-        fila++;
-    }
-
-    Kpi("Ingreso del mes", Monto(informe.IngresoTotal));
-    Kpi("Egreso del mes", Monto(informe.EgresoTotal));
-    Kpi("Saldo del mes", Monto(informe.Saldo));
-    Kpi("Saldo anterior (acumulado)", Monto(informe.SaldoAnterior));
-
-    void Seccion(string titulo, IEnumerable<(string etiqueta, decimal monto)> filas)
-    {
-        fila++;
-        hoja.Cell(fila, 1).Value = titulo;
-        hoja.Cell(fila, 1).Style.Font.Bold = true;
-        fila++;
-        foreach (var (etiqueta, monto) in filas)
-        {
-            hoja.Cell(fila, 1).Value = etiqueta;
-            hoja.Cell(fila, 2).Value = Monto(monto);
-            fila++;
-        }
-    }
-
-    Seccion("Ingresos por método", informe.IngresosPorMetodo.Select(m => (m.Etiqueta, m.Monto)));
-    Seccion("Ingresos por categoría", informe.IngresosPorCategoria.Select(c => (c.Etiqueta, c.Monto)));
-    Seccion("Egresos por método", informe.EgresosPorMetodo.Select(m => (m.Etiqueta, m.Monto)));
-    Seccion("Egresos por categoría", informe.EgresosPorCategoria.Select(c => (c.Etiqueta, c.Monto)));
-
-    fila++;
-    hoja.Cell(fila, 1).Value = "Libro diario";
-    hoja.Cell(fila, 1).Style.Font.Bold = true;
-    fila++;
-    hoja.Cell(fila, 1).Value = "Fecha";
-    hoja.Cell(fila, 2).Value = "Concepto";
-    hoja.Cell(fila, 3).Value = "Ingreso";
-    hoja.Cell(fila, 4).Value = "Salida";
-    hoja.Cell(fila, 5).Value = "Medio";
-    hoja.Cell(fila, 6).Value = "Responsable";
-    hoja.Range(fila, 1, fila, 6).Style.Font.Bold = true;
-    fila++;
-    foreach (var m in informe.LibroDiario)
-    {
-        hoja.Cell(fila, 1).Value = m.Fecha.ToString("dd/MM/yyyy HH:mm");
-        hoja.Cell(fila, 2).Value = m.Concepto;
-        hoja.Cell(fila, 3).Value = m.Ingreso is { } ing ? Monto(ing) : "";
-        hoja.Cell(fila, 4).Value = m.Salida is { } sal ? Monto(sal) : "";
-        hoja.Cell(fila, 5).Value = m.Medio;
-        hoja.Cell(fila, 6).Value = m.Responsable;
-        fila++;
-    }
-
-    hoja.Columns(1, 6).AdjustToContents();
-
-    using var stream = new MemoryStream();
-    libro.SaveAs(stream);
+    var bytes = ConstruirExcelInforme(informe, "Informe " + informe.NombreMes, "Informe Mensual — " + informe.NombreMes, puedeVerFinanzas);
 
     return Results.File(
-        stream.ToArray(),
+        bytes,
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         $"informe-mensual-{anio:0000}-{mes:00}.xlsx");
+});
+
+// ------------------------------------------------------------------
+// REPORTE POR RANGO DE FECHAS — misma estructura que el Informe Mensual,
+// pero para un rango elegido a mano en /reportes/rango (ej. una quincena o
+// una semana puntual) en vez de un mes calendario completo.
+// ------------------------------------------------------------------
+app.MapGet("/reportes/rango/exportar-excel", async (HttpContext http, IInformeMensualService informeService, DateTime desde, DateTime hasta) =>
+{
+    var puedeVerFinanzas = EsRolFinanciero(http);
+    var informe = await informeService.ObtenerInformePorRangoAsync(desde, hasta);
+    var bytes = ConstruirExcelInforme(informe, "Reporte " + informe.NombreMes, "Reporte por rango — " + informe.NombreMes, puedeVerFinanzas);
+
+    return Results.File(
+        bytes,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        $"reporte-{desde:yyyyMMdd}-{hasta:yyyyMMdd}.xlsx");
 });
 
 // ------------------------------------------------------------------
@@ -711,6 +659,99 @@ static async Task FirmarSesionAsync(HttpContext http, Usuario usuario)
         CookieAuthenticationDefaults.AuthenticationScheme,
         new ClaimsPrincipal(identidad),
         new AuthenticationProperties { IsPersistent = true, ExpiresUtc = DateTimeOffset.UtcNow.AddHours(12) });
+}
+
+/// <summary>Mismo chequeo de rol que ya repiten Dashboard.razor/InformeMensual.razor
+/// para decidir qué ve un Recepcionista, acá para los endpoints de exportar Excel.</summary>
+static bool EsRolFinanciero(HttpContext http)
+{
+    var rol = http.User.FindFirst(ClaimTypes.Role)?.Value;
+    return rol is "Gerencia" or "Desarrollador";
+}
+
+/// <summary>Arma el Excel de un InformeMensualDto — comparte estructura entre el
+/// Informe Mensual (/reportes/mensual/exportar-excel) y el Reporte por Rango de
+/// Fechas (/reportes/rango/exportar-excel), que solo difieren en cómo consiguieron
+/// el InformeMensualDto (un mes calendario completo vs. un rango elegido a mano).</summary>
+static byte[] ConstruirExcelInforme(InformeMensualDto informe, string nombreHoja, string encabezado, bool puedeVerFinanzas)
+{
+    string Monto(decimal valor) => puedeVerFinanzas ? valor.ToString("C") : "***";
+
+    using var libro = new XLWorkbook();
+    // Excel no permite \ / ? * [ ] : en el nombre de una hoja (ej. el "01/09/2026"
+    // de un reporte por rango los tiene) ni más de 31 caracteres -- se sanea acá en
+    // vez de en cada llamador.
+    var nombreHojaSano = string.Concat(nombreHoja.Select(c => "\\/?*[]:".Contains(c) ? '-' : c));
+    if (nombreHojaSano.Length > 31)
+    {
+        nombreHojaSano = nombreHojaSano[..31];
+    }
+    var hoja = libro.Worksheets.Add(nombreHojaSano);
+
+    hoja.Cell(1, 1).Value = encabezado;
+    hoja.Cell(1, 1).Style.Font.Bold = true;
+    hoja.Cell(1, 1).Style.Font.FontSize = 14;
+
+    var fila = 3;
+    void Kpi(string etiqueta, string valor)
+    {
+        hoja.Cell(fila, 1).Value = etiqueta;
+        hoja.Cell(fila, 2).Value = valor;
+        fila++;
+    }
+
+    Kpi("Ingresos", Monto(informe.IngresoTotal));
+    Kpi("Egresos", Monto(informe.EgresoTotal));
+    Kpi("Saldo", Monto(informe.Saldo));
+    Kpi("Saldo anterior (acumulado)", Monto(informe.SaldoAnterior));
+
+    void Seccion(string titulo, IEnumerable<(string etiqueta, decimal monto)> filas)
+    {
+        fila++;
+        hoja.Cell(fila, 1).Value = titulo;
+        hoja.Cell(fila, 1).Style.Font.Bold = true;
+        fila++;
+        foreach (var (etiqueta, monto) in filas)
+        {
+            hoja.Cell(fila, 1).Value = etiqueta;
+            hoja.Cell(fila, 2).Value = Monto(monto);
+            fila++;
+        }
+    }
+
+    Seccion("Ingresos por método", informe.IngresosPorMetodo.Select(m => (m.Etiqueta, m.Monto)));
+    Seccion("Ingresos por categoría", informe.IngresosPorCategoria.Select(c => (c.Etiqueta, c.Monto)));
+    Seccion("Egresos por método", informe.EgresosPorMetodo.Select(m => (m.Etiqueta, m.Monto)));
+    Seccion("Egresos por categoría", informe.EgresosPorCategoria.Select(c => (c.Etiqueta, c.Monto)));
+
+    fila++;
+    hoja.Cell(fila, 1).Value = "Libro diario";
+    hoja.Cell(fila, 1).Style.Font.Bold = true;
+    fila++;
+    hoja.Cell(fila, 1).Value = "Fecha";
+    hoja.Cell(fila, 2).Value = "Concepto";
+    hoja.Cell(fila, 3).Value = "Ingreso";
+    hoja.Cell(fila, 4).Value = "Salida";
+    hoja.Cell(fila, 5).Value = "Medio";
+    hoja.Cell(fila, 6).Value = "Responsable";
+    hoja.Range(fila, 1, fila, 6).Style.Font.Bold = true;
+    fila++;
+    foreach (var m in informe.LibroDiario)
+    {
+        hoja.Cell(fila, 1).Value = m.Fecha.ToString("dd/MM/yyyy HH:mm");
+        hoja.Cell(fila, 2).Value = m.Concepto;
+        hoja.Cell(fila, 3).Value = m.Ingreso is { } ing ? Monto(ing) : "";
+        hoja.Cell(fila, 4).Value = m.Salida is { } sal ? Monto(sal) : "";
+        hoja.Cell(fila, 5).Value = m.Medio;
+        hoja.Cell(fila, 6).Value = m.Responsable;
+        fila++;
+    }
+
+    hoja.Columns(1, 6).AdjustToContents();
+
+    using var stream = new MemoryStream();
+    libro.SaveAs(stream);
+    return stream.ToArray();
 }
 
 /// <summary>

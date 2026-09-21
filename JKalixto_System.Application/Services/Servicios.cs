@@ -1272,6 +1272,13 @@ public interface IInformeMensualService
 {
     Task<InformeMensualDto> ObtenerInformeMensualAsync(int anio, int mes);
 
+    /// <summary>Mismo informe que ObtenerInformeMensualAsync, pero para un rango de
+    /// fechas elegido a mano en vez de un mes calendario completo — por ejemplo, para
+    /// cerrar solo la primera quincena o revisar una semana puntual. "hastaInclusive"
+    /// es el último día que SÍ entra en el informe (a diferencia del "finExclusivo"
+    /// interno, para que quien llama no tenga que acordarse de sumar un día).</summary>
+    Task<InformeMensualDto> ObtenerInformePorRangoAsync(DateTime desde, DateTime hastaInclusive);
+
     /// <summary>Los últimos "cantidadMeses" meses, terminando en el mes actual.</summary>
     Task<List<EvolucionMesDto>> ObtenerEvolucionAsync(int cantidadMeses);
 }
@@ -1296,6 +1303,36 @@ public class InformeMensualService : IInformeMensualService
         var inicio = new DateTime(anio, mes, 1);
         var finExclusivo = inicio.AddMonths(1);
 
+        var informe = await ConstruirInformeAsync(inicio, finExclusivo);
+        informe.Anio = anio;
+        informe.Mes = mes;
+        informe.NombreMes = $"{NombresMeses[mes - 1]} {anio}";
+        return informe;
+    }
+
+    public async Task<InformeMensualDto> ObtenerInformePorRangoAsync(DateTime desde, DateTime hastaInclusive)
+    {
+        var inicio = desde.Date;
+        var finExclusivo = hastaInclusive.Date.AddDays(1);
+        if (finExclusivo <= inicio)
+        {
+            throw new InvalidOperationException("La fecha 'hasta' debe ser igual o posterior a la fecha 'desde'.");
+        }
+
+        var informe = await ConstruirInformeAsync(inicio, finExclusivo);
+        informe.NombreMes = inicio == hastaInclusive.Date
+            ? inicio.ToString("dd/MM/yyyy")
+            : $"{inicio:dd/MM/yyyy} — {hastaInclusive:dd/MM/yyyy}";
+        return informe;
+    }
+
+    /// <summary>Núcleo compartido por ObtenerInformeMensualAsync y
+    /// ObtenerInformePorRangoAsync — arma todo el informe (totales, desglose por
+    /// método/categoría, libro diario) para el rango [inicio, finExclusivo). No fija
+    /// Anio/Mes/NombreMes: eso es responsabilidad de cada método público, porque solo
+    /// tiene sentido real para un mes calendario completo.</summary>
+    private async Task<InformeMensualDto> ConstruirInformeAsync(DateTime inicio, DateTime finExclusivo)
+    {
         var (ingresoAnterior, egresoAnterior) = await CalcularTotalesAsync(DateTime.MinValue, inicio);
 
         // --- Ingresos "reales" del período: cuándo se cobró la plata de verdad. ---
@@ -1440,9 +1477,6 @@ public class InformeMensualService : IInformeMensualService
 
         return new InformeMensualDto
         {
-            Anio = anio,
-            Mes = mes,
-            NombreMes = $"{NombresMeses[mes - 1]} {anio}",
             IngresoTotal = ingresoHabitacion + ingresoVentas + ingresoMovimientos,
             EgresoTotal = egresoTotal,
             SaldoAnterior = ingresoAnterior - egresoAnterior,
